@@ -5,11 +5,12 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, UserPlus, Phone, Mail, MoreHorizontal, History } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History } from "lucide-react"
 import { MOCK_CUSTOMERS } from "@/lib/mock-data"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("")

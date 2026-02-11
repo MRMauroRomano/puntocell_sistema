@@ -12,6 +12,7 @@ import { Product, SaleItem, Customer } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Separator } from "@/components/ui/separator"
 
 export default function SalesPage() {
   const [cart, setCart] = useState<SaleItem[]>([])
