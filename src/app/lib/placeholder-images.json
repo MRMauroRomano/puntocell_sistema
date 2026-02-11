@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "logo",
+      "description": "CommerceManager Pro Corporate Logo",
+      "imageUrl": "https://picsum.photos/seed/cmpro-logo/200/200",
+      "imageHint": "corporate logo"
+    },
+    {
+      "id": "user-avatar",
+      "description": "System Administrator Avatar",
+      "imageUrl": "https://picsum.photos/seed/admin-avatar/100/100",
+      "imageHint": "user avatar"
+    }
+  ]
+}
