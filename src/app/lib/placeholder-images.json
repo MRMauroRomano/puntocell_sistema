@@ -3,15 +3,21 @@
   "placeholderImages": [
     {
       "id": "logo",
-      "description": "CommerceManager Pro Corporate Logo",
-      "imageUrl": "https://picsum.photos/seed/cmpro-logo/200/200",
-      "imageHint": "corporate logo"
+      "description": "TechStore Manager Corporate Logo",
+      "imageUrl": "https://picsum.photos/seed/tech-store-logo/200/200",
+      "imageHint": "tech logo"
     },
     {
       "id": "user-avatar",
       "description": "System Administrator Avatar",
-      "imageUrl": "https://picsum.photos/seed/admin-avatar/100/100",
-      "imageHint": "user avatar"
+      "imageUrl": "https://picsum.photos/seed/admin-tech/100/100",
+      "imageHint": "man tech"
+    },
+    {
+      "id": "hero-electronics",
+      "description": "Modern electronics store background",
+      "imageUrl": "https://picsum.photos/seed/store-interior/1200/600",
+      "imageHint": "electronics store"
     }
   ]
 }

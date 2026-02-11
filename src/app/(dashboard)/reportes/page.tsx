@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
 import { Calendar, Download, Filter, TrendingUp, DollarSign, Package, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 const data = [
   { name: 'Lun', ventas: 4000 },
@@ -18,10 +19,10 @@ const data = [
 ];
 
 const categoryData = [
-  { name: 'Despensa', value: 400 },
-  { name: 'Lácteos', value: 300 },
-  { name: 'Limpieza', value: 300 },
-  { name: 'Panadería', value: 200 },
+  { name: 'Smartphones', value: 450 },
+  { name: 'Computación', value: 300 },
+  { name: 'Audio', value: 150 },
+  { name: 'Accesorios', value: 100 },
 ];
 
 const COLORS = ['#A7D1AB', '#C4D7A8', '#859F87', '#5C745E'];
@@ -32,7 +33,7 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline">Reportes y Estadísticas</h1>
-          <p className="text-muted-foreground">Analiza el rendimiento de tu negocio con datos visuales.</p>
+          <p className="text-muted-foreground">Analiza el rendimiento de tu tienda de tecnología.</p>
         </div>
         <div className="flex gap-2">
            <Button variant="outline" className="gap-2">
@@ -53,7 +54,7 @@ export default function ReportsPage() {
                 </div>
                 <div>
                    <p className="text-sm text-muted-foreground font-medium">Ventas Totales</p>
-                   <p className="text-2xl font-bold font-headline">$45,280.00</p>
+                   <p className="text-2xl font-bold font-headline">$145,280.00</p>
                 </div>
              </div>
           </CardContent>
@@ -66,7 +67,7 @@ export default function ReportsPage() {
                 </div>
                 <div>
                    <p className="text-sm text-muted-foreground font-medium">Margen Promedio</p>
-                   <p className="text-2xl font-bold font-headline">32.4%</p>
+                   <p className="text-2xl font-bold font-headline">18.4%</p>
                 </div>
              </div>
           </CardContent>
@@ -79,7 +80,7 @@ export default function ReportsPage() {
                 </div>
                 <div>
                    <p className="text-sm text-muted-foreground font-medium">Productos Activos</p>
-                   <p className="text-2xl font-bold font-headline">124</p>
+                   <p className="text-2xl font-bold font-headline">86</p>
                 </div>
              </div>
           </CardContent>
@@ -92,7 +93,7 @@ export default function ReportsPage() {
                 </div>
                 <div>
                    <p className="text-sm text-muted-foreground font-medium">Clientes Registrados</p>
-                   <p className="text-2xl font-bold font-headline">382</p>
+                   <p className="text-2xl font-bold font-headline">1,240</p>
                 </div>
              </div>
           </CardContent>
@@ -109,7 +110,7 @@ export default function ReportsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Evolución de Ventas Semanal</CardTitle>
-              <CardDescription>Ingresos generados por ventas directas y pagos de cuenta corriente.</CardDescription>
+              <CardDescription>Ingresos generados por ventas de hardware y servicios técnicos.</CardDescription>
             </CardHeader>
             <CardContent className="h-[400px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -132,7 +133,7 @@ export default function ReportsPage() {
              <Card>
                 <CardHeader>
                   <CardTitle>Ventas por Categoría</CardTitle>
-                  <CardDescription>Distribución porcentual de ventas por rubro.</CardDescription>
+                  <CardDescription>Distribución porcentual del volumen de ventas.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -163,11 +164,11 @@ export default function ReportsPage() {
                 <CardContent>
                    <div className="space-y-4">
                       {[
-                        { name: 'Leche Entera 1L', qty: 156, growth: '+12%' },
-                        { name: 'Pan de Molde', qty: 124, growth: '+5%' },
-                        { name: 'Aceite de Oliva', qty: 98, growth: '+18%' },
-                        { name: 'Arroz Extra', qty: 85, growth: '-2%' },
-                        { name: 'Detergente Líquido', qty: 74, growth: '+10%' },
+                        { name: 'iPhone 15 Pro', qty: 42, growth: '+25%' },
+                        { name: 'Cargador 20W USB-C', qty: 156, growth: '+12%' },
+                        { name: 'Samsung Galaxy S24', qty: 28, growth: '+8%' },
+                        { name: 'AirPods Pro (2nd)', qty: 35, growth: '+15%' },
+                        { name: 'Funda Protectora', qty: 120, growth: '+5%' },
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                            <div className="flex items-center gap-3">
@@ -191,7 +192,7 @@ export default function ReportsPage() {
           <Card>
              <CardHeader>
                <CardTitle>Comparativa de Crecimiento</CardTitle>
-               <CardDescription>Proyección de ventas vs meses anteriores.</CardDescription>
+               <CardDescription>Ventas de nuevos lanzamientos vs stock permanente.</CardDescription>
              </CardHeader>
              <CardContent className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">

@@ -3,8 +3,8 @@ import type {Metadata} from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'CommerceManager Pro - Sistema Administrativo',
-  description: 'Gestión integral de ventas, stock y clientes.',
+  title: 'TechStore Manager - Gestión de Electrónica',
+  description: 'Sistema integral de ventas para tiendas de celulares, computación y electrónica.',
 };
 
 export default function RootLayout({
