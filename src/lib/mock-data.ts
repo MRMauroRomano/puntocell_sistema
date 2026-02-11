@@ -1,5 +1,5 @@
 
-import { Product, Customer, Sale, InventoryMovement } from './types';
+import { Product, Customer, Sale, BillingConfig } from './types';
 
 export const MOCK_PRODUCTS: Product[] = [
   { id: '1', name: 'iPhone 15 Pro 128GB', sku: 'IPH-015', category: 'Smartphones', price: 1200.00, stock: 15, minStock: 5 },
@@ -16,6 +16,11 @@ export const MOCK_CUSTOMERS: Customer[] = [
   { id: 'c3', name: 'Carlos López', email: 'carlos@example.com', phone: '456123789', balance: 1250.50 },
 ];
 
+export const MOCK_BILLING_CONFIGS: BillingConfig[] = [
+  { id: '1', name: 'TechStore Principal', cuit: '30-71112223-9', description: 'Facturación estándar' },
+  { id: '2', name: 'TechStore Accesorios', cuit: '20-33444555-2', description: 'Monotributo / Otros' },
+];
+
 export const MOCK_SALES: Sale[] = [
   {
     id: 's1',
@@ -26,6 +31,7 @@ export const MOCK_SALES: Sale[] = [
     subtotal: 50.00,
     tax: 10.50,
     total: 60.50,
-    paymentMethod: 'cash'
+    paymentMethod: 'cash',
+    billingCuit: '30-71112223-9'
   }
 ];

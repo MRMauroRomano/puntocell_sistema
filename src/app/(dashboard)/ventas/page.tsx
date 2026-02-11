@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2 } from "lucide-react"
-import { MOCK_PRODUCTS, MOCK_CUSTOMERS } from "@/lib/mock-data"
-import { Product, SaleItem, Customer } from "@/lib/types"
+import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck } from "lucide-react"
+import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
+import { Product, SaleItem } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -18,6 +18,7 @@ export default function SalesPage() {
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>(MOCK_BILLING_CONFIGS[0].id)
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_account'>('cash')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
 
@@ -54,6 +55,8 @@ export default function SalesPage() {
   const subtotal = cart.reduce((acc, curr) => acc + curr.subtotal, 0)
   const tax = subtotal * 0.21 // 21% Tax
   const total = subtotal + tax
+
+  const selectedBillingConfig = MOCK_BILLING_CONFIGS.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishSale = () => {
     setIsSuccessDialogOpen(true)
@@ -184,23 +187,22 @@ export default function SalesPage() {
               </div>
             </div>
 
-            <div className="w-full space-y-3 pt-4">
-               <div className="flex gap-2">
-                  <div className="flex-1 space-y-1">
-                    <label className="text-xs font-bold uppercase text-muted-foreground">Cliente (Opcional)</label>
-                    <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId || ""}>
+            <div className="w-full space-y-3 pt-4 border-t">
+               <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Facturar como:</label>
+                    <Select onValueChange={setSelectedBillingCuitId} value={selectedBillingCuitId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Consumidor Final" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="final">Consumidor Final</SelectItem>
-                        {MOCK_CUSTOMERS.map(c => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        {MOCK_BILLING_CONFIGS.map(b => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="w-32 space-y-1">
+                  <div className="space-y-1">
                     <label className="text-xs font-bold uppercase text-muted-foreground">Pago</label>
                     <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
                       <SelectTrigger>
@@ -212,6 +214,21 @@ export default function SalesPage() {
                       </SelectContent>
                     </Select>
                   </div>
+               </div>
+
+               <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Cliente (Opcional)</label>
+                  <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId || ""}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Consumidor Final" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="final">Consumidor Final</SelectItem>
+                      {MOCK_CUSTOMERS.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                </div>
               
               <Button 
@@ -246,6 +263,13 @@ export default function SalesPage() {
              <div className="flex justify-between">
                 <span className="text-sm">Método:</span>
                 <span className="text-sm font-bold uppercase">{paymentMethod === 'cash' ? 'Efectivo' : 'Cuenta Corriente'}</span>
+             </div>
+             <div className="flex justify-between pt-2 border-t border-muted-foreground/20">
+                <span className="text-xs flex items-center gap-1"><FileCheck className="h-3 w-3" /> Facturado por:</span>
+                <span className="text-xs font-medium">{selectedBillingConfig?.name}</span>
+             </div>
+             <div className="flex justify-end">
+                <span className="text-[10px] text-muted-foreground">CUIT: {selectedBillingConfig?.cuit}</span>
              </div>
           </div>
           <DialogFooter className="flex-col sm:flex-col gap-2">

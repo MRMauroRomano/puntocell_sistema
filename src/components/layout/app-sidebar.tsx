@@ -40,6 +40,7 @@ const navItems = [
   { title: "Clientes", icon: Users, href: "/clientes" },
   { title: "Cuenta Corriente", icon: CreditCard, href: "/cuenta-corriente" },
   { title: "Reportes", icon: BarChart3, href: "/reportes" },
+  { title: "Configuración", icon: Settings, href: "/configuracion" },
 ]
 
 export function AppSidebar() {

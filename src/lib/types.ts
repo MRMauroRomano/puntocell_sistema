@@ -37,6 +37,7 @@ export interface Sale {
   tax: number;
   total: number;
   paymentMethod: 'cash' | 'credit_account';
+  billingCuit?: string; // CUIT used for this sale
 }
 
 export interface InventoryMovement {
@@ -55,4 +56,16 @@ export interface AccountTransaction {
   amount: number;
   type: 'purchase' | 'payment';
   description: string;
+}
+
+export interface BillingConfig {
+  id: string;
+  name: string;
+  cuit: string;
+  description?: string;
+}
+
+export interface StoreSettings {
+  storeName: string;
+  billingConfigs: BillingConfig[];
 }
