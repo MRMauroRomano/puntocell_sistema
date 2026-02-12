@@ -23,7 +23,7 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
     
-    match /cashregister/{dayId} {
+    match /expenses/{expenseId} {
       allow read, write: if isSignedIn();
     }
 

@@ -60,18 +60,19 @@
       },
       "required": ["id", "date", "total", "paymentMethod"]
     },
-    "CashRegister": {
-      "title": "CashRegister",
+    "Expense": {
+      "title": "Expense",
       "type": "object",
-      "description": "Daily cash register tracking.",
+      "description": "Store operational expenses.",
       "properties": {
-        "id": { "type": "string", "description": "Format: YYYY-MM-DD" },
-        "openingBalance": { "type": "number" },
-        "closingBalance": { "type": "number" },
-        "totalSales": { "type": "number" },
-        "status": { "type": "string", "enum": ["open", "closed"] }
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "paymentMethod": { "type": "string" }
       },
-      "required": ["id", "openingBalance", "status"]
+      "required": ["id", "date", "description", "category", "amount", "paymentMethod"]
     }
   },
   "auth": {
@@ -108,10 +109,10 @@
         }
       },
       {
-        "path": "/cashregister/{dayId}",
+        "path": "/expenses/{expenseId}",
         "definition": {
-          "entityName": "CashRegister",
-          "description": "Daily cash register sessions."
+          "entityName": "Expense",
+          "description": "Historical record of all operational expenses."
         }
       }
     ]

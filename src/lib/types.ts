@@ -48,6 +48,15 @@ export interface Sale {
   billingName?: string;
 }
 
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  paymentMethod: string;
+}
+
 export interface InventoryMovement {
   id: string;
   productId: string;

@@ -14,7 +14,8 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  Store
+  Store,
+  Wallet
 } from "lucide-react"
 
 import {
@@ -40,6 +41,7 @@ const navItems = [
   { title: "Ventas", icon: ShoppingCart, href: "/ventas" },
   { title: "Productos", icon: Package, href: "/productos" },
   { title: "Clientes", icon: Users, href: "/clientes" },
+  { title: "Gastos", icon: Wallet, href: "/gastos" },
   { title: "Cuenta Corriente", icon: CreditCard, href: "/cuenta-corriente" },
   { title: "Reportes", icon: BarChart3, href: "/reportes" },
   { title: "Configuración", icon: Settings, href: "/configuracion" },
