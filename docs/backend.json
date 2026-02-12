@@ -31,6 +31,20 @@
       },
       "required": ["uid", "email", "role"]
     },
+    "Customer": {
+      "title": "Customer",
+      "type": "object",
+      "description": "Customer information and account balance.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "balance": { "type": "number" }
+      },
+      "required": ["id", "name", "balance"]
+    },
     "Sale": {
       "title": "Sale",
       "type": "object",
@@ -76,6 +90,13 @@
         "definition": {
           "entityName": "Product",
           "description": "Inventory of cellphones and electronics."
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "description": "Collection of store customers."
         }
       },
       {
