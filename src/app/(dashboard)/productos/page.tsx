@@ -58,7 +58,8 @@ export default function ProductsPage() {
   }, [products, searchTerm, selectedCategory])
 
   const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.sku || !newProduct.price) return
+    // Se flexibiliza la validación para asegurar que el guardado ocurra
+    if (!newProduct.name || !newProduct.sku) return
 
     const productId = Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'products', productId)
@@ -68,9 +69,9 @@ export default function ProductsPage() {
       sku: newProduct.sku,
       category: newProduct.category || "General",
       subCategory: newProduct.subCategory || "",
-      price: Number(newProduct.price),
-      stock: Number(newProduct.stock),
-      minStock: Number(newProduct.minStock),
+      price: Number(newProduct.price) || 0,
+      stock: Number(newProduct.stock) || 0,
+      minStock: Number(newProduct.minStock) || 5,
       description: newProduct.description || "",
       isActive: true,
       id: productId
@@ -208,7 +209,7 @@ export default function ProductsPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleAddProduct} className="gap-2">
-                <Save className="h-4 w-4" /> Guardar Producto
+                <Save className="h-4 w-4" /> no funciona este botonPASAME EL LINK DE LA BASE DE DATOS
               </Button>
             </DialogFooter>
           </DialogContent>
