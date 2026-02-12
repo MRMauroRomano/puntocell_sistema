@@ -1,19 +1,31 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * REGLAS DE SEGURIDAD PARA PROTOTIPADO
-     * 
-     * Permitimos lectura y escritura a cualquier usuario autenticado (incluyendo anónimos)
-     * en todas las colecciones para facilitar el desarrollo del sistema de gestión.
-     */
-
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Permitir acceso a todas las colecciones principales del sistema
+    // Permitir acceso total a productos, ventas, usuarios y caja para usuarios autenticados
+    // Esto facilita el desarrollo del prototipo de gestión.
+    match /products/{productId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /users/{uid} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /sales/{saleId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    match /cashregister/{dayId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Regla de respaldo para cualquier otra colección
     match /{document=**} {
       allow read, write: if isSignedIn();
     }
