@@ -92,6 +92,7 @@ export default function SalesPage() {
     const customer = customers?.find(c => c.id === selectedCustomerId)
     const customerName = selectedCustomerId === 'final' || !customer ? 'Consumidor Final' : customer.name
     const customerCuit = customer?.cuit || ""
+    const customerAddress = customer?.address || "Domicilio no registrado"
 
     const saleData: Sale = {
       id: saleId,
@@ -129,7 +130,7 @@ export default function SalesPage() {
         })
       }
 
-      setLastSale(saleData)
+      setLastSale({ ...saleData, customerAddress } as any)
       toast({
         title: "Venta Registrada",
         description: `Se generó la ${getInvoiceLabel(invoiceType)} correctamente.`,
@@ -403,88 +404,168 @@ export default function SalesPage() {
       </div>
 
       {lastSale && (
-        <div className="print-only p-8 text-black bg-white min-h-screen">
-          <div className="border-2 border-black p-6 space-y-6">
-            <div className="flex justify-between items-start border-b-2 border-black pb-4">
-              <div className="space-y-1">
-                <h1 className="text-2xl font-bold uppercase">{lastSale.billingName}</h1>
-                <p className="text-sm font-bold">Responsable Inscripto</p>
-                <p className="text-xs">Av. Corrientes 4500, CABA</p>
-                <p className="text-xs font-bold">CUIT: {lastSale.billingCuit}</p>
-                <p className="text-xs">Inicio de Actividades: 01/01/2023</p>
+        <div className="print-only p-4 text-black bg-white min-h-screen font-sans">
+          <div className="border-[1.5px] border-black p-4 space-y-0 text-[11px] leading-tight">
+            {/* Header Section */}
+            <div className="grid grid-cols-11 border-b-[1.5px] border-black">
+              <div className="col-span-5 p-2 space-y-1">
+                <h1 className="text-xl font-bold uppercase mb-2">{lastSale.billingName}</h1>
+                <p className="font-semibold text-xs">Rubro: Venta de Electrónica y Accesorios</p>
+                <p>Av. Corrientes 4500, CABA</p>
+                <p>Tel: 011 4555-1234</p>
+                <p>Email: ventas@electrotech.com.ar</p>
+                <p>Web: www.electrotech.com.ar</p>
+                <div className="mt-4 text-[9px] font-bold">IVA Responsable Inscripto</div>
               </div>
-              <div className="flex flex-col items-center">
-                <div className="border-2 border-black w-20 h-20 flex flex-col items-center justify-center mb-1">
-                  <span className="text-5xl font-black">{lastSale.invoiceType === 'factura_a' ? 'A' : 'B'}</span>
-                  <span className="text-[10px] font-bold mt-[-5px]">COD. {lastSale.invoiceType === 'factura_a' ? '01' : '06'}</span>
+              
+              <div className="col-span-1 flex flex-col items-center border-x-[1.5px] border-black">
+                <div className="w-full h-12 border-b-[1.5px] border-black flex items-center justify-center bg-gray-100">
+                  <span className="text-4xl font-black">{lastSale.invoiceType === 'factura_a' ? 'A' : 'B'}</span>
+                </div>
+                <div className="p-1 text-center">
+                  <p className="font-bold text-[8px]">Código Nº 0{lastSale.invoiceType === 'factura_a' ? '1' : '6'}</p>
                 </div>
               </div>
-              <div className="text-right space-y-1">
-                <h2 className="text-xl font-bold uppercase">{getInvoiceLabel(lastSale.invoiceType)}</h2>
-                <p className="text-sm font-bold">N° 0001-00000{Math.floor(Math.random() * 1000)}</p>
-                <p className="text-sm">Fecha: {new Date(lastSale.date).toLocaleDateString()}</p>
+
+              <div className="col-span-5 p-2 space-y-2">
+                <div className="flex flex-col items-end">
+                  <h2 className="text-2xl font-bold uppercase">FACTURA</h2>
+                  <p className="text-sm font-bold">Nº 0001 - 00000{Math.floor(Math.random() * 1000)}</p>
+                </div>
+                <div className="flex justify-end gap-1 mt-2">
+                  <span className="font-bold mr-2">FECHA</span>
+                  <div className="border border-black px-2 py-0.5 w-8 text-center">{new Date(lastSale.date).getDate()}</div>
+                  <div className="border border-black px-2 py-0.5 w-8 text-center">{new Date(lastSale.date).getMonth() + 1}</div>
+                  <div className="border border-black px-2 py-0.5 w-12 text-center">{new Date(lastSale.date).getFullYear()}</div>
+                </div>
+                <div className="text-right space-y-0.5 pt-4 text-[10px]">
+                  <p><span className="font-bold">C.U.I.T.:</span> {lastSale.billingCuit}</p>
+                  <p><span className="font-bold">INGR. BRUTOS:</span> 30-76543210-9</p>
+                  <p><span className="font-bold">INICIO DE ACT.:</span> 01/01/2023</p>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm border-b-2 border-black pb-4">
-              <div className="space-y-1">
-                <p><span className="font-bold">Cliente:</span> {lastSale.customerName}</p>
-                <p><span className="font-bold">Domicilio:</span> Calle Falsa 123, CABA</p>
+            {/* Client Info Section */}
+            <div className="p-2 space-y-2 border-b-[1.5px] border-black">
+              <div className="flex gap-2">
+                <span className="font-bold">Señor/es:</span>
+                <span className="border-b border-dotted border-black flex-1 uppercase">{lastSale.customerName}</span>
               </div>
-              <div className="space-y-1">
-                <p><span className="font-bold">CUIT:</span> {lastSale.customerCuit || "Consumidor Final"}</p>
-                <p><span className="font-bold">Cond. IVA:</span> {lastSale.invoiceType === 'factura_a' ? 'Resp. Inscripto' : 'Cons. Final'}</p>
+              <div className="flex gap-4">
+                <div className="flex gap-2 flex-1">
+                  <span className="font-bold">Dirección:</span>
+                  <span className="border-b border-dotted border-black flex-1">{(lastSale as any).customerAddress || ""}</span>
+                </div>
+                <div className="flex gap-2 w-1/3">
+                  <span className="font-bold">Localidad:</span>
+                  <span className="border-b border-dotted border-black flex-1">CABA</span>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex gap-2 flex-1">
+                  <span className="font-bold">I.V.A.:</span>
+                  <span className="border-b border-dotted border-black flex-1">{lastSale.invoiceType === 'factura_a' ? 'Responsable Inscripto' : 'Consumidor Final'}</span>
+                </div>
+                <div className="flex gap-2 w-1/3">
+                  <span className="font-bold">C.U.I.T.:</span>
+                  <span className="border-b border-dotted border-black flex-1">{lastSale.customerCuit || "Consumidor Final"}</span>
+                </div>
               </div>
             </div>
 
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-black">
-                  <th className="text-left py-2">Cant.</th>
-                  <th className="text-left py-2">Descripción</th>
-                  <th className="text-right py-2">Precio Unit.</th>
-                  <th className="text-right py-2">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {lastSale.items.map((item, idx) => (
-                  <tr key={idx}>
-                    <td className="py-2">{item.quantity}</td>
-                    <td className="py-2">{item.productName}</td>
-                    <td className="py-2 text-right">${item.price.toFixed(2)}</td>
-                    <td className="py-2 text-right">${item.subtotal.toFixed(2)}</td>
+            {/* Sales Conditions */}
+            <div className="p-2 grid grid-cols-3 border-b-[1.5px] border-black bg-gray-50/50">
+              <div className="flex items-center gap-2">
+                <span className="font-bold uppercase">Condiciones de Venta</span>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-1">
+                  <span>Contado</span>
+                  <div className="w-4 h-4 border border-black flex items-center justify-center font-bold">{lastSale.paymentMethod === 'cash' ? 'X' : ''}</div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span>Cta. Cte.</span>
+                  <div className="w-4 h-4 border border-black flex items-center justify-center font-bold">{lastSale.paymentMethod === 'credit_account' ? 'X' : ''}</div>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <span className="font-bold">Remito Nº</span>
+                <span className="border-b border-dotted border-black w-24"></span>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="min-h-[400px]">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-black text-[9px] font-bold bg-gray-100">
+                    <th className="border-r border-black p-1 w-12 text-center">CANT.</th>
+                    <th className="border-r border-black p-1 text-left">DESCRIPCION</th>
+                    <th className="border-r border-black p-1 w-24 text-right">P. UNITARIO</th>
+                    <th className="p-1 w-24 text-right">IMPORTE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="text-[10px]">
+                  {lastSale.items.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-200">
+                      <td className="border-r border-black p-1.5 text-center">{item.quantity}</td>
+                      <td className="border-r border-black p-1.5 uppercase">{item.productName}</td>
+                      <td className="border-r border-black p-1.5 text-right">${item.price.toFixed(2)}</td>
+                      <td className="p-1.5 text-right font-semibold">${item.subtotal.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Empty rows to fill space */}
+                  {Array.from({ length: Math.max(0, 15 - lastSale.items.length) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="h-6">
+                      <td className="border-r border-black"></td>
+                      <td className="border-r border-black"></td>
+                      <td className="border-r border-black"></td>
+                      <td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-            <div className="border-t-2 border-black pt-4 flex justify-end">
-              <div className="w-64 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Subtotal Neto:</span>
-                  <span>${lastSale.subtotal.toFixed(2)}</span>
+            {/* Footer Barcode Section */}
+            <div className="mt-auto border-t-[1.5px] border-black">
+              <div className="flex justify-center py-2 bg-gray-50">
+                <div className="flex flex-col items-center">
+                   <div className="h-8 w-64 bg-black/80 mb-1"></div>
+                   <p className="text-[7px] font-mono tracking-[0.2em]">2004553973401000231002101154595201305243</p>
                 </div>
-                {lastSale.invoiceType === 'factura_a' && (
-                  <div className="flex justify-between text-sm">
-                    <span>IVA (21.00%):</span>
-                    <span>${lastSale.tax.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-xl font-bold border-t border-black pt-2">
-                  <span>TOTAL:</span>
-                  <span>${lastSale.total.toFixed(2)}</span>
-                </div>
+              </div>
+
+              {/* Totals Grid */}
+              <div className="grid grid-cols-5 text-center font-bold text-[9px] border-t border-black uppercase">
+                <div className="border-r border-black p-1.5 bg-gray-100">Subtotal</div>
+                <div className="border-r border-black p-1.5 bg-gray-100">Impuesto</div>
+                <div className="border-r border-black p-1.5 bg-gray-100">Subtotal</div>
+                <div className="border-r border-black p-1.5 bg-gray-100">IVA Insc. 21%</div>
+                <div className="p-1.5 bg-gray-100">Total $</div>
+              </div>
+              <div className="grid grid-cols-5 text-center font-bold text-sm border-t border-black">
+                <div className="border-r border-black p-2">${lastSale.subtotal.toFixed(2)}</div>
+                <div className="border-r border-black p-2">$0.00</div>
+                <div className="border-r border-black p-2">${lastSale.subtotal.toFixed(2)}</div>
+                <div className="border-r border-black p-2">${lastSale.tax.toFixed(2)}</div>
+                <div className="p-2 bg-gray-200">${lastSale.total.toFixed(2)}</div>
               </div>
             </div>
 
-            <div className="pt-12 flex justify-between items-end">
-               <div className="text-[10px] italic">
-                 Comprobante Electrónico generado por CommerceManager Pro.
-               </div>
-               <div className="text-right space-y-1">
-                  <p className="text-xs font-bold uppercase">CAE N°: 74123856920456</p>
-                  <p className="text-xs font-bold uppercase">VTO. CAE: 31/12/2024</p>
-               </div>
+            {/* Final Legal Footer */}
+            <div className="grid grid-cols-2 p-2 text-[7px] border-t border-black bg-white">
+              <div className="space-y-0.5">
+                <p>Impreso por ELECTRO TECH SOLUTIONS S.A. - C.U.I.T. 30-76543210-9 - Exp. 421836/2023</p>
+                <p>Fecha de Imp. Enero 2024 - Imp. del 0001-00000001 al 0001-00001000</p>
+                <p>www.electrotech.com.ar - 0800-TECH-SALE líneas rotativas.</p>
+              </div>
+              <div className="text-right space-y-0.5">
+                <p className="text-[9px] font-bold">C.A.E. 34002110523139</p>
+                <p className="text-[9px] font-bold">VTO. 31/12/2024</p>
+                <p className="italic">ORIGINAL BLANCO - DUPLICADO COLOR</p>
+              </div>
             </div>
           </div>
         </div>
