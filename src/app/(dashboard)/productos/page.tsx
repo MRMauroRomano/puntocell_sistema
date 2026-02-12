@@ -6,14 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, AlertCircle } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, AlertCircle, Edit2 } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 
@@ -22,13 +22,15 @@ export default function ProductsPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [currentId, setCurrentId] = useState<string | null>(null)
 
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
   const { data: products, isLoading } = useCollection<Product>(productsRef)
 
-  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+  const [formProduct, setFormProduct] = useState<Partial<Product>>({
     name: "",
     sku: "",
     category: "Celulares",
@@ -52,8 +54,40 @@ export default function ProductsPage() {
     })
   }, [products, searchTerm, selectedCategory])
 
-  const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.sku) {
+  const handleOpenAdd = () => {
+    setIsEditing(false)
+    setCurrentId(null)
+    setFormProduct({
+      name: "",
+      sku: "",
+      category: "Celulares",
+      subCategory: "",
+      price: 0,
+      stock: 0,
+      minStock: 5,
+      description: ""
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleOpenEdit = (product: Product) => {
+    setIsEditing(true)
+    setCurrentId(product.id)
+    setFormProduct({
+      name: product.name,
+      sku: product.sku,
+      category: product.category,
+      subCategory: product.subCategory || "",
+      price: product.price,
+      stock: product.stock,
+      minStock: product.minStock,
+      description: product.description || ""
+    })
+    setIsDialogOpen(true)
+  }
+
+  const handleSaveProduct = () => {
+    if (!formProduct.name || !formProduct.sku) {
       toast({
         variant: "destructive",
         title: "Campos incompletos",
@@ -64,12 +98,12 @@ export default function ProductsPage() {
 
     setIsSaving(true)
     
-    const productId = Math.random().toString(36).substr(2, 9)
+    const productId = isEditing && currentId ? currentId : Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'products', productId)
     
-    const priceVal = Number(newProduct.price)
-    const stockVal = Number(newProduct.stock)
-    const minStockVal = Number(newProduct.minStock)
+    const priceVal = Number(formProduct.price)
+    const stockVal = Number(formProduct.stock)
+    const minStockVal = Number(formProduct.minStock)
 
     if (isNaN(priceVal) || isNaN(stockVal) || isNaN(minStockVal)) {
       setIsSaving(false)
@@ -82,37 +116,34 @@ export default function ProductsPage() {
     }
 
     const productData = {
-      name: newProduct.name,
-      sku: newProduct.sku,
-      category: newProduct.category || "General",
-      subCategory: newProduct.subCategory || "",
+      name: formProduct.name,
+      sku: formProduct.sku,
+      category: formProduct.category || "General",
+      subCategory: formProduct.subCategory || "",
       price: priceVal,
       stock: stockVal,
       minStock: minStockVal,
-      description: newProduct.description || "",
+      description: formProduct.description || "",
       isActive: true,
       id: productId
     }
 
     try {
-      setDocumentNonBlocking(productDocRef, productData, { merge: true })
+      if (isEditing) {
+        updateDocumentNonBlocking(productDocRef, productData)
+        toast({
+          title: "Producto actualizado",
+          description: `${formProduct.name} se ha actualizado correctamente.`,
+        })
+      } else {
+        setDocumentNonBlocking(productDocRef, productData, { merge: true })
+        toast({
+          title: "Producto guardado",
+          description: `${formProduct.name} se ha registrado correctamente.`,
+        })
+      }
       
-      toast({
-        title: "Producto guardado",
-        description: `${newProduct.name} se ha registrado correctamente.`,
-      })
-      
-      setIsAddDialogOpen(false)
-      setNewProduct({
-        name: "",
-        sku: "",
-        category: "Celulares",
-        subCategory: "",
-        price: 0,
-        stock: 0,
-        minStock: 5,
-        description: ""
-      })
+      setIsDialogOpen(false)
     } catch (error) {
       toast({
         variant: "destructive",
@@ -141,15 +172,17 @@ export default function ProductsPage() {
           <p className="text-muted-foreground">Administra tus celulares, tablets y accesorios electrónicos.</p>
         </div>
         
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 shadow-sm">
+            <Button className="gap-2 shadow-sm" onClick={handleOpenAdd}>
               <Plus className="h-4 w-4" /> Nuevo Producto
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
-              <DialogTitle className="text-xl font-headline">Registrar Equipo</DialogTitle>
+              <DialogTitle className="text-xl font-headline">
+                {isEditing ? "Editar Equipo" : "Registrar Equipo"}
+              </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -158,8 +191,8 @@ export default function ProductsPage() {
                   <Input 
                     id="name" 
                     placeholder="Ej: iPhone 15 Pro" 
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    value={formProduct.name}
+                    onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -167,8 +200,8 @@ export default function ProductsPage() {
                   <Input 
                     id="sku" 
                     placeholder="IMEI o Código" 
-                    value={newProduct.sku}
-                    onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+                    value={formProduct.sku}
+                    onChange={(e) => setFormProduct({...formProduct, sku: e.target.value})}
                   />
                 </div>
               </div>
@@ -176,8 +209,8 @@ export default function ProductsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoría</Label>
                   <Select 
-                    value={newProduct.category} 
-                    onValueChange={(v) => setNewProduct({...newProduct, category: v})}
+                    value={formProduct.category} 
+                    onValueChange={(v) => setFormProduct({...formProduct, category: v})}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar" />
@@ -196,8 +229,8 @@ export default function ProductsPage() {
                   <Input 
                     id="subCategory" 
                     placeholder="Ej: Apple, Samsung..." 
-                    value={newProduct.subCategory}
-                    onChange={(e) => setNewProduct({...newProduct, subCategory: e.target.value})}
+                    value={formProduct.subCategory}
+                    onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})}
                   />
                 </div>
               </div>
@@ -208,8 +241,8 @@ export default function ProductsPage() {
                     id="price" 
                     type="number" 
                     placeholder="0.00" 
-                    value={newProduct.price || ""}
-                    onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                    value={formProduct.price || ""}
+                    onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -218,8 +251,8 @@ export default function ProductsPage() {
                     id="stock" 
                     type="number" 
                     placeholder="0" 
-                    value={newProduct.stock || ""}
-                    onChange={(e) => setNewProduct({...newProduct, stock: Number(e.target.value)})}
+                    value={formProduct.stock || ""}
+                    onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -228,17 +261,17 @@ export default function ProductsPage() {
                     id="minStock" 
                     type="number" 
                     placeholder="5" 
-                    value={newProduct.minStock || ""}
-                    onChange={(e) => setNewProduct({...newProduct, minStock: Number(e.target.value)})}
+                    value={formProduct.minStock || ""}
+                    onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})}
                   />
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleAddProduct} className="gap-2" disabled={isSaving} type="button">
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button onClick={handleSaveProduct} className="gap-2" disabled={isSaving} type="button">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                Guardar Producto
+                {isEditing ? "Guardar Cambios" : "Guardar Producto"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -306,6 +339,9 @@ export default function ProductsPage() {
                               <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleOpenEdit(product)}>
+                                <Edit2 className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleDeleteProduct(product.id, product.name)} className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                               </DropdownMenuItem>
