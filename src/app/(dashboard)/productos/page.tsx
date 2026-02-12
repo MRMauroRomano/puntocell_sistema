@@ -6,22 +6,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Edit, Trash2, Package, Filter, MoreVertical, AlertCircle, Tag, Save, Loader2 } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, AlertCircle } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ProductsPage() {
   const firestore = useFirestore()
+  const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Firebase connection
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
@@ -39,12 +41,6 @@ export default function ProductsPage() {
     description: ""
   })
 
-  const categories = useMemo(() => {
-    if (!products) return ["all"]
-    const cats = Array.from(new Set(products.map(p => p.category))).filter(Boolean)
-    return ["all", ...cats]
-  }, [products])
-
   const filtered = useMemo(() => {
     if (!products) return []
     return products.filter(p => {
@@ -59,8 +55,18 @@ export default function ProductsPage() {
   }, [products, searchTerm, selectedCategory])
 
   const handleAddProduct = () => {
-    if (!newProduct.name || !newProduct.sku) return
+    // Validaciones básicas
+    if (!newProduct.name || !newProduct.sku) {
+      toast({
+        variant: "destructive",
+        title: "Campos incompletos",
+        description: "El nombre y SKU/IMEI son obligatorios.",
+      })
+      return
+    }
 
+    setIsSaving(true)
+    
     const productId = Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'products', productId)
     
@@ -77,25 +83,45 @@ export default function ProductsPage() {
       id: productId
     }
 
-    // Usar setDocumentNonBlocking para guardar en Firestore
-    setDocumentNonBlocking(productDocRef, productData, { merge: true })
-    
-    setIsAddDialogOpen(false)
-    setNewProduct({
-      name: "",
-      sku: "",
-      category: "Celulares",
-      subCategory: "",
-      price: 0,
-      stock: 0,
-      minStock: 5,
-      description: ""
-    })
+    try {
+      // Usar setDocumentNonBlocking para guardar en Firestore
+      setDocumentNonBlocking(productDocRef, productData, { merge: true })
+      
+      toast({
+        title: "Producto guardado",
+        description: `${newProduct.name} se ha registrado correctamente.`,
+      })
+      
+      setIsAddDialogOpen(false)
+      setIsSaving(false)
+      setNewProduct({
+        name: "",
+        sku: "",
+        category: "Celulares",
+        subCategory: "",
+        price: 0,
+        stock: 0,
+        minStock: 5,
+        description: ""
+      })
+    } catch (error) {
+      console.error(error)
+      setIsSaving(false)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo guardar el producto.",
+      })
+    }
   }
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = (id: string, name: string) => {
     const docRef = doc(firestore, 'products', id)
     deleteDocumentNonBlocking(docRef)
+    toast({
+      title: "Producto eliminado",
+      description: `${name} ha sido borrado del inventario.`,
+    })
   }
 
   return (
@@ -157,7 +183,7 @@ export default function ProductsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="subCategory">Marca</Label>
+                  <Label htmlFor="subCategory">Marca / Marca Repuesto</Label>
                   <Input 
                     id="subCategory" 
                     placeholder="Ej: Apple, Samsung..." 
@@ -178,7 +204,7 @@ export default function ProductsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stock">Stock</Label>
+                  <Label htmlFor="stock">Stock Inicial</Label>
                   <Input 
                     id="stock" 
                     type="number" 
@@ -200,9 +226,10 @@ export default function ProductsPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={handleAddProduct} className="gap-2">
-                <Save className="h-4 w-4" /> Guardar Producto
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button onClick={handleAddProduct} className="gap-2" disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Guardar Producto
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -233,47 +260,54 @@ export default function ProductsPage() {
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead>SKU/IMEI</TableHead>
-                    <TableHead>Modelo</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead className="text-right">Precio</TableHead>
-                    <TableHead className="text-center">Stock</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-mono text-xs">{product.sku}</TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{product.category}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={product.stock < product.minStock ? "text-red-600 font-bold" : ""}>
-                          {product.stock}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleDeleteProduct(product.id)} className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              {filtered.length === 0 ? (
+                <div className="text-center py-20">
+                  <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+                  <p className="text-muted-foreground">No se encontraron productos.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead>SKU/IMEI</TableHead>
+                      <TableHead>Modelo</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-center">Stock</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell className="font-mono text-xs">{product.sku}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{product.category}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={product.stock < product.minStock ? "text-red-600 font-bold" : ""}>
+                            {product.stock}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleDeleteProduct(product.id, product.name)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </>
           )}
         </CardContent>

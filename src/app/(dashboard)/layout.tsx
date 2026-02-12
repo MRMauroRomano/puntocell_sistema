@@ -1,13 +1,16 @@
+
 "use client"
 
 import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { Separator } from "@/components/ui/separator"
-import { Bell, Search, User, Loader2 } from "lucide-react"
+import { Bell, Search, User, Loader2, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useAuth, useUser, initiateAnonymousSignIn } from "@/firebase"
+import { useAuth, useUser } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 export default function DashboardLayout({
   children,
@@ -16,13 +19,20 @@ export default function DashboardLayout({
 }) {
   const auth = useAuth()
   const { user, isUserLoading } = useUser()
+  const router = useRouter()
 
   useEffect(() => {
-    // Si no hay usuario y ya terminó de cargar el estado inicial, iniciamos sesión anónima
+    // Si no hay usuario y ya terminó de cargar, redirigimos al login
     if (!isUserLoading && !user) {
-      initiateAnonymousSignIn(auth)
+      router.push("/login")
     }
-  }, [user, isUserLoading, auth])
+  }, [user, isUserLoading, router])
+
+  const handleSignOut = () => {
+    signOut(auth).then(() => {
+      router.push("/login")
+    })
+  }
 
   // Pantalla de carga mientras se verifica la autenticación
   if (isUserLoading || !user) {
@@ -59,13 +69,14 @@ export default function DashboardLayout({
               <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
             </Button>
             <Separator orientation="vertical" className="h-6" />
-            <Button variant="ghost" className="gap-2 px-2">
+            <Button variant="ghost" className="gap-2 px-2" onClick={handleSignOut} title="Cerrar Sesión">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-4 w-4 text-primary" />
               </div>
               <span className="text-sm font-medium hidden sm:inline-block">
-                {user.isAnonymous ? "Personal de Tienda" : (user.email || "Usuario")}
+                {user.email || "Usuario"}
               </span>
+              <LogOut className="h-4 w-4 text-muted-foreground" />
             </Button>
           </div>
         </header>
