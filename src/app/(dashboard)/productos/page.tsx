@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 
 export default function ProductsPage() {
@@ -40,15 +40,16 @@ export default function ProductsPage() {
 
   const categories = useMemo(() => {
     if (!products) return ["all"]
-    return ["all", ...Array.from(new Set(products.map(p => p.category)))]
+    const cats = Array.from(new Set(products.map(p => p.category))).filter(Boolean)
+    return ["all", ...cats]
   }, [products])
 
   const filtered = useMemo(() => {
     if (!products) return []
     return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSearch = (p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
       
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
       
@@ -59,6 +60,9 @@ export default function ProductsPage() {
   const handleAddProduct = () => {
     if (!newProduct.name || !newProduct.sku || !newProduct.price) return
 
+    const productId = Math.random().toString(36).substr(2, 9)
+    const productDocRef = doc(firestore, 'products', productId)
+    
     const productData = {
       name: newProduct.name,
       sku: newProduct.sku,
@@ -69,10 +73,10 @@ export default function ProductsPage() {
       minStock: Number(newProduct.minStock),
       description: newProduct.description || "",
       isActive: true,
-      id: Math.random().toString(36).substr(2, 9)
+      id: productId
     }
 
-    addDocumentNonBlocking(productsRef, productData)
+    setDocumentNonBlocking(productDocRef, productData, { merge: true })
     setIsAddDialogOpen(false)
     setNewProduct({
       name: "",
@@ -95,19 +99,19 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold font-headline">Gestión de Productos</h1>
-          <p className="text-muted-foreground">Administra tu inventario, precios y jerarquía de categorías.</p>
+          <h1 className="text-3xl font-bold font-headline text-primary">Gestión de Productos</h1>
+          <p className="text-muted-foreground">Administra tu inventario de tecnología y accesorios.</p>
         </div>
         
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2 shadow-sm">
               <Plus className="h-4 w-4" /> Nuevo Producto
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[525px]">
             <DialogHeader>
-              <DialogTitle>Agregar Nuevo Producto</DialogTitle>
+              <DialogTitle className="text-xl font-headline">Agregar Nuevo Producto</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
@@ -211,7 +215,7 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
-      <Card>
+      <Card className="shadow-sm border-primary/10">
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
             <div className="flex flex-1 gap-2 w-full">
@@ -219,13 +223,13 @@ export default function ProductsPage() {
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Buscar por nombre, SKU o marca..." 
-                  className="pl-9"
+                  className="pl-9 bg-muted/30 border-none"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] bg-muted/30 border-none">
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
@@ -236,14 +240,6 @@ export default function ProductsPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <Button variant="outline" className="gap-2 flex-1 md:flex-none">
-                <Filter className="h-4 w-4" /> Filtros
-              </Button>
-              <Button variant="outline" className="gap-2 flex-1 md:flex-none">
-                Exportar
-              </Button>
             </div>
           </div>
         </CardHeader>
@@ -261,7 +257,7 @@ export default function ProductsPage() {
                     <TableHead className="w-[100px]">SKU</TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Categoría</TableHead>
-                    <TableHead>Subcategoría / Marca</TableHead>
+                    <TableHead>Marca</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                     <TableHead className="text-center">Stock</TableHead>
                     <TableHead className="text-center">Estado</TableHead>
@@ -270,11 +266,11 @@ export default function ProductsPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((product) => (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className="hover:bg-primary/5 transition-colors">
                       <TableCell className="font-mono text-xs font-bold text-muted-foreground">{product.sku}</TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-primary/5">{product.category}</Badge>
+                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20">{product.category}</Badge>
                       </TableCell>
                       <TableCell>
                         {product.subCategory ? (
@@ -286,20 +282,20 @@ export default function ProductsPage() {
                           <span className="text-muted-foreground/30">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold text-primary">${product.price.toFixed(2)}</TableCell>
                       <TableCell className="text-center">
-                        <span className={product.stock < product.minStock ? "text-red-600 font-bold" : ""}>
+                        <span className={product.stock < product.minStock ? "text-red-600 font-bold" : "text-foreground font-medium"}>
                           {product.stock}
                         </span>
                         <span className="text-xs text-muted-foreground ml-1">/ {product.minStock}</span>
                       </TableCell>
                       <TableCell className="text-center">
                         {product.stock < product.minStock ? (
-                          <Badge variant="destructive" className="gap-1">
+                          <Badge variant="destructive" className="gap-1 shadow-sm">
                             <AlertCircle className="h-3 w-3" /> Bajo
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+                          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 shadow-sm border-none">
                             Óptimo
                           </Badge>
                         )}
@@ -307,7 +303,7 @@ export default function ProductsPage() {
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -319,7 +315,7 @@ export default function ProductsPage() {
                               <Package className="h-4 w-4" /> Movimientos
                             </DropdownMenuItem>
                             <DropdownMenuItem 
-                              className="gap-2 text-destructive"
+                              className="gap-2 text-destructive focus:text-destructive"
                               onClick={() => handleDeleteProduct(product.id)}
                             >
                               <Trash2 className="h-4 w-4" /> Eliminar
@@ -332,8 +328,9 @@ export default function ProductsPage() {
                 </TableBody>
               </Table>
               {filtered.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  No se encontraron productos en la base de datos.
+                <div className="text-center py-20 text-muted-foreground bg-muted/5">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>No se encontraron productos en el inventario.</p>
                 </div>
               )}
             </>

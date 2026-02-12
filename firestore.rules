@@ -5,59 +5,38 @@ service cloud.firestore {
     /**
      * REGLAS DE SEGURIDAD PARA PROTOTIPADO
      * 
-     * Para facilitar el desarrollo, permitimos lectura y escritura a cualquier
-     * usuario autenticado. En producción, estas reglas deben restringirse
-     * nuevamente a roles específicos (DBAC).
+     * Permitimos lectura y escritura a cualquier usuario autenticado para facilitar el desarrollo.
      */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // En prototipado, cualquier usuario firmado actúa como staff
-    function isStaff() {
-      return isSignedIn();
-    }
-
     match /roles_storeStaff/{staffId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.id == staffId;
-      allow update, delete: if isSignedIn();
+      allow read, write: if isSignedIn();
     }
 
     match /products/{productId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.id == productId;
-      allow update, delete: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       match /inventoryMovements/{movementId} {
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.productId == productId;
-        allow update, delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
     match /customers/{customerId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.id == customerId;
-      allow update, delete: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       match /accountMovements/{movementId} {
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.customerId == customerId;
-        allow update, delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
 
     match /sales/{saleId} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.id == saleId;
-      allow update, delete: if isSignedIn();
+      allow read, write: if isSignedIn();
 
       match /saleItems/{saleItemId} {
-        allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.saleId == saleId;
-        allow update, delete: if isSignedIn();
+        allow read, write: if isSignedIn();
       }
     }
   }
