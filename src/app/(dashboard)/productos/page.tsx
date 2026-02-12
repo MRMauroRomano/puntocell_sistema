@@ -1,32 +1,85 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Edit, Trash2, Package, Filter, MoreVertical, AlertCircle, Tag } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Package, Filter, MoreVertical, AlertCircle, Tag, Save } from "lucide-react"
 import { MOCK_PRODUCTS } from "@/lib/mock-data"
+import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const categories = ["all", ...Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)))]
-
-  const filtered = MOCK_PRODUCTS.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
-    
-    const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
-    
-    return matchesSearch && matchesCategory
+  // State for new product form
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    name: "",
+    sku: "",
+    category: "Celulares",
+    subCategory: "",
+    price: 0,
+    stock: 0,
+    minStock: 5,
+    description: ""
   })
+
+  const categories = useMemo(() => ["all", ...Array.from(new Set(products.map(p => p.category)))], [products])
+
+  const filtered = useMemo(() => {
+    return products.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
+      
+      return matchesSearch && matchesCategory
+    })
+  }, [products, searchTerm, selectedCategory])
+
+  const handleAddProduct = () => {
+    if (!newProduct.name || !newProduct.sku || !newProduct.price) return
+
+    const productToAdd: Product = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: newProduct.name || "",
+      sku: newProduct.sku || "",
+      category: newProduct.category || "General",
+      subCategory: newProduct.subCategory,
+      price: Number(newProduct.price),
+      stock: Number(newProduct.stock),
+      minStock: Number(newProduct.minStock),
+      description: newProduct.description
+    }
+
+    setProducts([productToAdd, ...products])
+    setIsAddDialogOpen(false)
+    setNewProduct({
+      name: "",
+      sku: "",
+      category: "Celulares",
+      subCategory: "",
+      price: 0,
+      stock: 0,
+      minStock: 5,
+      description: ""
+    })
+  }
+
+  const handleDeleteProduct = (id: string) => {
+    setProducts(products.filter(p => p.id !== id))
+  }
 
   return (
     <div className="space-y-6">
@@ -35,9 +88,117 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-bold font-headline">Gestión de Productos</h1>
           <p className="text-muted-foreground">Administra tu inventario, precios y jerarquía de categorías.</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" /> Nuevo Producto
-        </Button>
+        
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" /> Nuevo Producto
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[525px]">
+            <DialogHeader>
+              <DialogTitle>Agregar Nuevo Producto</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre del Producto</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="Ej: iPhone 15 Pro" 
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sku">SKU / Código</Label>
+                  <Input 
+                    id="sku" 
+                    placeholder="IPH-15P-BLK" 
+                    value={newProduct.sku}
+                    onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="category">Categoría Principal</Label>
+                  <Select 
+                    value={newProduct.category} 
+                    onValueChange={(v) => setNewProduct({...newProduct, category: v})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Celulares">Celulares</SelectItem>
+                      <SelectItem value="Computación">Computación</SelectItem>
+                      <SelectItem value="Audio">Audio</SelectItem>
+                      <SelectItem value="Accesorios">Accesorios</SelectItem>
+                      <SelectItem value="Otros">Otros</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="subCategory">Subcategoría / Marca</Label>
+                  <Input 
+                    id="subCategory" 
+                    placeholder="Ej: Apple, Samsung..." 
+                    value={newProduct.subCategory}
+                    onChange={(e) => setNewProduct({...newProduct, subCategory: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Precio Venta</Label>
+                  <Input 
+                    id="price" 
+                    type="number" 
+                    placeholder="0.00" 
+                    value={newProduct.price || ""}
+                    onChange={(e) => setNewProduct({...newProduct, price: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Stock Inicial</Label>
+                  <Input 
+                    id="stock" 
+                    type="number" 
+                    placeholder="0" 
+                    value={newProduct.stock || ""}
+                    onChange={(e) => setNewProduct({...newProduct, stock: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minStock">Stock Mínimo</Label>
+                  <Input 
+                    id="minStock" 
+                    type="number" 
+                    placeholder="5" 
+                    value={newProduct.minStock || ""}
+                    onChange={(e) => setNewProduct({...newProduct, minStock: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Descripción (Opcional)</Label>
+                <Textarea 
+                  id="description" 
+                  placeholder="Detalles adicionales del producto..." 
+                  value={newProduct.description}
+                  onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancelar</Button>
+              <Button onClick={handleAddProduct} className="gap-2">
+                <Save className="h-4 w-4" /> Guardar Producto
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -140,7 +301,10 @@ export default function ProductsPage() {
                         <DropdownMenuItem className="gap-2">
                           <Package className="h-4 w-4" /> Movimientos
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive">
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
                           <Trash2 className="h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
                       </DropdownMenuContent>
