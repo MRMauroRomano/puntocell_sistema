@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -37,8 +38,7 @@ export default function SalesPage() {
   const filteredProducts = useMemo(() => {
     if (!products) return []
     return products.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
       return matchesSearch && matchesCategory
     })
@@ -104,7 +104,7 @@ export default function SalesPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Buscar por nombre o SKU..." 
+              placeholder="Buscar por nombre o marca..." 
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -151,7 +151,6 @@ export default function SalesPage() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="font-medium">{product.name}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">{product.sku}</span>
                         </div>
                       </TableCell>
                       <TableCell>

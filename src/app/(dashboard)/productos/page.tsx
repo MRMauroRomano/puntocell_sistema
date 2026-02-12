@@ -32,7 +32,6 @@ export default function ProductsPage() {
 
   const [formProduct, setFormProduct] = useState<Partial<Product>>({
     name: "",
-    sku: "",
     category: "Celulares",
     subCategory: "",
     price: 0,
@@ -45,7 +44,6 @@ export default function ProductsPage() {
     if (!products) return []
     return products.filter(p => {
       const matchesSearch = (p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
       
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
@@ -59,7 +57,6 @@ export default function ProductsPage() {
     setCurrentId(null)
     setFormProduct({
       name: "",
-      sku: "",
       category: "Celulares",
       subCategory: "",
       price: 0,
@@ -75,7 +72,6 @@ export default function ProductsPage() {
     setCurrentId(product.id)
     setFormProduct({
       name: product.name,
-      sku: product.sku,
       category: product.category,
       subCategory: product.subCategory || "",
       price: product.price,
@@ -87,11 +83,11 @@ export default function ProductsPage() {
   }
 
   const handleSaveProduct = () => {
-    if (!formProduct.name || !formProduct.sku) {
+    if (!formProduct.name) {
       toast({
         variant: "destructive",
         title: "Campos incompletos",
-        description: "El nombre y SKU/IMEI son obligatorios.",
+        description: "El nombre/modelo es obligatorio.",
       })
       return
     }
@@ -117,7 +113,6 @@ export default function ProductsPage() {
 
     const productData = {
       name: formProduct.name,
-      sku: formProduct.sku,
       category: formProduct.category || "General",
       subCategory: formProduct.subCategory || "",
       price: priceVal,
@@ -185,25 +180,14 @@ export default function ProductsPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Nombre / Modelo</Label>
-                  <Input 
-                    id="name" 
-                    placeholder="Ej: iPhone 15 Pro" 
-                    value={formProduct.name}
-                    onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sku">SKU / IMEI</Label>
-                  <Input 
-                    id="sku" 
-                    placeholder="IMEI o Código" 
-                    value={formProduct.sku}
-                    onChange={(e) => setFormProduct({...formProduct, sku: e.target.value})}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nombre / Modelo</Label>
+                <Input 
+                  id="name" 
+                  placeholder="Ej: iPhone 15 Pro" 
+                  value={formProduct.name}
+                  onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -311,7 +295,6 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>SKU/IMEI</TableHead>
                       <TableHead>Modelo</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead className="text-right">Precio</TableHead>
@@ -322,10 +305,12 @@ export default function ProductsPage() {
                   <TableBody>
                     {filtered.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>
-                          <Badge variant="outline">{product.category}</Badge>
+                          <div className="flex flex-col">
+                            <Badge variant="outline" className="w-fit">{product.category}</Badge>
+                            <span className="text-[10px] text-muted-foreground">{product.subCategory}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center">

@@ -2,13 +2,13 @@
 export interface Product {
   id: string;
   name: string;
-  sku: string;
   category: string;
   subCategory?: string;
   price: number;
   stock: number;
   minStock: number;
   description?: string;
+  isActive?: boolean;
 }
 
 export interface Customer {
