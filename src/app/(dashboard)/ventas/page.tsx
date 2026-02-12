@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -6,16 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Smartphone, Banknote, Tag } from "lucide-react"
-import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
+import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Tag, Loader2 } from "lucide-react"
+import { MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
 import { Product, SaleItem, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { cn } from "@/lib/utils"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { collection } from "firebase/firestore"
 
 export default function SalesPage() {
+  const { firestore } = useFirestore()
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -24,15 +25,24 @@ export default function SalesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
 
-  const categories = ["all", ...Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)))]
+  // Fetch products from Firestore
+  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const { data: products, isLoading } = useCollection<Product>(productsRef)
 
-  const filteredProducts = useMemo(() => 
-    MOCK_PRODUCTS.filter(p => {
+  const categories = useMemo(() => {
+    if (!products) return ["all"]
+    return ["all", ...Array.from(new Set(products.map(p => p.category)))]
+  }, [products])
+
+  const filteredProducts = useMemo(() => {
+    if (!products) return []
+    return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            p.sku.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
       return matchesSearch && matchesCategory
-    }), [searchTerm, selectedCategory])
+    })
+  }, [products, searchTerm, selectedCategory])
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -116,48 +126,55 @@ export default function SalesPage() {
         
         <Card className="flex-1 overflow-hidden flex flex-col">
           <CardHeader className="bg-muted/30 py-3">
-            <CardTitle className="text-sm">Productos</CardTitle>
+            <CardTitle className="text-sm">Productos Disponibles</CardTitle>
           </CardHeader>
           <CardContent className="p-0 overflow-auto">
-            <Table>
-              <TableHeader className="bg-muted/10 sticky top-0 z-10">
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Marca/Subcat</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map(product => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{product.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono">{product.sku}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Tag className="h-3 w-3" /> {product.subCategory || "-"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="font-bold">${product.price.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <Badge variant={product.stock < product.minStock ? "destructive" : "secondary"} className="text-[10px]">
-                        {product.stock}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Cargando productos...</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-muted/10 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Marca/Subcat</TableHead>
+                    <TableHead>Precio</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead className="text-right">Acción</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.map(product => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{product.name}</span>
+                          <span className="text-[10px] text-muted-foreground font-mono">{product.sku}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Tag className="h-3 w-3" /> {product.subCategory || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-bold">${product.price.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge variant={product.stock < product.minStock ? "destructive" : "secondary"} className="text-[10px]">
+                          {product.stock}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
