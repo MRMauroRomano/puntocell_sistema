@@ -5,39 +5,17 @@ service cloud.firestore {
     /**
      * REGLAS DE SEGURIDAD PARA PROTOTIPADO
      * 
-     * Permitimos lectura y escritura a cualquier usuario autenticado para facilitar el desarrollo.
+     * Permitimos lectura y escritura a cualquier usuario autenticado (incluyendo anónimos)
+     * en todas las colecciones para facilitar el desarrollo del sistema de gestión.
      */
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    match /roles_storeStaff/{staffId} {
+    // Permitir acceso a todas las colecciones principales del sistema
+    match /{document=**} {
       allow read, write: if isSignedIn();
-    }
-
-    match /products/{productId} {
-      allow read, write: if isSignedIn();
-
-      match /inventoryMovements/{movementId} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /customers/{customerId} {
-      allow read, write: if isSignedIn();
-
-      match /accountMovements/{movementId} {
-        allow read, write: if isSignedIn();
-      }
-    }
-
-    match /sales/{saleId} {
-      allow read, write: if isSignedIn();
-
-      match /saleItems/{saleItemId} {
-        allow read, write: if isSignedIn();
-      }
     }
   }
 }
