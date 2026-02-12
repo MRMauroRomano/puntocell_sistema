@@ -148,6 +148,12 @@ export default function SalesPage() {
     }
   }
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print()
+    }
+  }
+
   const resetSale = () => {
     setCart([])
     setSelectedCustomerId(null)
@@ -378,7 +384,7 @@ export default function SalesPage() {
         </div>
 
         <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-[425px] no-print">
             <DialogHeader className="items-center text-center">
               <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <CheckCircle2 className="h-10 w-10 text-green-600" />
@@ -411,7 +417,7 @@ export default function SalesPage() {
                </div>
             </div>
             <DialogFooter className="flex flex-col gap-2">
-              <Button className="w-full gap-2 h-11 font-bold shadow-sm" variant="outline" onClick={() => window.print()}>
+              <Button className="w-full gap-2 h-11 font-bold shadow-sm" variant="outline" onClick={handlePrint}>
                 <Printer className="h-4 w-4" /> Imprimir Factura
               </Button>
               <Button className="w-full h-11 font-medium text-muted-foreground hover:text-primary" variant="ghost" onClick={resetSale}>
