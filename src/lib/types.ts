@@ -30,18 +30,22 @@ export interface SaleItem {
 }
 
 export type PaymentMethod = 'cash' | 'debit' | 'credit_card' | 'transfer' | 'credit_account';
+export type InvoiceType = 'factura_a' | 'factura_b' | 'ticket';
 
 export interface Sale {
   id: string;
   date: string;
   customerId?: string;
   customerName?: string;
+  customerCuit?: string;
   items: SaleItem[];
   subtotal: number;
   tax: number;
   total: number;
   paymentMethod: PaymentMethod;
+  invoiceType: InvoiceType;
   billingCuit?: string; // CUIT used for this sale
+  billingName?: string;
 }
 
 export interface InventoryMovement {
@@ -66,6 +70,8 @@ export interface BillingConfig {
   id: string;
   name: string;
   cuit: string;
+  address?: string;
+  ivaCondition?: string;
   description?: string;
 }
 
