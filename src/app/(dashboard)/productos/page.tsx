@@ -6,26 +6,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Edit, Trash2, Package, Filter, MoreVertical, AlertCircle } from "lucide-react"
+import { Search, Plus, Edit, Trash2, Package, Filter, MoreVertical, AlertCircle, Tag } from "lucide-react"
 import { MOCK_PRODUCTS } from "@/lib/mock-data"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
 
-  const filtered = MOCK_PRODUCTS.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const categories = ["all", ...Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)))]
+
+  const filtered = MOCK_PRODUCTS.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                         p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()))
+    
+    const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
+    
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline">Gestión de Productos</h1>
-          <p className="text-muted-foreground">Administra tu inventario, precios y alertas de stock.</p>
+          <p className="text-muted-foreground">Administra tu inventario, precios y jerarquía de categorías.</p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" /> Nuevo Producto
@@ -35,14 +43,28 @@ export default function ProductsPage() {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="relative w-full md:w-[400px]">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre, SKU o categoría..." 
-                className="pl-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-1 gap-2 w-full">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar por nombre, SKU o marca..." 
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat === "all" ? "Todas las Categorías" : cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex gap-2 w-full md:w-auto">
               <Button variant="outline" className="gap-2 flex-1 md:flex-none">
@@ -61,8 +83,9 @@ export default function ProductsPage() {
                 <TableHead className="w-[100px]">SKU</TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Categoría</TableHead>
+                <TableHead>Subcategoría / Marca</TableHead>
                 <TableHead className="text-right">Precio</TableHead>
-                <TableHead className="text-center">Stock Actual</TableHead>
+                <TableHead className="text-center">Stock</TableHead>
                 <TableHead className="text-center">Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
@@ -73,7 +96,17 @@ export default function ProductsPage() {
                   <TableCell className="font-mono text-xs font-bold text-muted-foreground">{product.sku}</TableCell>
                   <TableCell className="font-medium">{product.name}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{product.category}</Badge>
+                    <Badge variant="outline" className="bg-primary/5">{product.category}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    {product.subCategory ? (
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Tag className="h-3 w-3" />
+                        {product.subCategory}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground/30">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
                   <TableCell className="text-center">
@@ -85,7 +118,7 @@ export default function ProductsPage() {
                   <TableCell className="text-center">
                     {product.stock < product.minStock ? (
                       <Badge variant="destructive" className="gap-1">
-                        <AlertCircle className="h-3 w-3" /> Bajo Stock
+                        <AlertCircle className="h-3 w-3" /> Bajo
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
@@ -105,7 +138,7 @@ export default function ProductsPage() {
                           <Edit className="h-4 w-4" /> Editar
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2">
-                          <Package className="h-4 w-4" /> Ver Movimientos
+                          <Package className="h-4 w-4" /> Movimientos
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2 text-destructive">
                           <Trash2 className="h-4 w-4" /> Eliminar

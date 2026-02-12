@@ -2,8 +2,10 @@
 import { Product, Customer, Sale, BillingConfig } from './types';
 
 export const MOCK_PRODUCTS: Product[] = [
-  { id: '1', name: 'iPhone 15 Pro 128GB', sku: 'IPH-015', category: 'Smartphones', price: 1200.00, stock: 15, minStock: 5 },
-  { id: '2', name: 'Samsung Galaxy S24 Ultra', sku: 'SAM-S24', category: 'Smartphones', price: 1350.00, stock: 4, minStock: 6 },
+  { id: '1', name: 'iPhone 15 Pro 128GB', sku: 'IPH-015', category: 'Celulares', subCategory: 'Apple', price: 1200.00, stock: 15, minStock: 5 },
+  { id: '2', name: 'Samsung Galaxy S24 Ultra', sku: 'SAM-S24', category: 'Celulares', subCategory: 'Samsung', price: 1350.00, stock: 4, minStock: 6 },
+  { id: '7', name: 'Xiaomi Redmi Note 13', sku: 'XIA-RN13', category: 'Celulares', subCategory: 'Xiaomi', price: 350.00, stock: 10, minStock: 3 },
+  { id: '8', name: 'Motorola Edge 40', sku: 'MOT-E40', category: 'Celulares', subCategory: 'Motorola', price: 450.00, stock: 7, minStock: 2 },
   { id: '3', name: 'AirPods Pro (2da Gen)', sku: 'AIR-P02', category: 'Audio', price: 249.00, stock: 25, minStock: 10 },
   { id: '4', name: 'MacBook Pro 14" M3', sku: 'MAC-M3P', category: 'Computación', price: 1999.00, stock: 8, minStock: 3 },
   { id: '5', name: 'Cargador Rápido 20W USB-C', sku: 'ACC-C20', category: 'Accesorios', price: 25.00, stock: 60, minStock: 20 },

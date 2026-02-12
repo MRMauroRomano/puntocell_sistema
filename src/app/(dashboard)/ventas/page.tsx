@@ -6,27 +6,33 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Smartphone, Banknote } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Smartphone, Banknote, Tag } from "lucide-react"
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
 import { Product, SaleItem, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 export default function SalesPage() {
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>(MOCK_BILLING_CONFIGS[0].id)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
 
+  const categories = ["all", ...Array.from(new Set(MOCK_PRODUCTS.map(p => p.category)))]
+
   const filteredProducts = useMemo(() => 
-    MOCK_PRODUCTS.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [searchTerm])
+    MOCK_PRODUCTS.filter(p => {
+      const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
+      return matchesSearch && matchesCategory
+    }), [searchTerm, selectedCategory])
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -84,25 +90,40 @@ export default function SalesPage() {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-12rem)]">
       {/* Product Selection */}
       <div className="lg:col-span-7 space-y-4 flex flex-col">
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nombre o SKU..." 
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nombre o SKU..." 
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Categoría" />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map(cat => (
+                <SelectItem key={cat} value={cat}>
+                  {cat === "all" ? "Todas" : cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         
         <Card className="flex-1 overflow-hidden flex flex-col">
           <CardHeader className="bg-muted/30 py-3">
-            <CardTitle className="text-base">Productos Disponibles</CardTitle>
+            <CardTitle className="text-sm">Productos</CardTitle>
           </CardHeader>
           <CardContent className="p-0 overflow-auto">
             <Table>
               <TableHeader className="bg-muted/10 sticky top-0 z-10">
                 <TableRow>
                   <TableHead>Producto</TableHead>
+                  <TableHead>Marca/Subcat</TableHead>
                   <TableHead>Precio</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead className="text-right">Acción</TableHead>
@@ -114,17 +135,22 @@ export default function SalesPage() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">{product.name}</span>
-                        <span className="text-xs text-muted-foreground">{product.sku}</span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{product.sku}</span>
                       </div>
                     </TableCell>
-                    <TableCell>${product.price.toFixed(2)}</TableCell>
                     <TableCell>
-                      <Badge variant={product.stock < product.minStock ? "destructive" : "secondary"}>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Tag className="h-3 w-3" /> {product.subCategory || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="font-bold">${product.price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={product.stock < product.minStock ? "destructive" : "secondary"} className="text-[10px]">
                         {product.stock}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
+                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
                         <Plus className="h-4 w-4" />
                       </Button>
                     </TableCell>
