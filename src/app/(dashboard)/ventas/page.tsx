@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Smartphone, Banknote } from "lucide-react"
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
-import { Product, SaleItem } from "@/lib/types"
+import { Product, SaleItem, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -19,7 +19,7 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>(MOCK_BILLING_CONFIGS[0].id)
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'credit_account'>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
 
   const filteredProducts = useMemo(() => 
@@ -67,6 +67,17 @@ export default function SalesPage() {
     setSelectedCustomerId(null)
     setPaymentMethod('cash')
     setIsSuccessDialogOpen(false)
+  }
+
+  const getPaymentMethodLabel = (method: PaymentMethod) => {
+    switch(method) {
+      case 'cash': return 'Efectivo';
+      case 'debit': return 'Débito';
+      case 'credit_card': return 'Tarjeta de Crédito';
+      case 'transfer': return 'Transferencia';
+      case 'credit_account': return 'Cuenta Corriente';
+      default: return method;
+    }
   }
 
   return (
@@ -203,13 +214,16 @@ export default function SalesPage() {
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase text-muted-foreground">Pago</label>
+                    <label className="text-xs font-bold uppercase text-muted-foreground">Medio de Pago</label>
                     <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cash">Efectivo</SelectItem>
+                        <SelectItem value="debit">Débito</SelectItem>
+                        <SelectItem value="credit_card">Crédito</SelectItem>
+                        <SelectItem value="transfer">Transferencia</SelectItem>
                         <SelectItem value="credit_account" disabled={!selectedCustomerId || selectedCustomerId === 'final'}>Cuenta Cte.</SelectItem>
                       </SelectContent>
                     </Select>
@@ -262,7 +276,7 @@ export default function SalesPage() {
              </div>
              <div className="flex justify-between">
                 <span className="text-sm">Método:</span>
-                <span className="text-sm font-bold uppercase">{paymentMethod === 'cash' ? 'Efectivo' : 'Cuenta Corriente'}</span>
+                <span className="text-sm font-bold uppercase">{getPaymentMethodLabel(paymentMethod)}</span>
              </div>
              <div className="flex justify-between pt-2 border-t border-muted-foreground/20">
                 <span className="text-xs flex items-center gap-1"><FileCheck className="h-3 w-3" /> Facturado por:</span>

@@ -27,6 +27,8 @@ export interface SaleItem {
   subtotal: number;
 }
 
+export type PaymentMethod = 'cash' | 'debit' | 'credit_card' | 'transfer' | 'credit_account';
+
 export interface Sale {
   id: string;
   date: string;
@@ -36,7 +38,7 @@ export interface Sale {
   subtotal: number;
   tax: number;
   total: number;
-  paymentMethod: 'cash' | 'credit_account';
+  paymentMethod: PaymentMethod;
   billingCuit?: string; // CUIT used for this sale
 }
 
