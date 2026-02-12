@@ -1,0 +1,428 @@
+{
+  "entities": {
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a single product available for sale in the store. It includes details necessary for inventory management and sales.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "Selling price of a single unit of the product."
+        },
+        "cost": {
+          "type": "number",
+          "description": "Cost price of a single unit of the product (for internal profit calculation, not shown to customers)."
+        },
+        "stockQuantity": {
+          "type": "number",
+          "description": "Current quantity of the product available in stock."
+        },
+        "minStockQuantity": {
+          "type": "number",
+          "description": "Minimum stock level threshold to trigger a low stock alert."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL for an image of the product.",
+          "format": "uri"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Indicates if the product is currently active and available for sale (true for active, false for inactive/archived)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "stockQuantity",
+        "minStockQuantity",
+        "isActive"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer of the store, including their personal details and current account balance.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Customer entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the customer."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the customer.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Phone number of the customer."
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical address of the customer."
+        },
+        "identificationNumber": {
+          "type": "string",
+          "description": "National identification number (e.g., DNI, CUIT) of the customer for legal and billing purposes."
+        },
+        "currentAccountBalance": {
+          "type": "number",
+          "description": "Current outstanding balance for the customer's current account. A positive value indicates debt, a negative value indicates credit/overpayment."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "currentAccountBalance"
+      ]
+    },
+    "Sale": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Sale",
+      "type": "object",
+      "description": "Represents a complete sales transaction, serving as the main record for an invoice or receipt.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Sale transaction."
+        },
+        "saleDateTime": {
+          "type": "string",
+          "description": "Date and time when the sale was recorded.",
+          "format": "date-time"
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the Customer who made the purchase. This can be null for cash sales or sales to unregistered customers. (Relationship: Customer 1:N Sale)"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Sum of all product prices before taxes and discounts."
+        },
+        "taxAmount": {
+          "type": "number",
+          "description": "Total amount of taxes applied to the sale."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Final total amount of the sale, including taxes."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Method used for payment (e.g., 'Cash', 'CurrentAccount')."
+        },
+        "isPaidInFull": {
+          "type": "boolean",
+          "description": "Indicates if the sale was fully paid at the time of transaction (e.g., true for cash sales, false for current account sales that establish a debt)."
+        },
+        "invoiceNumber": {
+          "type": "string",
+          "description": "Unique identifier or number for the invoice generated for this sale."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any additional notes or comments regarding the sale."
+        }
+      },
+      "required": [
+        "id",
+        "saleDateTime",
+        "subtotal",
+        "taxAmount",
+        "totalAmount",
+        "paymentMethod",
+        "isPaidInFull",
+        "invoiceNumber"
+      ]
+    },
+    "SaleItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SaleItem",
+      "type": "object",
+      "description": "Represents a single product item within a sales transaction, detailing the product, quantity, and price at the time of sale.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Sale Item entity."
+        },
+        "saleId": {
+          "type": "string",
+          "description": "Reference to the Sale this item belongs to. (Relationship: Sale 1:N SaleItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product sold in this item. (Relationship: Product 1:N SaleItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product sold in this item."
+        },
+        "unitPrice": {
+          "type": "number",
+          "description": "Unit price of the product at the time of sale. This might differ from the current product price in the Product entity if prices change over time."
+        },
+        "itemTotal": {
+          "type": "number",
+          "description": "Total price for this sale item (quantity * unitPrice)."
+        }
+      },
+      "required": [
+        "id",
+        "saleId",
+        "productId",
+        "quantity",
+        "unitPrice",
+        "itemTotal"
+      ]
+    },
+    "AccountMovement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccountMovement",
+      "type": "object",
+      "description": "Records all financial movements related to a customer's current account, such as payments received or charges incurred.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the account movement."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the Customer whose account is affected by this movement. (Relationship: Customer 1:N AccountMovement)"
+        },
+        "movementDateTime": {
+          "type": "string",
+          "description": "Date and time when the account movement occurred.",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of account movement (e.g., 'Payment', 'Charge', 'Adjustment')."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the movement. Positive values typically represent payments/credits to the customer's account (reducing debt), negative values represent charges/debits (increasing debt)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the account movement (e.g., 'Payment for invoice #123', 'Charge for sale #456')."
+        },
+        "associatedSaleId": {
+          "type": "string",
+          "description": "Optional reference to the Sale associated with this movement if it's a charge from a sale or a payment towards a specific sale. (Relationship: Sale 1:N AccountMovement)"
+        }
+      },
+      "required": [
+        "id",
+        "customerId",
+        "movementDateTime",
+        "type",
+        "amount",
+        "description"
+      ]
+    },
+    "InventoryMovement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "InventoryMovement",
+      "type": "object",
+      "description": "Records all changes in the stock level for a particular product, providing an audit trail for inventory.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the inventory movement."
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to the Product whose inventory is affected by this movement. (Relationship: Product 1:N InventoryMovement)"
+        },
+        "movementDateTime": {
+          "type": "string",
+          "description": "Date and time when the inventory movement occurred.",
+          "format": "date-time"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of inventory movement (e.g., 'In' for stock addition, 'Out' for stock reduction due to sale, 'Adjustment' for manual correction)."
+        },
+        "quantityChange": {
+          "type": "number",
+          "description": "Change in stock quantity. Positive values for additions (e.g., receiving new stock), negative values for reductions (e.g., product sold)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the inventory movement (e.g., 'Sale #123', 'Supplier delivery for PO #456', 'Physical inventory adjustment')."
+        },
+        "associatedSaleItemId": {
+          "type": "string",
+          "description": "Optional reference to the SaleItem if this movement is an 'Out' type due to a product being sold as part of a sale. (Relationship: SaleItem 1:N InventoryMovement)"
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "movementDateTime",
+        "type",
+        "quantityChange",
+        "description"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/roles_storeStaff/{staffId}",
+        "definition": {
+          "entityName": "UserRole",
+          "schema": {
+            "$ref": "#/backend/entities/UserRole"
+          },
+          "description": "Collection to store information about authenticated users who are designated as store staff. The existence of a document for a `uid` at this path grants administrative access to the system. This implements Database Access Control (DBAC).",
+          "params": [
+            {
+              "name": "staffId",
+              "description": "The unique user ID (UID) of the staff member, matching `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}",
+        "definition": {
+          "entityName": "Product",
+          "schema": {
+            "$ref": "#/backend/entities/Product"
+          },
+          "description": "Master collection for all products available in the store. Managed by authorized store staff. All documents in this collection share the same security posture.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier for a specific product."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}",
+        "definition": {
+          "entityName": "Customer",
+          "schema": {
+            "$ref": "#/backend/entities/Customer"
+          },
+          "description": "Master collection for all customer records. Managed by authorized store staff. All documents in this collection share the same security posture.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier for a specific customer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sales/{saleId}",
+        "definition": {
+          "entityName": "Sale",
+          "schema": {
+            "$ref": "#/backend/entities/Sale"
+          },
+          "description": "Master collection for all sales transactions. Managed by authorized store staff. All documents in this collection share the same security posture.",
+          "params": [
+            {
+              "name": "saleId",
+              "description": "Unique identifier for a specific sales transaction."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/sales/{saleId}/saleItems/{saleItemId}",
+        "definition": {
+          "entityName": "SaleItem",
+          "schema": {
+            "$ref": "#/backend/entities/SaleItem"
+          },
+          "description": "Subcollection detailing individual product items within a specific sales transaction. Access is implicitly granted to authorized staff who have access to the parent Sale. The `saleId` and `productId` fields are included for data integrity and querying.",
+          "params": [
+            {
+              "name": "saleId",
+              "description": "Unique identifier of the parent sales transaction."
+            },
+            {
+              "name": "saleItemId",
+              "description": "Unique identifier for a specific item within the sale."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/customers/{customerId}/accountMovements/{movementId}",
+        "definition": {
+          "entityName": "AccountMovement",
+          "schema": {
+            "$ref": "#/backend/entities/AccountMovement"
+          },
+          "description": "Subcollection for financial movements related to a specific customer's current account. Access is implicitly granted to authorized staff who have access to the parent Customer. The `customerId` field is included for data integrity and querying.",
+          "params": [
+            {
+              "name": "customerId",
+              "description": "Unique identifier of the parent customer."
+            },
+            {
+              "name": "movementId",
+              "description": "Unique identifier for a specific account movement."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/products/{productId}/inventoryMovements/{movementId}",
+        "definition": {
+          "entityName": "InventoryMovement",
+          "schema": {
+            "$ref": "#/backend/entities/InventoryMovement"
+          },
+          "description": "Subcollection for all stock changes affecting a specific product. Access is implicitly granted to authorized staff who have access to the parent Product. The `productId` field is included for data integrity and querying.",
+          "params": [
+            {
+              "name": "productId",
+              "description": "Unique identifier of the parent product."
+            },
+            {
+              "name": "movementId",
+              "description": "Unique identifier for a specific inventory movement."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The proposed Firestore structure prioritizes secure, scalable, and debuggable administration for CommerceManager Pro. It adheres strictly to the core design principles, especially Authorization Independence and QAPs (Rules are not Filters), by leveraging a Database Access Control (DBAC) model for staff roles and clear structural segregation of data.\n\n**Authorization Independence via Denormalization:**\nFor this administrative system, the primary authorization context is the user's role as 'store staff'. This is denormalized by storing staff UIDs in a dedicated top-level collection: `/roles_storeStaff/{staffId}`. Any authenticated user whose `request.auth.uid` exists in this collection is considered authorized staff. This eliminates the need for `get()` calls in security rules to check for roles, thus ensuring authorization independence and enabling atomic operations across the database.\n\nSubcollections like `saleItems` under `sales`, `accountMovements` under `customers`, and `inventoryMovements` under `products` naturally derive their authorization from their parent's context. Since staff are authorized to manage all `sales`, `customers`, and `products`, they are implicitly authorized to manage their respective subcollections. The necessary foreign keys (`saleId`, `customerId`, `productId`) are present in the document path (as wildcards) and within the document data itself, providing clear relational links without requiring a `get()` operation for authorization validation.\n\n**QAPs (Rules are not Filters) and Structural Segregation:**\nEach collection and subcollection is designed with a homogeneous security posture: all documents within a given collection path are accessible to authorized store staff. There is no mixing of public/private or role-specific data within a single collection. For instance, `/products` contains all products, all of which are managed by staff. Similarly, `/customers` holds all customer data, accessible to staff. This segregation ensures that `list` queries can be securely performed by simply checking if `request.auth.uid` is present in `/roles_storeStaff`, without needing complex, filter-like logic in security rules. This directly supports QAPs, making rules simple, robust, and debuggable."
+  }
+}
