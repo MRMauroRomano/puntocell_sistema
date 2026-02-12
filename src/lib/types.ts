@@ -14,6 +14,7 @@ export interface Product {
 export interface Customer {
   id: string;
   name: string;
+  cuit: string; // Tax ID
   email: string;
   phone: string;
   address?: string;

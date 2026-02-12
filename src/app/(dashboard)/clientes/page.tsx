@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, MapPin, Trash2, Edit2 } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, MapPin, Trash2, Edit2, FileText } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -32,6 +32,7 @@ export default function CustomersPage() {
 
   const [formCustomer, setFormCustomer] = useState<Partial<Customer>>({
     name: "",
+    cuit: "",
     email: "",
     phone: "",
     address: "",
@@ -43,7 +44,8 @@ export default function CustomersPage() {
     return customers.filter(c => 
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
       c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone.includes(searchTerm)
+      c.phone.includes(searchTerm) ||
+      (c.cuit && c.cuit.includes(searchTerm))
     )
   }, [customers, searchTerm])
 
@@ -52,6 +54,7 @@ export default function CustomersPage() {
     setCurrentCustomerId(null)
     setFormCustomer({
       name: "",
+      cuit: "",
       email: "",
       phone: "",
       address: "",
@@ -65,6 +68,7 @@ export default function CustomersPage() {
     setCurrentCustomerId(customer.id)
     setFormCustomer({
       name: customer.name,
+      cuit: customer.cuit || "",
       email: customer.email,
       phone: customer.phone,
       address: customer.address || "",
@@ -74,11 +78,11 @@ export default function CustomersPage() {
   }
 
   const handleSaveCustomer = () => {
-    if (!formCustomer.name) {
+    if (!formCustomer.name || !formCustomer.cuit) {
       toast({
         variant: "destructive",
-        title: "Campo obligatorio",
-        description: "El nombre del cliente es necesario.",
+        title: "Campos obligatorios",
+        description: "El nombre y el CUIT son necesarios.",
       })
       return
     }
@@ -151,6 +155,15 @@ export default function CustomersPage() {
                   onChange={(e) => setFormCustomer({...formCustomer, name: e.target.value})}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="cuit">CUIT / CUIL</Label>
+                <Input 
+                  id="cuit" 
+                  placeholder="Ej: 20-12345678-9" 
+                  value={formCustomer.cuit}
+                  onChange={(e) => setFormCustomer({...formCustomer, cuit: e.target.value})}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="phone">Teléfono</Label>
@@ -207,7 +220,7 @@ export default function CustomersPage() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Buscar por nombre, email o teléfono..." 
+            placeholder="Buscar por nombre, CUIT, email o teléfono..." 
             className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -231,7 +244,7 @@ export default function CustomersPage() {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{customer.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">ID: {customer.id}</p>
+                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "No registrado"}</p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -251,6 +264,10 @@ export default function CustomersPage() {
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span className="truncate">{customer.cuit || "Sin CUIT"}</span>
+                    </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
                       <span className="truncate">{customer.email || "Sin email"}</span>
