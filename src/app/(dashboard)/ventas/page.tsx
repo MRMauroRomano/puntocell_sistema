@@ -16,7 +16,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
 
 export default function SalesPage() {
-  const { firestore } = useFirestore()
+  const firestore = useFirestore()
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -69,7 +69,7 @@ export default function SalesPage() {
   }
 
   const subtotal = cart.reduce((acc, curr) => acc + curr.subtotal, 0)
-  const tax = subtotal * 0.21 // 21% Tax
+  const tax = subtotal * 0.21
   const total = subtotal + tax
 
   const selectedBillingConfig = MOCK_BILLING_CONFIGS.find(b => b.id === selectedBillingCuitId)

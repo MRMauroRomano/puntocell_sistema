@@ -17,7 +17,7 @@ import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, d
 import { collection, doc } from "firebase/firestore"
 
 export default function ProductsPage() {
-  const { firestore } = useFirestore()
+  const firestore = useFirestore()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -69,7 +69,7 @@ export default function ProductsPage() {
       minStock: Number(newProduct.minStock),
       description: newProduct.description || "",
       isActive: true,
-      id: Math.random().toString(36).substr(2, 9) // We generate a temporary ID, but Firestore addDoc creates its own document ID
+      id: Math.random().toString(36).substr(2, 9)
     }
 
     addDocumentNonBlocking(productsRef, productData)
