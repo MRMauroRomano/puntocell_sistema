@@ -13,14 +13,14 @@ export const MOCK_PRODUCTS: Product[] = [
 ];
 
 export const MOCK_CUSTOMERS: Customer[] = [
-  { id: 'c1', name: 'Juan Pérez', email: 'juan@example.com', phone: '123456789', balance: 450.20 },
-  { id: 'c2', name: 'María García', email: 'maria@example.com', phone: '987654321', balance: 0.00 },
-  { id: 'c3', name: 'Carlos López', email: 'carlos@example.com', phone: '456123789', balance: 1250.50 },
+  { id: 'c1', name: 'Juan Pérez', cuit: '20-12345678-9', email: 'juan@example.com', phone: '123456789', balance: 450.20 },
+  { id: 'c2', name: 'María García', cuit: '27-98765432-1', email: 'maria@example.com', phone: '987654321', balance: 0.00 },
+  { id: 'c3', name: 'Carlos López', cuit: '20-45612378-5', email: 'carlos@example.com', phone: '456123789', balance: 1250.50 },
 ];
 
 export const MOCK_BILLING_CONFIGS: BillingConfig[] = [
-  { id: '1', name: 'TechStore Principal', cuit: '30-71112223-9', description: 'Facturación estándar' },
-  { id: '2', name: 'TechStore Accesorios', cuit: '20-33444555-2', description: 'Monotributo / Otros' },
+  { id: '1', name: 'ELECTRO TECH SOLUTIONS S.A.', cuit: '30-76543210-9', description: 'Facturación Principal - Responsable Inscripto' },
+  { id: '2', name: 'TECH ACCESSORIES OK', cuit: '20-33444555-2', description: 'Monotributo / Otros' },
 ];
 
 export const MOCK_SALES: Sale[] = [
@@ -34,6 +34,6 @@ export const MOCK_SALES: Sale[] = [
     tax: 10.50,
     total: 60.50,
     paymentMethod: 'cash',
-    billingCuit: '30-71112223-9'
+    billingCuit: '30-76543210-9'
   }
 ];

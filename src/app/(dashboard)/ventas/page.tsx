@@ -32,11 +32,9 @@ export default function SalesPage() {
   const [isFinishing, setIsFinishing] = useState(false)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
 
-  // Fetch products from Firestore
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
 
-  // Fetch customers from Firestore
   const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
   const { data: customers } = useCollection<Customer>(customersRef)
 
@@ -166,22 +164,9 @@ export default function SalesPage() {
     }
   }
 
-  const getPaymentMethodLabel = (method: PaymentMethod) => {
-    switch(method) {
-      case 'cash': return 'Efectivo';
-      case 'debit': return 'Débito';
-      case 'credit_card': return 'Tarjeta de Crédito';
-      case 'transfer': return 'Transferencia';
-      case 'credit_account': return 'Cuenta Corriente';
-      default: return method;
-    }
-  }
-
   return (
     <div className="relative">
-      {/* UI Content - Hidden during print */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-12rem)] no-print">
-        {/* Product Selection */}
         <div className="lg:col-span-7 space-y-4 flex flex-col">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -261,7 +246,6 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        {/* Cart and Checkout */}
         <div className="lg:col-span-5 flex flex-col gap-4">
           <Card className="flex-1 flex flex-col overflow-hidden border-primary/20 bg-white/50 backdrop-blur-sm">
             <CardHeader className="py-4 border-b bg-primary/5">
@@ -378,9 +362,6 @@ export default function SalesPage() {
                 >
                   {isFinishing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Finalizar Venta"}
                 </Button>
-                {invoiceType === 'factura_a' && (!selectedCustomerId || selectedCustomerId === 'final') && (
-                  <p className="text-[10px] text-destructive text-center font-bold">Para Factura A se requiere un cliente registrado con CUIT.</p>
-                )}
               </div>
             </CardFooter>
           </Card>
@@ -421,23 +402,22 @@ export default function SalesPage() {
         </Dialog>
       </div>
 
-      {/* Invoice Template - Print Only */}
       {lastSale && (
         <div className="print-only p-8 text-black bg-white min-h-screen">
           <div className="border-2 border-black p-6 space-y-6">
-            {/* Header */}
             <div className="flex justify-between items-start border-b-2 border-black pb-4">
               <div className="space-y-1">
-                <h1 className="text-2xl font-bold uppercase">{lastSale.billingName || "TechStore Pro"}</h1>
-                <p className="text-sm">Responsable Inscripto</p>
-                <p className="text-xs">Av. Rivadavia 1234, CABA</p>
+                <h1 className="text-2xl font-bold uppercase">{lastSale.billingName}</h1>
+                <p className="text-sm font-bold">Responsable Inscripto</p>
+                <p className="text-xs">Av. Corrientes 4500, CABA</p>
                 <p className="text-xs font-bold">CUIT: {lastSale.billingCuit}</p>
+                <p className="text-xs">Inicio de Actividades: 01/01/2023</p>
               </div>
               <div className="flex flex-col items-center">
-                <div className="border-2 border-black w-16 h-16 flex items-center justify-center text-4xl font-black mb-1">
-                  {lastSale.invoiceType === 'factura_a' ? 'A' : 'B'}
+                <div className="border-2 border-black w-20 h-20 flex flex-col items-center justify-center mb-1">
+                  <span className="text-5xl font-black">{lastSale.invoiceType === 'factura_a' ? 'A' : 'B'}</span>
+                  <span className="text-[10px] font-bold mt-[-5px]">COD. {lastSale.invoiceType === 'factura_a' ? '01' : '06'}</span>
                 </div>
-                <p className="text-[10px] font-bold">COD. 01</p>
               </div>
               <div className="text-right space-y-1">
                 <h2 className="text-xl font-bold uppercase">{getInvoiceLabel(lastSale.invoiceType)}</h2>
@@ -446,19 +426,17 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* Customer Info */}
             <div className="grid grid-cols-2 gap-4 text-sm border-b-2 border-black pb-4">
               <div className="space-y-1">
-                <p><span className="font-bold">Señor(es):</span> {lastSale.customerName}</p>
-                <p><span className="font-bold">Domicilio:</span> Calle Falsa 123</p>
+                <p><span className="font-bold">Cliente:</span> {lastSale.customerName}</p>
+                <p><span className="font-bold">Domicilio:</span> Calle Falsa 123, CABA</p>
               </div>
               <div className="space-y-1">
-                <p><span className="font-bold">CUIT:</span> {lastSale.customerCuit || "20-00000000-1"}</p>
-                <p><span className="font-bold">Cond. IVA:</span> {lastSale.invoiceType === 'factura_a' ? 'Responsable Inscripto' : 'Consumidor Final'}</p>
+                <p><span className="font-bold">CUIT:</span> {lastSale.customerCuit || "Consumidor Final"}</p>
+                <p><span className="font-bold">Cond. IVA:</span> {lastSale.invoiceType === 'factura_a' ? 'Resp. Inscripto' : 'Cons. Final'}</p>
               </div>
             </div>
 
-            {/* Items Table */}
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-black">
@@ -480,7 +458,6 @@ export default function SalesPage() {
               </tbody>
             </table>
 
-            {/* Totals */}
             <div className="border-t-2 border-black pt-4 flex justify-end">
               <div className="w-64 space-y-2">
                 <div className="flex justify-between text-sm">
@@ -500,14 +477,13 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* Footer */}
             <div className="pt-12 flex justify-between items-end">
                <div className="text-[10px] italic">
-                 Comprobante generado por CommerceManager Pro.
+                 Comprobante Electrónico generado por CommerceManager Pro.
                </div>
                <div className="text-right space-y-1">
-                  <p className="text-xs font-bold uppercase">CAI N°: 12345678901234</p>
-                  <p className="text-xs font-bold uppercase">VTO. CAI: 31/12/2024</p>
+                  <p className="text-xs font-bold uppercase">CAE N°: 74123856920456</p>
+                  <p className="text-xs font-bold uppercase">VTO. CAE: 31/12/2024</p>
                </div>
             </div>
           </div>
