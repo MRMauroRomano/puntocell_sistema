@@ -25,11 +25,9 @@ export default function ProductsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Firebase connection
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
   const { data: products, isLoading } = useCollection<Product>(productsRef)
 
-  // State for new product form
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     name: "",
     sku: "",
@@ -55,7 +53,6 @@ export default function ProductsPage() {
   }, [products, searchTerm, selectedCategory])
 
   const handleAddProduct = () => {
-    // Validaciones básicas
     if (!newProduct.name || !newProduct.sku) {
       toast({
         variant: "destructive",
@@ -70,21 +67,34 @@ export default function ProductsPage() {
     const productId = Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'products', productId)
     
+    const priceVal = Number(newProduct.price)
+    const stockVal = Number(newProduct.stock)
+    const minStockVal = Number(newProduct.minStock)
+
+    if (isNaN(priceVal) || isNaN(stockVal) || isNaN(minStockVal)) {
+      setIsSaving(false)
+      toast({
+        variant: "destructive",
+        title: "Valores inválidos",
+        description: "El precio y stock deben ser números válidos.",
+      })
+      return
+    }
+
     const productData = {
       name: newProduct.name,
       sku: newProduct.sku,
       category: newProduct.category || "General",
       subCategory: newProduct.subCategory || "",
-      price: Number(newProduct.price) || 0,
-      stock: Number(newProduct.stock) || 0,
-      minStock: Number(newProduct.minStock) || 5,
+      price: priceVal,
+      stock: stockVal,
+      minStock: minStockVal,
       description: newProduct.description || "",
       isActive: true,
       id: productId
     }
 
     try {
-      // Usar setDocumentNonBlocking para guardar en Firestore
       setDocumentNonBlocking(productDocRef, productData, { merge: true })
       
       toast({
@@ -93,7 +103,6 @@ export default function ProductsPage() {
       })
       
       setIsAddDialogOpen(false)
-      setIsSaving(false)
       setNewProduct({
         name: "",
         sku: "",
@@ -105,13 +114,13 @@ export default function ProductsPage() {
         description: ""
       })
     } catch (error) {
-      console.error(error)
-      setIsSaving(false)
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "No se pudo guardar el producto.",
+        title: "Error de sistema",
+        description: "No se pudo procesar la solicitud de guardado.",
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -227,7 +236,7 @@ export default function ProductsPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleAddProduct} className="gap-2" disabled={isSaving}>
+              <Button onClick={handleAddProduct} className="gap-2" disabled={isSaving} type="button">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Guardar Producto
               </Button>

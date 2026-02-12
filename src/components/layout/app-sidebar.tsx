@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   Package,
@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useAuth } from "@/firebase"
+import { signOut } from "firebase/auth"
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
@@ -45,7 +47,15 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { state } = useSidebar()
+  const auth = useAuth()
+
+  const handleSignOut = () => {
+    signOut(auth).then(() => {
+      router.push("/login")
+    })
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -98,7 +108,12 @@ export function AppSidebar() {
             </div>
           )}
           {state !== "collapsed" && (
-             <SidebarMenuButton size="icon" className="text-muted-foreground hover:text-destructive">
+             <SidebarMenuButton 
+               size="icon" 
+               className="text-muted-foreground hover:text-destructive"
+               onClick={handleSignOut}
+               title="Cerrar Sesión"
+             >
                <LogOut className="h-4 w-4" />
              </SidebarMenuButton>
           )}
