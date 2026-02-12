@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -125,17 +125,17 @@ export default function ExpensesPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold font-headline text-primary">Control de Gastos</h1>
-          <p className="text-muted-foreground">Registra y monitorea las salidas de dinero de tu negocio.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Control de Gastos</h1>
+          <p className="text-sm text-muted-foreground">Registra y monitorea las salidas de dinero de tu negocio.</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 shadow-sm">
+            <Button className="w-full sm:w-auto gap-2 shadow-sm">
               <Plus className="h-4 w-4" /> Registrar Gasto
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="w-[95vw] sm:max-w-[425px] rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-headline">Nuevo Registro de Gasto</DialogTitle>
             </DialogHeader>
@@ -149,7 +149,7 @@ export default function ExpensesPage() {
                   onChange={(e) => setFormExpense({...formExpense, description: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Categoría</Label>
                   <Select 
@@ -177,7 +177,7 @@ export default function ExpensesPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Medio de Pago</Label>
                   <Select 
@@ -206,9 +206,9 @@ export default function ExpensesPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleSaveExpense} className="gap-2" disabled={isSaving}>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button onClick={handleSaveExpense} className="w-full sm:w-auto gap-2" disabled={isSaving}>
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 Guardar Gasto
               </Button>
@@ -220,34 +220,34 @@ export default function ExpensesPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="bg-red-50 border-red-200">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-800">Gasto Total del Mes</CardTitle>
+            <CardTitle className="text-sm font-medium text-red-800">Gasto Mensual</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-900 font-headline">${totalMonth.toFixed(2)}</div>
-            <p className="text-xs text-red-700 mt-1">Acumulado en {format(new Date(), 'MMMM', { locale: es })}</p>
+            <div className="text-2xl lg:text-3xl font-bold text-red-900 font-headline">${totalMonth.toFixed(2)}</div>
+            <p className="text-[10px] lg:text-xs text-red-700 mt-1 uppercase font-bold tracking-tight">Acumulado en {format(new Date(), 'MMMM', { locale: es })}</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="shadow-sm border-primary/10">
+      <Card className="shadow-sm border-primary/10 overflow-hidden">
         <CardHeader className="pb-4">
           <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="flex flex-1 gap-2 w-full">
+            <div className="flex flex-col sm:flex-row flex-1 gap-2 w-full">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Buscar por descripción..." 
+                  placeholder="Buscar gasto..." 
                   className="pl-9"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full sm:w-[180px]">
                   <SelectValue placeholder="Categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  <SelectItem value="all">Todas</SelectItem>
                   {EXPENSE_CATEGORIES.map(cat => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
@@ -260,57 +260,55 @@ export default function ExpensesPage() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Cargando gastos...</p>
+              <p className="text-muted-foreground text-sm">Cargando...</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Medio</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="whitespace-nowrap">
-                      {format(new Date(expense.date), 'dd/MM/yyyy')}
-                    </TableCell>
-                    <TableCell className="font-medium">{expense.description}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{expense.category}</Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {expense.paymentMethod}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-red-600">
-                      -${expense.amount.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-destructive hover:bg-red-50"
-                        onClick={() => handleDeleteExpense(expense.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                      No se registraron gastos con los filtros actuales.
-                    </TableCell>
+                    <TableHead className="min-w-[100px]">Fecha</TableHead>
+                    <TableHead className="min-w-[150px]">Descripción</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {format(new Date(expense.date), 'dd/MM/yyyy')}
+                      </TableCell>
+                      <TableCell className="font-medium text-xs">{expense.description}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px] whitespace-nowrap">{expense.category}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-red-600 text-sm">
+                        -${expense.amount.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-destructive hover:bg-red-50"
+                          onClick={() => handleDeleteExpense(expense.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filtered.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground text-sm">
+                        No hay registros.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

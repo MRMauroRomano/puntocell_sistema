@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Plus, Trash2, MoreVertical, Save, Loader2, AlertCircle, Edit2 } from "lucide-react"
 import { Product } from "@/lib/types"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
@@ -151,29 +151,31 @@ export default function ProductsPage() {
   }
 
   const handleDeleteProduct = (id: string, name: string) => {
-    const docRef = doc(firestore, 'products', id)
-    deleteDocumentNonBlocking(docRef)
-    toast({
-      title: "Producto eliminado",
-      description: `${name} ha sido borrado del inventario.`,
-    })
+    if (confirm(`¿Estás seguro de eliminar ${name}?`)) {
+      const docRef = doc(firestore, 'products', id)
+      deleteDocumentNonBlocking(docRef)
+      toast({
+        title: "Producto eliminado",
+        description: `${name} ha sido borrado del inventario.`,
+      })
+    }
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold font-headline text-primary">Inventario de Equipos</h1>
-          <p className="text-muted-foreground">Administra tus celulares, tablets y accesorios electrónicos.</p>
+          <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Inventario</h1>
+          <p className="text-sm text-muted-foreground">Administra tus equipos y repuestos electrónicos.</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2 shadow-sm" onClick={handleOpenAdd}>
+            <Button className="w-full sm:w-auto gap-2 shadow-sm" onClick={handleOpenAdd}>
               <Plus className="h-4 w-4" /> Nuevo Producto
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
+          <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl">
             <DialogHeader>
               <DialogTitle className="text-xl font-headline">
                 {isEditing ? "Editar Equipo" : "Registrar Equipo"}
@@ -189,7 +191,7 @@ export default function ProductsPage() {
                   onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="category">Categoría</Label>
                   <Select 
@@ -218,7 +220,7 @@ export default function ProductsPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Precio Venta</Label>
                   <Input 
@@ -251,9 +253,9 @@ export default function ProductsPage() {
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleSaveProduct} className="gap-2" disabled={isSaving} type="button">
+            <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+              <Button onClick={handleSaveProduct} className="w-full sm:w-auto gap-2" disabled={isSaving} type="button">
                 {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 {isEditing ? "Guardar Cambios" : "Guardar Producto"}
               </Button>
@@ -262,30 +264,26 @@ export default function ProductsPage() {
         </Dialog>
       </div>
 
-      <Card className="shadow-sm border-primary/10">
+      <Card className="shadow-sm border-primary/10 overflow-hidden">
         <CardHeader className="pb-4">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <div className="flex flex-1 gap-2 w-full">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar equipo o marca..." 
-                  className="pl-9 bg-muted/30 border-none"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar equipo o marca..." 
+              className="pl-9 bg-muted/30 border-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-2">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground">Cargando base de datos...</p>
+              <p className="text-muted-foreground text-sm">Cargando base de datos...</p>
             </div>
           ) : (
-            <>
+            <div className="overflow-x-auto">
               {filtered.length === 0 ? (
                 <div className="text-center py-20">
                   <AlertCircle className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
@@ -295,7 +293,7 @@ export default function ProductsPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Modelo</TableHead>
+                      <TableHead className="min-w-[150px]">Modelo</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead className="text-center">Stock</TableHead>
@@ -305,23 +303,23 @@ export default function ProductsPage() {
                   <TableBody>
                     {filtered.map((product) => (
                       <TableRow key={product.id}>
-                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell className="font-medium text-sm">{product.name}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <Badge variant="outline" className="w-fit">{product.category}</Badge>
+                            <Badge variant="outline" className="w-fit text-[10px]">{product.category}</Badge>
                             <span className="text-[10px] text-muted-foreground">{product.subCategory}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-bold">${product.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-bold text-sm">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          <span className={product.stock < product.minStock ? "text-red-600 font-bold" : ""}>
+                          <span className={product.stock < product.minStock ? "text-red-600 font-bold" : "text-sm"}>
                             {product.stock}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon"><MoreVertical className="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleOpenEdit(product)}>
@@ -338,7 +336,7 @@ export default function ProductsPage() {
                   </TableBody>
                 </Table>
               )}
-            </>
+            </div>
           )}
         </CardContent>
       </Card>
