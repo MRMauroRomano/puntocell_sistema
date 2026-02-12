@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, User, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Tag, Loader2 } from "lucide-react"
-import { MOCK_CUSTOMERS, MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
-import { Product, SaleItem, PaymentMethod } from "@/lib/types"
+import { Search, Plus, Trash2, ShoppingCart, CreditCard, DollarSign, Printer, CheckCircle2, FileCheck, Tag, Loader2 } from "lucide-react"
+import { MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
+import { Product, SaleItem, PaymentMethod, Customer } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -31,7 +31,11 @@ export default function SalesPage() {
 
   // Fetch products from Firestore
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
-  const { data: products, isLoading } = useCollection<Product>(productsRef)
+  const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
+
+  // Fetch customers from Firestore
+  const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
+  const { data: customers } = useCollection<Customer>(customersRef)
 
   const categories = useMemo(() => {
     if (!products) return ["all"]
@@ -84,11 +88,14 @@ export default function SalesPage() {
     const saleId = Math.random().toString(36).substr(2, 9)
     const saleRef = doc(firestore, 'sales', saleId)
     
+    const customer = customers?.find(c => c.id === selectedCustomerId)
+    const customerName = selectedCustomerId === 'final' || !customer ? 'Consumidor Final' : customer.name
+
     const saleData = {
       id: saleId,
       date: new Date().toISOString(),
       customerId: selectedCustomerId || 'final',
-      customerName: selectedCustomerId === 'final' ? 'Consumidor Final' : MOCK_CUSTOMERS.find(c => c.id === selectedCustomerId)?.name || 'Consumidor Final',
+      customerName: customerName,
       items: cart,
       subtotal,
       tax,
@@ -113,14 +120,14 @@ export default function SalesPage() {
         }
       })
 
-      // Registrar en caja (opcional/MVP simplificado)
-      const dayId = new Date().toISOString().split('T')[0]
-      const registerRef = doc(firestore, 'cashregister', dayId)
-      setDocumentNonBlocking(registerRef, { 
-        lastUpdate: serverTimestamp(),
-        status: 'open' 
-      }, { merge: true })
-      
+      // Si es cuenta corriente, actualizar saldo del cliente
+      if (paymentMethod === 'credit_account' && selectedCustomerId && selectedCustomerId !== 'final' && customer) {
+        const customerDocRef = doc(firestore, 'customers', selectedCustomerId)
+        updateDocumentNonBlocking(customerDocRef, {
+          balance: (customer.balance || 0) + total
+        })
+      }
+
       toast({
         title: "Venta Registrada",
         description: "Los datos se han guardado en Firestore.",
@@ -189,7 +196,7 @@ export default function SalesPage() {
             <CardTitle className="text-sm">Productos Disponibles</CardTitle>
           </CardHeader>
           <CardContent className="p-0 overflow-auto">
-            {isLoading ? (
+            {isProductsLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-2">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-muted-foreground">Cargando productos...</p>
@@ -340,7 +347,7 @@ export default function SalesPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="final">Consumidor Final</SelectItem>
-                      {MOCK_CUSTOMERS.map(c => (
+                      {customers?.map(c => (
                         <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
