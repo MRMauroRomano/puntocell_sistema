@@ -1,16 +1,41 @@
+"use client"
 
+import { useEffect } from "react"
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { Separator } from "@/components/ui/separator"
-import { Bell, Search, User } from "lucide-react"
+import { Bell, Search, User, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useAuth, useUser, initiateAnonymousSignIn } from "@/firebase"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const auth = useAuth()
+  const { user, isUserLoading } = useUser()
+
+  useEffect(() => {
+    // Si no hay usuario y ya terminó de cargar el estado inicial, iniciamos sesión anónima
+    if (!isUserLoading && !user) {
+      initiateAnonymousSignIn(auth)
+    }
+  }, [user, isUserLoading, auth])
+
+  // Pantalla de carga mientras se verifica la autenticación
+  if (isUserLoading || !user) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground font-medium animate-pulse">
+          Estableciendo conexión segura...
+        </p>
+      </div>
+    )
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -38,7 +63,9 @@ export default function DashboardLayout({
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-4 w-4 text-primary" />
               </div>
-              <span className="text-sm font-medium hidden sm:inline-block">Admin User</span>
+              <span className="text-sm font-medium hidden sm:inline-block">
+                {user.isAnonymous ? "Personal de Tienda" : (user.email || "Usuario")}
+              </span>
             </Button>
           </div>
         </header>

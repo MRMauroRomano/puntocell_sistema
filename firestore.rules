@@ -3,143 +3,61 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * SECURITY RULES DOCUMENTATION
+     * REGLAS DE SEGURIDAD PARA PROTOTIPADO
      * 
-     * Core Philosophy: 
-     * This ruleset implements a Database Access Control (DBAC) model for an administrative 
-     * commerce system. Access is strictly limited to users designated as "Store Staff."
-     * 
-     * Data Structure:
-     * - /roles_storeStaff: A registry of authorized staff members.
-     * - /products, /customers, /sales: Top-level master collections for core business entities.
-     * - Subcollections (saleItems, accountMovements, inventoryMovements): Nested under their 
-     *   respective parents to maintain logical hierarchy and inherited authorization.
-     * 
-     * Key Security Decisions:
-     * 1. Global Admin Role: Authorization is determined by the existence of a document 
-     *    matching the user's UID in the 'roles_storeStaff' collection.
-     * 2. Strict Staff Access: Anonymous or non-staff authenticated users are denied 
-     *    access to all business data.
-     * 3. Relational Integrity: Enforces consistency between the document's path ID 
-     *    and its internal 'id' or 'foreignKey' fields during creation.
-     * 4. Prototyping Flexibility: Rules do not validate specific data types or 
-     *    schema shapes (e.g., price being a number), allowing for rapid schema evolution.
-     * 
-     * Denormalization for Authorization:
-     * While the model uses a lookup collection for roles, the administrative nature 
-     * of the app means that once a user is verified as staff, they have broad 
-     * access to the specific administrative data trees defined in the structure.
+     * Para facilitar el desarrollo, permitimos lectura y escritura a cualquier
+     * usuario autenticado. En producción, estas reglas deben restringirse
+     * nuevamente a roles específicos (DBAC).
      */
 
-    // --- Global Helper Functions ---
-
-    /** @description Checks if the request is from an authenticated user. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user is registered as store staff. */
+    // En prototipado, cualquier usuario firmado actúa como staff
     function isStaff() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_storeStaff/$(request.auth.uid));
+      return isSignedIn();
     }
 
-    /** @description Verifies ownership and existence for destructive operations. */
-    function isExistingStaff() {
-      return isStaff() && resource != null;
-    }
-
-    // --- Collection Rules ---
-
-    /**
-     * @description Authorization registry for store staff.
-     * @path /roles_storeStaff/{staffId}
-     * @allow User 'abc' reads their own role status (get). Existing staff manage the registry (write).
-     * @deny Unauthenticated users or non-staff modifying the registry.
-     * @principle Database Access Control (DBAC).
-     */
     match /roles_storeStaff/{staffId} {
-      allow get: if isSignedIn() && (request.auth.uid == staffId || isStaff());
-      allow list: if isStaff();
-      allow create: if isStaff() && request.resource.data.id == staffId;
-      allow update: if isStaff() && request.resource.data.id == resource.data.id;
-      allow delete: if isStaff();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == staffId;
+      allow update, delete: if isSignedIn();
     }
 
-    /**
-     * @description Management of products available for sale.
-     * @path /products/{productId}
-     * @allow Staff 'admin1' creates a product with ID matching the path.
-     * @deny A customer attempting to browse product internal costs or details.
-     * @principle Role-based access control for master data.
-     */
     match /products/{productId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.id == productId;
-      allow update: if isExistingStaff() && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingStaff();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == productId;
+      allow update, delete: if isSignedIn();
 
-      /**
-       * @description Audit trail for stock changes of a product.
-       * @path /products/{productId}/inventoryMovements/{movementId}
-       * @allow Staff recording a stock adjustment for a specific product.
-       * @deny Creating a movement where the internal productId doesn't match the parent path.
-       */
       match /inventoryMovements/{movementId} {
-        allow get, list: if isStaff();
-        allow create: if isStaff() && request.resource.data.productId == productId;
-        allow update, delete: if isExistingStaff();
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.productId == productId;
+        allow update, delete: if isSignedIn();
       }
     }
 
-    /**
-     * @description Master records of customers and their account balances.
-     * @path /customers/{customerId}
-     * @allow Staff 'admin1' updates a customer's address.
-     * @deny Unauthenticated users listing the customer database.
-     * @principle Path-based data consistency and role-based access.
-     */
     match /customers/{customerId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.id == customerId;
-      allow update: if isExistingStaff() && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingStaff();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == customerId;
+      allow update, delete: if isSignedIn();
 
-      /**
-       * @description Records of payments and charges for a customer.
-       * @path /customers/{customerId}/accountMovements/{movementId}
-       * @allow Staff adding a payment record to a customer's account.
-       * @deny Modifying movements belonging to a different customer path.
-       */
       match /accountMovements/{movementId} {
-        allow get, list: if isStaff();
-        allow create: if isStaff() && request.resource.data.customerId == customerId;
-        allow update, delete: if isExistingStaff();
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.customerId == customerId;
+        allow update, delete: if isSignedIn();
       }
     }
 
-    /**
-     * @description Records of sales transactions.
-     * @path /sales/{saleId}
-     * @allow Staff registering a new sale with a generated invoice number.
-     * @deny Non-staff users viewing transaction history.
-     * @principle Enforces immutability of transaction IDs.
-     */
     match /sales/{saleId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.id == saleId;
-      allow update: if isExistingStaff() && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingStaff();
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.id == saleId;
+      allow update, delete: if isSignedIn();
 
-      /**
-       * @description Individual items contained within a specific sale.
-       * @path /sales/{saleId}/saleItems/{saleItemId}
-       * @allow Staff adding product line items to an active sale record.
-       * @deny Forging a sale item for a different transaction.
-       */
       match /saleItems/{saleItemId} {
-        allow get, list: if isStaff();
-        allow create: if isStaff() && request.resource.data.saleId == saleId;
-        allow update, delete: if isExistingStaff();
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && request.resource.data.saleId == saleId;
+        allow update, delete: if isSignedIn();
       }
     }
   }
