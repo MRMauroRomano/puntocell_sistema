@@ -13,11 +13,13 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { collection, doc, serverTimestamp } from "firebase/firestore"
+import { useToast } from "@/hooks/use-toast"
 
 export default function SalesPage() {
   const firestore = useFirestore()
+  const { toast } = useToast()
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -25,6 +27,7 @@ export default function SalesPage() {
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>(MOCK_BILLING_CONFIGS[0].id)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
+  const [isFinishing, setIsFinishing] = useState(false)
 
   // Fetch products from Firestore
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
@@ -75,7 +78,64 @@ export default function SalesPage() {
   const selectedBillingConfig = MOCK_BILLING_CONFIGS.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishSale = () => {
-    setIsSuccessDialogOpen(true)
+    if (cart.length === 0) return
+    
+    setIsFinishing(true)
+    const saleId = Math.random().toString(36).substr(2, 9)
+    const saleRef = doc(firestore, 'sales', saleId)
+    
+    const saleData = {
+      id: saleId,
+      date: new Date().toISOString(),
+      customerId: selectedCustomerId || 'final',
+      customerName: selectedCustomerId === 'final' ? 'Consumidor Final' : MOCK_CUSTOMERS.find(c => c.id === selectedCustomerId)?.name || 'Consumidor Final',
+      items: cart,
+      subtotal,
+      tax,
+      total,
+      paymentMethod,
+      billingCuit: selectedBillingConfig?.cuit,
+      createdAt: serverTimestamp()
+    }
+
+    try {
+      // Guardar venta en Firestore
+      setDocumentNonBlocking(saleRef, saleData, { merge: true })
+      
+      // Actualizar inventario (stock)
+      cart.forEach(item => {
+        const product = products?.find(p => p.id === item.productId)
+        if (product) {
+          const productRef = doc(firestore, 'products', item.productId)
+          updateDocumentNonBlocking(productRef, {
+            stock: Math.max(0, product.stock - item.quantity)
+          })
+        }
+      })
+
+      // Registrar en caja (opcional/MVP simplificado)
+      const dayId = new Date().toISOString().split('T')[0]
+      const registerRef = doc(firestore, 'cashregister', dayId)
+      setDocumentNonBlocking(registerRef, { 
+        lastUpdate: serverTimestamp(),
+        status: 'open' 
+      }, { merge: true })
+      
+      toast({
+        title: "Venta Registrada",
+        description: "Los datos se han guardado en Firestore.",
+      })
+      
+      setIsSuccessDialogOpen(true)
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error al guardar",
+        description: "No se pudo registrar la venta.",
+      })
+    } finally {
+      setIsFinishing(false)
+    }
   }
 
   const resetSale = () => {
@@ -290,10 +350,10 @@ export default function SalesPage() {
               <Button 
                 className="w-full h-12 text-lg font-bold gap-2" 
                 size="lg" 
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || isFinishing}
                 onClick={handleFinishSale}
               >
-                Finalizar Venta
+                {isFinishing ? <Loader2 className="h-5 w-5 animate-spin" /> : "Finalizar Venta"}
               </Button>
             </div>
           </CardFooter>
