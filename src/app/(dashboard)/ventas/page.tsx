@@ -1,14 +1,13 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, FileCheck, Loader2, Printer, X } from "lucide-react"
-import { MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
-import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale } from "@/lib/types"
+import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
@@ -24,18 +23,31 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
-  const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>(MOCK_BILLING_CONFIGS[0].id)
+  const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('factura_b')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
   const [isFinishing, setIsFinishing] = useState(false)
   const [lastSale, setLastSale] = useState<(Sale & { customerAddress?: string }) | null>(null)
 
+  // Obtener productos reales
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
 
+  // Obtener clientes reales
   const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
   const { data: customers } = useCollection<Customer>(customersRef)
+
+  // Obtener configuración de facturación real
+  const settingsRef = useMemoFirebase(() => collection(firestore, 'settings'), [firestore])
+  const { data: billingConfigs, isLoading: isSettingsLoading } = useCollection<BillingConfig>(settingsRef)
+
+  // Inicializar el ID de facturación seleccionado cuando carguen los datos
+  useEffect(() => {
+    if (billingConfigs && billingConfigs.length > 0 && !selectedBillingCuitId) {
+      setSelectedBillingCuitId(billingConfigs[0].id)
+    }
+  }, [billingConfigs, selectedBillingCuitId])
 
   const categories = useMemo(() => {
     if (!products) return ["all"]
@@ -75,11 +87,11 @@ export default function SalesPage() {
     setCart(prev => prev.filter(item => item.productId !== id))
   }
 
-  const subtotalNet = cart.reduce((acc, curr) => acc + curr.subtotal, 0)
-  const tax = subtotalNet * 0.21
-  const total = subtotalNet + tax
+  const total = cart.reduce((acc, curr) => acc + curr.subtotal, 0)
+  const subtotalNet = total / 1.21
+  const tax = total - subtotalNet
 
-  const selectedBillingConfig = MOCK_BILLING_CONFIGS.find(b => b.id === selectedBillingCuitId)
+  const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishSale = () => {
     if (cart.length === 0) return
@@ -305,13 +317,19 @@ export default function SalesPage() {
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold uppercase text-muted-foreground">Factura por:</label>
-                      <Select onValueChange={setSelectedBillingCuitId} value={selectedBillingCuitId}>
+                      <Select 
+                        onValueChange={setSelectedBillingCuitId} 
+                        value={selectedBillingCuitId}
+                        disabled={isSettingsLoading}
+                      >
                         <SelectTrigger className="h-9 text-xs">
-                          <SelectValue />
+                          <SelectValue placeholder={isSettingsLoading ? "Cargando..." : "Seleccionar emisor"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {MOCK_BILLING_CONFIGS.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0]} ({b.cuit})</SelectItem>
+                          {billingConfigs?.map(b => (
+                            <SelectItem key={b.id} value={b.id}>
+                              {b.name.split(' ')[0]} ({b.cuit})
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -366,7 +384,7 @@ export default function SalesPage() {
                 <Button 
                   className="w-full h-12 text-base lg:text-lg font-bold gap-2 shadow-md uppercase tracking-wide" 
                   size="lg" 
-                  disabled={cart.length === 0 || isFinishing || (invoiceType === 'factura_a' && (!selectedCustomerId || selectedCustomerId === 'final'))}
+                  disabled={cart.length === 0 || isFinishing || isSettingsLoading || !selectedBillingCuitId || (invoiceType === 'factura_a' && (!selectedCustomerId || selectedCustomerId === 'final'))}
                   onClick={handleFinishSale}
                 >
                   {isFinishing ? <Loader2 className="h-5 w-5 animate-spin" /> : <><CheckCircle2 className="h-5 w-5" /> Confirmar Venta</>}
