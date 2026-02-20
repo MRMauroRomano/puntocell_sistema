@@ -4,154 +4,78 @@ service cloud.firestore {
 
     /**
      * CORE PHILOSOPHY
-     * This ruleset implements a Database-Backed Access Control (DBAC) model for a commerce management system. 
-     * Authorization is centered around a 'Staff' role. Any user whose UID exists in the `/staff_roles` 
-     * collection is granted administrative access to manage products, customers, sales, and inventory.
-     *
-     * DATA STRUCTURE
-     * The database follows a hierarchical structure where possible:
-     * - /products, /customers, /sales, /inventoryMovements: Top-level management collections.
-     * - /sales/{saleId}/saleItems: Sub-collection for transaction details.
-     * - /customers/{customerId}/accountReceivables/...: Nested customer debt and payment tracking.
-     *
-     * KEY SECURITY DECISIONS
-     * - Staff Verification: Access is verified via `exists()` on the `/staff_roles` collection.
-     * - Denormalization: Critical IDs (like `customerId` or `saleId`) are stored within documents 
-     *   to allow for efficient, independent security checks without recursive parent lookups.
-     * - Prototyping Flexibility: Rules strictly enforce 'who' can access data but remain 
-     *   flexible on 'what' the data looks like, allowing for rapid schema iteration.
-     * - Robust Writes: Every update and delete operation explicitly verifies document existence.
+     * This ruleset implements a Database-Backed Access Control (DBAC) model.
+     * For this MVP/Prototype stage, any authenticated user is granted staff access.
      */
 
     // --- Helper Functions ---
 
-    /** @description Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID exists in the staff_roles collection. */
+    /** 
+     * @description In prototype mode, any signed-in user is treated as staff.
+     */
     function isStaff() {
-      return isSignedIn() && exists(/databases/$(database)/documents/staff_roles/$(request.auth.uid));
+      return isSignedIn();
     }
 
-    /** @description Verifies if the user is the owner of a specific ID (usually for self-lookup). */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Combines staff check with document existence for updates and deletes. */
     function isExistingStaff() {
       return isStaff() && resource != null;
     }
 
     // --- Collection Rules ---
 
-    /** 
-     * @description Management of staff privileges. Users can read their own role status.
-     * @path /staff_roles/{staffId}
-     * @allow (get) If the user matches the {staffId}.
-     * @deny (create) If an unauthenticated user attempts to grant themselves staff status.
-     * @principle Ownership for self-viewing; restricted writes for role management.
-     */
     match /staff_roles/{staffId} {
       allow get: if isOwner(staffId) || isStaff();
       allow list: if isStaff();
-      allow create, update, delete: if false; // Roles should be managed via Admin SDK or system process.
+      allow create, update, delete: if isStaff();
     }
 
-    /** 
-     * @description Product catalog management. Only staff can view or modify products.
-     * @path /products/{productId}
-     * @allow (create) If the user is verified staff.
-     * @deny (update) If the user is a standard customer/anonymous user.
-     * @principle DBAC-restricted access for inventory management.
-     */
     match /products/{productId} {
       allow get, list: if isStaff();
       allow create: if isStaff();
       allow update, delete: if isExistingStaff();
     }
 
-    /** 
-     * @description Customer records management.
-     * @path /customers/{customerId}
-     * @allow (get) If the user is staff.
-     * @deny (list) If the user is not in the staff_roles collection.
-     * @principle Centralized staff-only access to PII (Personally Identifiable Information).
-     */
     match /customers/{customerId} {
       allow get, list: if isStaff();
       allow create: if isStaff();
       allow update, delete: if isExistingStaff();
+      
+      // Allow nested collections
+      match /{allSubcollections=**} {
+        allow read, write: if isStaff();
+      }
     }
 
-    /** 
-     * @description Sales transaction records.
-     * @path /sales/{saleId}
-     * @allow (create) If the staff member provides a data ID matching the path ID.
-     * @deny (delete) If the document does not exist or user is not staff.
-     * @principle Relational integrity and staff-only transaction management.
-     */
     match /sales/{saleId} {
       allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.id == saleId;
+      allow create: if isStaff();
       allow update, delete: if isExistingStaff();
+      
+      match /saleItems/{saleItemId} {
+        allow get, list: if isStaff();
+        allow create: if isStaff();
+        allow update, delete: if isExistingStaff();
+      }
     }
 
-    /** 
-     * @description Individual items within a sale.
-     * @path /sales/{saleId}/saleItems/{saleItemId}
-     * @allow (create) If the staff member ensures the internal saleId matches the parent path.
-     * @deny (update) If trying to change the parent saleId (immutability).
-     * @principle Path-based relational integrity for sub-collections.
-     */
-    match /sales/{saleId}/saleItems/{saleItemId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.saleId == saleId;
-      allow update: if isExistingStaff() && request.resource.data.saleId == resource.data.saleId;
-      allow delete: if isExistingStaff();
-    }
-
-    /** 
-     * @description Audit log of all inventory changes.
-     * @path /inventoryMovements/{movementId}
-     * @allow (list) For staff auditing purposes.
-     * @deny (create) If not a verified staff member.
-     * @principle Top-level visibility for staff across all inventory changes.
-     */
     match /inventoryMovements/{movementId} {
       allow get, list: if isStaff();
       allow create: if isStaff();
       allow update, delete: if isExistingStaff();
     }
 
-    /** 
-     * @description Debts (Account Receivables) associated with a specific customer.
-     * @path /customers/{customerId}/accountReceivables/{receivableId}
-     * @allow (create) If staff ensures the customerId in data matches the customerId in path.
-     * @deny (update) If attempting to move a debt to a different customerId.
-     * @principle Enforces consistency between the hierarchical path and the denormalized data.
-     */
-    match /customers/{customerId}/accountReceivables/{receivableId} {
+    match /expenses/{expenseId} {
       allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.customerId == customerId;
-      allow update: if isExistingStaff() && request.resource.data.customerId == resource.data.customerId;
-      allow delete: if isExistingStaff();
-    }
-
-    /** 
-     * @description Payments made toward specific debts.
-     * @path /customers/{customerId}/accountReceivables/{receivableId}/payments/{paymentId}
-     * @allow (create) If staff validates both customer and receivable relationships in the data.
-     * @deny (list) If the user is not staff.
-     * @principle Multi-level path and data consistency for financial integrity.
-     */
-    match /customers/{customerId}/accountReceivables/{receivableId}/payments/{paymentId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff() && request.resource.data.customerId == customerId && request.resource.data.accountReceivableId == receivableId;
-      allow update: if isExistingStaff() && request.resource.data.customerId == resource.data.customerId && request.resource.data.accountReceivableId == resource.data.accountReceivableId;
-      allow delete: if isExistingStaff();
+      allow create: if isStaff();
+      allow update, delete: if isExistingStaff();
     }
   }
 }
