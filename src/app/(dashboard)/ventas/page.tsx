@@ -284,18 +284,107 @@ export default function SalesPage() {
       </Dialog>
 
       {lastSale && (
-        <div className="print-only p-4 text-black bg-white min-h-screen">
-          <div className="border-[2px] border-black p-4 space-y-4">
-            <div className="grid grid-cols-2 border-b-[2px] border-black pb-4">
-              <div><h1 className="text-2xl font-black uppercase">{lastSale.billingName}</h1><p>CUIT: {lastSale.billingCuit}</p></div>
-              <div className="text-right"><h2 className="text-xl font-black uppercase">FACTURA {lastSale.invoiceType === 'factura_a' ? 'A' : 'B'}</h2><p>Fecha: {new Date(lastSale.date).toLocaleDateString()}</p></div>
+        <div className="print-only p-8 text-black bg-white min-h-screen font-sans">
+          <div className="border-[2px] border-black p-0 overflow-hidden rounded-sm">
+            {/* Header AFIP Style */}
+            <div className="grid grid-cols-3 border-b-[2px] border-black h-36 relative">
+              <div className="p-4 border-r-[2px] border-black flex flex-col justify-center">
+                <h1 className="text-xl font-black uppercase leading-tight">{lastSale.billingName}</h1>
+                <p className="text-[10px] mt-2 font-bold">RAZÓN SOCIAL TITULAR</p>
+                <p className="text-[10px]">Dirección Comercial: Av. Principal 1234</p>
+                <p className="text-[10px]">Condición frente al IVA: Responsable Inscripto</p>
+              </div>
+
+              {/* Central Box for Invoice Letter */}
+              <div className="absolute left-1/2 top-0 -translate-x-1/2 bg-white border-b-[2px] border-x-[2px] border-black w-14 h-14 flex items-center justify-center z-10">
+                <span className="text-4xl font-black">
+                  {lastSale.invoiceType === 'factura_a' ? 'A' : lastSale.invoiceType === 'factura_b' ? 'B' : 'C'}
+                </span>
+                <span className="absolute bottom-1 text-[8px] font-bold">COD. 01</span>
+              </div>
+
+              <div className="p-4 flex flex-col justify-center pl-10">
+                <h2 className="text-2xl font-black tracking-tighter">FACTURA</h2>
+                <p className="font-bold text-sm mt-1">Punto de Venta: 0001 Comp. Nro: 000{lastSale.id.slice(-4)}</p>
+                <p className="text-xs font-bold mt-1">Fecha de Emisión: {new Date(lastSale.date).toLocaleDateString()}</p>
+                <p className="text-xs font-black mt-4">CUIT: {lastSale.billingCuit}</p>
+                <p className="text-[9px]">Ingresos Brutos: {lastSale.billingCuit}</p>
+                <p className="text-[9px]">Inicio de Actividades: 01/01/2024</p>
+              </div>
             </div>
-            <div className="py-2 border-b-[2px] border-black"><p className="uppercase font-bold">Cliente: {lastSale.customerName}</p><p>CUIT: {lastSale.customerCuit}</p></div>
-            <table className="w-full">
-              <thead><tr className="border-b-[2px] border-black text-left"><th>Cant.</th><th>Descripción</th><th className="text-right">Precio</th><th className="text-right">Total</th></tr></thead>
-              <tbody>{lastSale.items.map((item, idx) => (<tr key={idx} className="border-b"><td>{item.quantity}</td><td className="uppercase">{item.productName}</td><td className="text-right">${item.price.toFixed(2)}</td><td className="text-right font-bold">${item.subtotal.toFixed(2)}</td></tr>))}</tbody>
-            </table>
-            <div className="text-right pt-4 border-t-[2px] border-black"><p className="text-2xl font-black">TOTAL: ${lastSale.total.toFixed(2)}</p></div>
+
+            {/* Customer Info Section */}
+            <div className="p-4 border-b-[2px] border-black grid grid-cols-2 gap-8 bg-gray-50/50">
+              <div className="space-y-1">
+                <p className="text-[9px] uppercase font-black text-gray-500">Datos del Cliente</p>
+                <p className="font-black text-sm">{lastSale.customerName}</p>
+                <p className="text-xs">{lastSale.customerAddress}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] uppercase font-black text-gray-500">Condición / Identificación</p>
+                <p className="font-black text-sm">CUIT: {lastSale.customerCuit}</p>
+                <p className="text-xs uppercase font-bold">IVA: {lastSale.customerId === 'final' ? 'Consumidor Final' : 'Resp. Inscripto'}</p>
+              </div>
+            </div>
+
+            {/* Table Header Row */}
+            <div className="min-h-[450px]">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="border-b-[2px] border-black bg-gray-100 text-left font-black uppercase">
+                    <th className="p-2 border-r-[2px] border-black w-16 text-center">Cant.</th>
+                    <th className="p-2 border-r-[2px] border-black">Descripción / Producto</th>
+                    <th className="p-2 border-r-[2px] border-black text-right">Precio Unit.</th>
+                    <th className="p-2 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lastSale.items.map((item, idx) => (
+                    <tr key={idx} className="border-b border-gray-300">
+                      <td className="p-2 border-r-[2px] border-black text-center font-bold">{item.quantity}</td>
+                      <td className="p-2 border-r-[2px] border-black uppercase font-medium">{item.productName}</td>
+                      <td className="p-2 border-r-[2px] border-black text-right">${item.price.toFixed(2)}</td>
+                      <td className="p-2 text-right font-black">${item.subtotal.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {/* Fill empty space */}
+                  {Array.from({ length: Math.max(0, 10 - lastSale.items.length) }).map((_, i) => (
+                    <tr key={`empty-${i}`} className="border-b border-gray-100 h-8">
+                      <td className="border-r-[2px] border-black"></td>
+                      <td className="border-r-[2px] border-black"></td>
+                      <td className="border-r-[2px] border-black"></td>
+                      <td></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totals Section */}
+            <div className="border-t-[2px] border-black p-4 flex justify-between items-end bg-gray-50">
+              <div className="text-[10px] space-y-1">
+                <p className="font-bold">Observaciones: {lastSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO'}</p>
+                <p>Comprobante generado por TechStore Manager Pro</p>
+              </div>
+              <div className="w-64 space-y-1">
+                <div className="flex justify-between border-b border-black/10 py-1">
+                  <span className="text-[11px] font-bold">Subtotal:</span>
+                  <span className="text-[11px] font-bold">${lastSale.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between border-b border-black/10 py-1">
+                  <span className="text-[11px] font-bold">IVA (21%):</span>
+                  <span className="text-[11px] font-bold">${lastSale.tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2">
+                  <span className="text-xl font-black uppercase">Total:</span>
+                  <span className="text-2xl font-black">${lastSale.total.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 flex justify-between items-center text-[8px] font-bold uppercase text-gray-400 italic">
+            <span>CAE: 74125896321458</span>
+            <span>Fecha de Vto. de CAE: {new Date(new Date().getTime() + 864000000).toLocaleDateString()}</span>
           </div>
         </div>
       )}
