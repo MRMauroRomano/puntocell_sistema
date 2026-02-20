@@ -12,6 +12,7 @@ import { Store, Loader2, AlertCircle } from "lucide-react"
 import { useAuth, useUser, initiateEmailSignUp } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { FirebaseError } from "firebase/app"
 
 export default function RegisterPage() {
   const [email, setEmail] = useState("")
@@ -31,7 +32,7 @@ export default function RegisterPage() {
     }
   }, [user, router])
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email || !password || !confirmPassword) {
       setError("Por favor completa todos los campos")
@@ -50,13 +51,29 @@ export default function RegisterPage() {
     setError(null)
     
     try {
-      initiateEmailSignUp(auth, email, password)
+      await initiateEmailSignUp(auth, email, password)
       toast({
         title: "Registro exitoso",
         description: "Tu cuenta ha sido creada correctamente.",
       })
     } catch (err: any) {
-      setError("Error al crear la cuenta. Intenta con otro correo.")
+      if (err instanceof FirebaseError) {
+        switch (err.code) {
+          case 'auth/email-already-in-use':
+            setError("Este correo electrónico ya está registrado. Intenta iniciar sesión.")
+            break
+          case 'auth/invalid-email':
+            setError("El formato del correo electrónico no es válido.")
+            break
+          case 'auth/weak-password':
+            setError("La contraseña es muy débil.")
+            break
+          default:
+            setError("Ocurrió un error al crear la cuenta. Inténtalo de nuevo.")
+        }
+      } else {
+        setError("Error de conexión. Verifica tu internet.")
+      }
       setIsLoading(false)
     }
   }
@@ -94,6 +111,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -104,6 +122,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isLoading}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -114,6 +133,7 @@ export default function RegisterPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isLoading}
+                  required
                 />
               </div>
             </CardContent>
