@@ -15,7 +15,8 @@ import {
   ChevronRight,
   LogOut,
   Store,
-  Wallet
+  Wallet,
+  ChevronDown
 } from "lucide-react"
 
 import {
@@ -29,17 +30,29 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
-  useSidebar
+  useSidebar,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/firebase"
 import { signOut } from "firebase/auth"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
   { title: "Ventas", icon: ShoppingCart, href: "/ventas" },
-  { title: "Productos", icon: Package, href: "/productos" },
+  { 
+    title: "Productos", 
+    icon: Package, 
+    href: "/productos",
+    items: [
+      { title: "Inventario", href: "/productos" },
+      { title: "Stock Bajo", href: "/productos/stock-bajo" },
+    ]
+  },
   { title: "Clientes", icon: Users, href: "/clientes" },
   { title: "Gastos", icon: Wallet, href: "/gastos" },
   { title: "Cuenta Corriente", icon: CreditCard, href: "/cuenta-corriente" },
@@ -78,21 +91,55 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                    className="hover:bg-accent hover:text-accent-foreground"
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {navItems.map((item) => {
+                const hasSubItems = item.items && item.items.length > 0
+                const isActive = pathname === item.href || (hasSubItems && item.items?.some(sub => pathname === sub.href))
+
+                if (hasSubItems) {
+                  return (
+                    <Collapsible key={item.title} asChild defaultOpen={isActive} className="group/collapsible">
+                      <SidebarMenuItem>
+                        <CollapsibleTrigger asChild>
+                          <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+                            <item.icon />
+                            <span>{item.title}</span>
+                            <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items?.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton asChild isActive={pathname === subItem.href}>
+                                  <Link href={subItem.href}>
+                                    <span>{subItem.title}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      </SidebarMenuItem>
+                    </Collapsible>
+                  )
+                }
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={pathname === item.href}
+                      tooltip={item.title}
+                      className="hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
