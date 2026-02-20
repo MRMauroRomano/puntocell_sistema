@@ -295,18 +295,9 @@ export default function SalesPage() {
             </CardContent>
             <CardFooter className="flex-col border-t bg-muted/20 p-4 lg:p-6 space-y-4">
               <div className="w-full space-y-2">
-                <div className="flex justify-between text-xs lg:text-sm">
-                  <span className="text-muted-foreground">Subtotal Neto:</span>
-                  <span className="font-medium">${subtotalNet.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-xs lg:text-sm">
-                  <span className="text-muted-foreground">IVA (21%):</span>
-                  <span className="font-medium">${tax.toFixed(2)}</span>
-                </div>
-                <Separator />
-                <div className="flex justify-between items-center pt-2">
-                  <span className="text-base lg:text-lg font-bold font-headline">TOTAL:</span>
-                  <span className="text-xl lg:text-2xl font-black text-primary font-headline">${total.toFixed(2)}</span>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base lg:text-lg font-bold font-headline">TOTAL A PAGAR:</span>
+                  <span className="text-xl lg:text-3xl font-black text-primary font-headline">${total.toFixed(2)}</span>
                 </div>
               </div>
 
