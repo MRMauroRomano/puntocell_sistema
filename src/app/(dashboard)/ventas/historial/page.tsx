@@ -142,7 +142,7 @@ export default function SalesHistoryPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] uppercase">
-                          {sale.invoiceType.replace('_', ' ')}
+                          {sale.invoiceType ? sale.invoiceType.replace('_', ' ') : 'TICKET'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-black text-primary">
