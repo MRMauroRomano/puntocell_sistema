@@ -114,6 +114,7 @@ export default function SalesPage() {
       invoiceType,
       billingCuit: selectedBillingConfig?.cuit,
       billingName: selectedBillingConfig?.name,
+      status: 'completed'
     }
 
     try {
@@ -376,7 +377,7 @@ export default function SalesPage() {
             <div className="border-t-[2px] border-black p-6 flex justify-between items-end bg-gray-50">
               <div className="text-[10px] font-bold space-y-2">
                 <p className="uppercase text-gray-600">Observaciones: {lastSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO'}</p>
-                <p className="italic">Comprobante generado por TechStore Manager Pro</p>
+                <p className="italic">Comprobante generado por CommerceManager Pro</p>
               </div>
               <div className="w-80 space-y-2">
                 <div className="flex justify-between border-b border-black/20 pb-1">

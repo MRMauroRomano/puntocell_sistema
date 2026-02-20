@@ -47,6 +47,7 @@ export interface Sale {
   invoiceType: InvoiceType;
   billingCuit?: string; // CUIT used for this sale
   billingName?: string;
+  status?: 'completed' | 'returned'; // New status field for AFIP compliance
 }
 
 export interface Expense {
