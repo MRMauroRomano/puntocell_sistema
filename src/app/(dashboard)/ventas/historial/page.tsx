@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 export default function SalesHistoryPage() {
   const firestore = useFirestore()
@@ -179,9 +180,12 @@ export default function SalesHistoryPage() {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Generar Nota de Crédito?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción anulará legalmente la venta #{sale.id.slice(-6)}, devolverá el stock al inventario y ajustará el saldo del cliente. Se mantendrá el registro como "Devuelto".
-                                  </AlertDialogDescription>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Generar Nota de Crédito?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción anulará legalmente la venta #{sale.id.slice(-6)}, devolverá el stock al inventario y ajustará el saldo del cliente. Se mantendrá el registro como "Devuelto".
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
