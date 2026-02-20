@@ -43,7 +43,15 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 const navItems = [
   { title: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { title: "Ventas", icon: ShoppingCart, href: "/ventas" },
+  { 
+    title: "Ventas", 
+    icon: ShoppingCart, 
+    href: "/ventas",
+    items: [
+      { title: "Nueva Venta", href: "/ventas" },
+      { title: "Historial", href: "/ventas/historial" },
+    ]
+  },
   { 
     title: "Productos", 
     icon: Package, 
