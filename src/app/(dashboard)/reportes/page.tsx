@@ -4,7 +4,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
-import { Calendar, Download, Filter, TrendingUp, DollarSign, Package, Users } from "lucide-react"
+import { Calendar, Download, TrendingUp, DollarSign, Package, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -19,13 +19,11 @@ const data = [
 ];
 
 const categoryData = [
-  { name: 'Smartphones', value: 450 },
-  { name: 'Computación', value: 300 },
-  { name: 'Audio', value: 150 },
-  { name: 'Accesorios', value: 100 },
+  { name: 'Nuevo', value: 750 },
+  { name: 'Usado', value: 250 },
 ];
 
-const COLORS = ['#A7D1AB', '#C4D7A8', '#859F87', '#5C745E'];
+const COLORS = ['#A7D1AB', '#859F87'];
 
 export default function ReportsPage() {
   return (
@@ -103,7 +101,7 @@ export default function ReportsPage() {
       <Tabs defaultValue="ventas" className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-md">
           <TabsTrigger value="ventas">Ventas</TabsTrigger>
-          <TabsTrigger value="categorias">Categorías</TabsTrigger>
+          <TabsTrigger value="categorias">Estado</TabsTrigger>
           <TabsTrigger value="rendimiento">Rendimiento</TabsTrigger>
         </TabsList>
         <TabsContent value="ventas" className="mt-4">
@@ -132,8 +130,8 @@ export default function ReportsPage() {
           <div className="grid gap-6 md:grid-cols-2">
              <Card>
                 <CardHeader>
-                  <CardTitle>Ventas por Categoría</CardTitle>
-                  <CardDescription>Distribución porcentual del volumen de ventas.</CardDescription>
+                  <CardTitle>Ventas por Estado</CardTitle>
+                  <CardDescription>Distribución porcentual de equipos nuevos vs usados.</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[300px] flex items-center justify-center">
                   <ResponsiveContainer width="100%" height="100%">
@@ -164,20 +162,20 @@ export default function ReportsPage() {
                 <CardContent>
                    <div className="space-y-4">
                       {[
-                        { name: 'iPhone 15 Pro', qty: 42, growth: '+25%' },
-                        { name: 'Cargador 20W USB-C', qty: 156, growth: '+12%' },
-                        { name: 'Samsung Galaxy S24', qty: 28, growth: '+8%' },
-                        { name: 'AirPods Pro (2nd)', qty: 35, growth: '+15%' },
-                        { name: 'Funda Protectora', qty: 120, growth: '+5%' },
+                        { name: 'iPhone 15 Pro (Nuevo)', qty: 42, growth: '+25%' },
+                        { name: 'iPhone 13 (Usado)', qty: 156, growth: '+12%' },
+                        { name: 'Samsung S24 (Nuevo)', qty: 28, growth: '+8%' },
+                        { name: 'AirPods Pro (Nuevo)', qty: 35, growth: '+15%' },
+                        { name: 'Motorola G54 (Usado)', qty: 120, growth: '+5%' },
                       ].map((item, i) => (
                         <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
                            <div className="flex items-center gap-3">
                               <span className="text-lg font-bold text-muted-foreground w-4">{i+1}</span>
-                              <span className="font-medium">{item.name}</span>
+                              <span className="font-medium text-xs lg:text-sm">{item.name}</span>
                            </div>
                            <div className="flex items-center gap-4">
-                              <span className="text-sm font-bold">{item.qty} u.</span>
-                              <span className={cn("text-xs font-medium px-1.5 py-0.5 rounded", item.growth.startsWith('+') ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
+                              <span className="text-xs font-bold">{item.qty} u.</span>
+                              <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", item.growth.startsWith('+') ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
                                 {item.growth}
                               </span>
                            </div>

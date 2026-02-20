@@ -32,7 +32,7 @@ export default function ProductsPage() {
 
   const [formProduct, setFormProduct] = useState<Partial<Product>>({
     name: "",
-    category: "Celulares",
+    category: "Nuevo",
     subCategory: "",
     price: 0,
     stock: 0,
@@ -57,7 +57,7 @@ export default function ProductsPage() {
     setCurrentId(null)
     setFormProduct({
       name: "",
-      category: "Celulares",
+      category: "Nuevo",
       subCategory: "",
       price: 0,
       stock: 0,
@@ -113,7 +113,7 @@ export default function ProductsPage() {
 
     const productData = {
       name: formProduct.name,
-      category: formProduct.category || "General",
+      category: formProduct.category || "Nuevo",
       subCategory: formProduct.subCategory || "",
       price: priceVal,
       stock: stockVal,
@@ -193,7 +193,7 @@ export default function ProductsPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="category">Categoría</Label>
+                  <Label htmlFor="category">Estado / Categoría</Label>
                   <Select 
                     value={formProduct.category} 
                     onValueChange={(v) => setFormProduct({...formProduct, category: v})}
@@ -202,11 +202,8 @@ export default function ProductsPage() {
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Celulares">Celulares</SelectItem>
-                      <SelectItem value="Tablets">Tablets</SelectItem>
-                      <SelectItem value="Audio">Audio</SelectItem>
-                      <SelectItem value="Accesorios">Accesorios</SelectItem>
-                      <SelectItem value="Repuestos">Repuestos</SelectItem>
+                      <SelectItem value="Nuevo">Nuevo</SelectItem>
+                      <SelectItem value="Usado">Usado</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -266,14 +263,26 @@ export default function ProductsPage() {
 
       <Card className="shadow-sm border-primary/10 overflow-hidden">
         <CardHeader className="pb-4">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar equipo o marca..." 
-              className="pl-9 bg-muted/30 border-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative w-full sm:max-w-md">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar equipo o marca..." 
+                className="pl-9 bg-muted/30 border-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="Nuevo">Nuevos</SelectItem>
+                <SelectItem value="Usado">Usados</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -294,7 +303,7 @@ export default function ProductsPage() {
                   <TableHeader className="bg-muted/30">
                     <TableRow>
                       <TableHead className="min-w-[150px]">Modelo</TableHead>
-                      <TableHead>Categoría</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead className="text-center">Stock</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -306,7 +315,9 @@ export default function ProductsPage() {
                         <TableCell className="font-medium text-sm">{product.name}</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
-                            <Badge variant="outline" className="w-fit text-[10px]">{product.category}</Badge>
+                            <Badge variant={product.category === 'Nuevo' ? 'default' : 'secondary'} className="w-fit text-[10px] uppercase">
+                              {product.category}
+                            </Badge>
                             <span className="text-[10px] text-muted-foreground">{product.subCategory}</span>
                           </div>
                         </TableCell>
