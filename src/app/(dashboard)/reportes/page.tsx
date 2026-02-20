@@ -1,45 +1,61 @@
 
 "use client"
 
+import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts"
-import { Calendar, Download, TrendingUp, DollarSign, Package, Users } from "lucide-react"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { Calendar, Download, TrendingUp, DollarSign, Package, Users, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { collection } from "firebase/firestore"
+import { Product, Sale } from "@/lib/types"
 
-const data = [
-  { name: 'Lun', ventas: 4000 },
-  { name: 'Mar', ventas: 3000 },
-  { name: 'Mie', ventas: 2000 },
-  { name: 'Jue', ventas: 2780 },
-  { name: 'Vie', ventas: 1890 },
-  { name: 'Sab', ventas: 2390 },
-  { name: 'Dom', ventas: 3490 },
-];
-
-const categoryData = [
-  { name: 'Nuevo', value: 750 },
-  { name: 'Usado', value: 250 },
-];
-
-const COLORS = ['#A7D1AB', '#859F87'];
+const COLORS = ['#A7D1AB', '#859F87', '#34D399', '#059669'];
 
 export default function ReportsPage() {
+  const firestore = useFirestore()
+
+  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
+
+  const salesRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore])
+  const { data: sales, isLoading: isSalesLoading } = useCollection<Sale>(salesRef)
+
+  const conditionData = useMemo(() => {
+    if (!products) return []
+    const counts = products.reduce((acc: any, p) => {
+      const cond = p.condition || 'Nuevo'
+      acc[cond] = (acc[cond] || 0) + 1
+      return acc
+    }, {})
+    return Object.keys(counts).map(key => ({ name: key, value: counts[key] }))
+  }, [products])
+
+  const totalSalesAmount = useMemo(() => {
+    if (!sales) return 0
+    return sales.reduce((acc, s) => acc + (s.total || 0), 0)
+  }, [sales])
+
+  if (isProductsLoading || isSalesLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-2">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">Analizando datos del negocio...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline">Reportes y Estadísticas</h1>
-          <p className="text-muted-foreground">Analiza el rendimiento de tu tienda de tecnología.</p>
+          <p className="text-muted-foreground">Análisis de inventario y rendimiento comercial.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" className="gap-2">
-             <Calendar className="h-4 w-4" /> Últimos 30 días
-           </Button>
-           <Button className="gap-2">
-             <Download className="h-4 w-4" /> Exportar Reporte
-           </Button>
+           <Button variant="outline" className="gap-2"><Calendar className="h-4 w-4" /> Histórico</Button>
+           <Button className="gap-2"><Download className="h-4 w-4" /> Exportar</Button>
         </div>
       </div>
 
@@ -47,165 +63,69 @@ export default function ReportsPage() {
         <Card>
           <CardContent className="pt-6">
              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                   <DollarSign className="h-5 w-5" />
-                </div>
-                <div>
-                   <p className="text-sm text-muted-foreground font-medium">Ventas Totales</p>
-                   <p className="text-2xl font-bold font-headline">$145,280.00</p>
-                </div>
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"><DollarSign className="h-5 w-5" /></div>
+                <div><p className="text-xs text-muted-foreground font-medium uppercase">Ventas Históricas</p><p className="text-2xl font-bold font-headline">${totalSalesAmount.toFixed(2)}</p></div>
              </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-700">
-                   <TrendingUp className="h-5 w-5" />
-                </div>
-                <div>
-                   <p className="text-sm text-muted-foreground font-medium">Margen Promedio</p>
-                   <p className="text-2xl font-bold font-headline">18.4%</p>
-                </div>
-             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-             <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
-                   <Package className="h-5 w-5" />
-                </div>
-                <div>
-                   <p className="text-sm text-muted-foreground font-medium">Productos Activos</p>
-                   <p className="text-2xl font-bold font-headline">86</p>
-                </div>
-             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-             <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-700">
-                   <Users className="h-5 w-5" />
-                </div>
-                <div>
-                   <p className="text-sm text-muted-foreground font-medium">Clientes Registrados</p>
-                   <p className="text-2xl font-bold font-headline">1,240</p>
-                </div>
+                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-700"><Package className="h-5 w-5" /></div>
+                <div><p className="text-xs text-muted-foreground font-medium uppercase">Total Items</p><p className="text-2xl font-bold font-headline">{products?.length || 0}</p></div>
              </div>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue="ventas" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
-          <TabsTrigger value="ventas">Ventas</TabsTrigger>
-          <TabsTrigger value="categorias">Estado</TabsTrigger>
-          <TabsTrigger value="rendimiento">Rendimiento</TabsTrigger>
-        </TabsList>
-        <TabsContent value="ventas" className="mt-4">
-          <Card>
+      <div className="grid gap-6 md:grid-cols-2">
+         <Card>
             <CardHeader>
-              <CardTitle>Evolución de Ventas Semanal</CardTitle>
-              <CardDescription>Ingresos generados por ventas de hardware y servicios técnicos.</CardDescription>
+              <CardTitle>Inventario por Estado</CardTitle>
+              <CardDescription>Distribución de equipos nuevos vs usados en stock.</CardDescription>
             </CardHeader>
-            <CardContent className="h-[400px]">
+            <CardContent className="h-[300px] flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip 
-                    cursor={{fill: 'rgba(167, 209, 171, 0.1)'}}
-                    contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}}
-                  />
-                  <Bar dataKey="ventas" fill="#A7D1AB" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                <PieChart>
+                  <Pie
+                    data={conditionData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label
+                  >
+                    {conditionData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="categorias" className="mt-4">
-          <div className="grid gap-6 md:grid-cols-2">
-             <Card>
-                <CardHeader>
-                  <CardTitle>Ventas por Estado</CardTitle>
-                  <CardDescription>Distribución porcentual de equipos nuevos vs usados.</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[300px] flex items-center justify-center">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </CardContent>
-             </Card>
-             <Card>
-                <CardHeader>
-                  <CardTitle>Top Productos</CardTitle>
-                  <CardDescription>Los 5 productos más vendidos este mes.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <div className="space-y-4">
-                      {[
-                        { name: 'iPhone 15 Pro (Nuevo)', qty: 42, growth: '+25%' },
-                        { name: 'iPhone 13 (Usado)', qty: 156, growth: '+12%' },
-                        { name: 'Samsung S24 (Nuevo)', qty: 28, growth: '+8%' },
-                        { name: 'AirPods Pro (Nuevo)', qty: 35, growth: '+15%' },
-                        { name: 'Motorola G54 (Usado)', qty: 120, growth: '+5%' },
-                      ].map((item, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                           <div className="flex items-center gap-3">
-                              <span className="text-lg font-bold text-muted-foreground w-4">{i+1}</span>
-                              <span className="font-medium text-xs lg:text-sm">{item.name}</span>
-                           </div>
-                           <div className="flex items-center gap-4">
-                              <span className="text-xs font-bold">{item.qty} u.</span>
-                              <span className={cn("text-[10px] font-medium px-1.5 py-0.5 rounded", item.growth.startsWith('+') ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700")}>
-                                {item.growth}
-                              </span>
-                           </div>
-                        </div>
-                      ))}
-                   </div>
-                </CardContent>
-             </Card>
-          </div>
-        </TabsContent>
-        <TabsContent value="rendimiento" className="mt-4">
-          <Card>
-             <CardHeader>
-               <CardTitle>Comparativa de Crecimiento</CardTitle>
-               <CardDescription>Ventas de nuevos lanzamientos vs stock permanente.</CardDescription>
-             </CardHeader>
-             <CardContent className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="ventas" stroke="#A7D1AB" strokeWidth={3} dot={{fill: '#A7D1AB', r: 6}} activeDot={{r: 8}} />
-                  </LineChart>
-                </ResponsiveContainer>
-             </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+         </Card>
+
+         <Card>
+            <CardHeader>
+              <CardTitle>Top Productos</CardTitle>
+              <CardDescription>Items con mayor rotación registrados.</CardDescription>
+            </CardHeader>
+            <CardContent>
+               <div className="space-y-4">
+                  {(products || []).slice(0, 5).map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors border">
+                       <div>
+                          <p className="font-bold text-sm">{item.name}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-black">{item.condition} - {item.subCategory}</p>
+                       </div>
+                       <Badge variant="outline" className="font-bold">{item.stock} u.</Badge>
+                    </div>
+                  ))}
+                  {(!products || products.length === 0) && <p className="text-center py-10 text-muted-foreground italic">No hay datos suficientes.</p>}
+               </div>
+            </CardContent>
+         </Card>
+      </div>
     </div>
   )
 }

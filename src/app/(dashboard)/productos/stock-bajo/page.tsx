@@ -18,7 +18,7 @@ export default function LowStockPage() {
 
   const lowStockProducts = useMemo(() => {
     if (!products) return []
-    return products.filter(p => p.stock < p.minStock)
+    return products.filter(p => (Number(p.stock) || 0) < (Number(p.minStock) || 0))
   }, [products])
 
   return (
@@ -27,7 +27,7 @@ export default function LowStockPage() {
         <h1 className="text-2xl lg:text-3xl font-bold font-headline text-destructive flex items-center gap-2">
           <AlertTriangle className="h-8 w-8" /> Stock Bajo
         </h1>
-        <p className="text-sm text-muted-foreground">Productos que requieren reposición inmediata según su stock mínimo.</p>
+        <p className="text-sm text-muted-foreground">Equipos que requieren reposición urgente.</p>
       </div>
 
       <Card className="shadow-sm border-destructive/20 overflow-hidden">
@@ -45,41 +45,35 @@ export default function LowStockPage() {
               {lowStockProducts.length === 0 ? (
                 <div className="text-center py-20">
                   <PackageSearch className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
-                  <p className="text-muted-foreground">¡Excelente! Todos los productos están por encima del stock mínimo.</p>
+                  <p className="text-muted-foreground">¡Excelente! Todo el stock está bajo control.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="min-w-[150px]">Modelo</TableHead>
-                      <TableHead>Categoría</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead className="text-center">Stock Actual</TableHead>
-                      <TableHead className="text-center">Stock Mínimo</TableHead>
-                      <TableHead className="text-right">Diferencia</TableHead>
+                      <TableHead className="text-right">Alerta Mín.</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {lowStockProducts.map((product) => (
                       <TableRow key={product.id} className="hover:bg-destructive/5">
-                        <TableCell className="font-medium text-sm">{product.name}</TableCell>
                         <TableCell>
-                          <div className="flex flex-col">
-                            <Badge variant="outline" className="w-fit text-[10px]">{product.category}</Badge>
-                            <span className="text-[10px] text-muted-foreground">{product.subCategory}</span>
-                          </div>
+                          <div className="font-bold text-sm">{product.name}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-black">{product.category} - {product.subCategory}</div>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <span className="text-destructive font-black text-lg">
-                            {product.stock}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {product.minStock}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant="destructive" className="font-bold">
-                            Faltan {product.minStock - product.stock} u.
+                        <TableCell>
+                          <Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[9px] font-black uppercase">
+                            {product.condition}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center font-black text-destructive text-lg">
+                          {product.stock}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-muted-foreground">
+                          {product.minStock} u.
                         </TableCell>
                       </TableRow>
                     ))}

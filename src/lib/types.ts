@@ -2,8 +2,9 @@
 export interface Product {
   id: string;
   name: string;
-  category: string;
-  subCategory?: string;
+  category: string; // Celulares, Audio, etc.
+  subCategory?: string; // iPhone, Samsung, etc.
+  condition: 'Nuevo' | 'Usado';
   price: number;
   stock: number;
   minStock: number;
