@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Product": {
@@ -171,243 +172,15 @@
         "status"
       ]
     },
-    "SaleItem": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "SaleItem",
+    "BillingConfig": {
+      "title": "BillingConfig",
       "type": "object",
-      "description": "Represents a single product line item within a sales transaction, detailing the product sold and its specific sale conditions.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the SaleItem entity."
-        },
-        "saleId": {
-          "type": "string",
-          "description": "Reference to the Sale this item belongs to. (Relationship: Sale 1:N SaleItem)"
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product being sold. (Relationship: Product 1:N SaleItem)"
-        },
-        "quantity": {
-          "type": "number",
-          "description": "The quantity of the product sold in this line item."
-        },
-        "unitPrice": {
-          "type": "number",
-          "description": "The unit price of the product at the moment of the sale (can differ from current product price)."
-        },
-        "itemTotal": {
-          "type": "number",
-          "description": "The total calculated amount for this specific sale item (quantity * unitPrice)."
-        },
-        "taxRate": {
-          "type": "number",
-          "description": "The tax rate applied to this specific item (e.g., 0.19 for 19%)."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the sale item record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the sale item record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "saleId",
-        "productId",
-        "quantity",
-        "unitPrice",
-        "itemTotal",
-        "taxRate"
-      ]
-    },
-    "InventoryMovement": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "InventoryMovement",
-      "type": "object",
-      "description": "Records every change in product stock, indicating the type of movement, quantity, and reason.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the InventoryMovement entity."
-        },
-        "productId": {
-          "type": "string",
-          "description": "Reference to the Product affected by this movement. (Relationship: Product 1:N InventoryMovement)"
-        },
-        "movementType": {
-          "type": "string",
-          "description": "The type of inventory movement ('inbound', 'outbound', 'adjustment_positive', or 'adjustment_negative').",
-          "format": "enum"
-        },
-        "quantityChange": {
-          "type": "number",
-          "description": "The absolute change in quantity for this movement. Positive for additions, negative for reductions."
-        },
-        "currentStockAfter": {
-          "type": "number",
-          "description": "The stock quantity of the product immediately after this movement occurred."
-        },
-        "movementDate": {
-          "type": "string",
-          "description": "The date and time when the inventory movement occurred.",
-          "format": "date-time"
-        },
-        "reason": {
-          "type": "string",
-          "description": "The reason for the inventory movement (e.g., 'sale', 'purchase_receipt', 'manual_adjustment', 'return')."
-        },
-        "saleItemId": {
-          "type": "string",
-          "description": "Reference to the SaleItem if the movement is a result of a product sale. (Relationship: SaleItem 1:1 InventoryMovement)"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the inventory movement record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the inventory movement record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "productId",
-        "movementType",
-        "quantityChange",
-        "currentStockAfter",
-        "movementDate",
-        "reason"
-      ]
-    },
-    "AccountReceivable": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AccountReceivable",
-      "type": "object",
-      "description": "Represents a specific debt owed by a customer to the store, typically arising from a credit sale.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the AccountReceivable entity, representing a specific debt."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to the Customer who owes this debt. (Relationship: Customer 1:N AccountReceivable)"
-        },
-        "saleId": {
-          "type": "string",
-          "description": "Reference to the Sale that generated this specific debt. (Relationship: Sale 1:1 AccountReceivable)"
-        },
-        "originalAmount": {
-          "type": "number",
-          "description": "The total original amount of the debt when it was created (from the associated sale)."
-        },
-        "pendingAmount": {
-          "type": "number",
-          "description": "The current outstanding balance for this specific account receivable."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the receivable ('pending', 'partially_paid', 'paid', or 'overdue').",
-          "format": "enum"
-        },
-        "issueDate": {
-          "type": "string",
-          "description": "The date when the debt was incurred (typically the sale date).",
-          "format": "date-time"
-        },
-        "dueDate": {
-          "type": "string",
-          "description": "The optional due date for the payment of this receivable.",
-          "format": "date-time"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the account receivable record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the account receivable record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "customerId",
-        "saleId",
-        "originalAmount",
-        "pendingAmount",
-        "status",
-        "issueDate"
-      ]
-    },
-    "Payment": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Payment",
-      "type": "object",
-      "description": "Records a payment made by a customer towards a specific outstanding debt (Account Receivable).",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Payment entity."
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to the Customer who made the payment. (Relationship: Customer 1:N Payment)"
-        },
-        "accountReceivableId": {
-          "type": "string",
-          "description": "Reference to the specific AccountReceivable this payment is applied to. (Relationship: AccountReceivable 1:N Payment)"
-        },
-        "paymentDate": {
-          "type": "string",
-          "description": "The date and time when the payment was received.",
-          "format": "date-time"
-        },
-        "amountPaid": {
-          "type": "number",
-          "description": "The amount of money paid in this transaction."
-        },
-        "paymentMethod": {
-          "type": "string",
-          "description": "The method used for the payment (e.g., 'cash', 'bank_transfer', 'credit_card', 'other').",
-          "format": "enum"
-        },
-        "receiptNumber": {
-          "type": "string",
-          "description": "An optional receipt or transaction number for reference."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Additional notes or comments about the payment."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the payment record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the payment record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "customerId",
-        "accountReceivableId",
-        "paymentDate",
-        "amountPaid",
-        "paymentMethod"
-      ]
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cuit": { "type": "string" },
+        "description": { "type": "string" }
+      }
     }
   },
   "auth": {
@@ -425,11 +198,27 @@
           "schema": {
             "$ref": "#/backend/entities/UserRole"
           },
-          "description": "Dedicated collection for managing staff roles. The existence of a document at `/staff_roles/{uid}` indicates that the user is authorized as staff. This enables database-backed access control (DBAC) for all administrative actions across the application.",
+          "description": "Dedicated collection for managing staff roles.",
           "params": [
             {
               "name": "staffId",
               "description": "The unique identifier (UID) of the authenticated user who is a staff member."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/settings/{settingId}",
+        "definition": {
+          "entityName": "BillingConfig",
+          "schema": {
+            "$ref": "#/backend/entities/BillingConfig"
+          },
+          "description": "General settings for the store.",
+          "params": [
+            {
+              "name": "settingId",
+              "description": "Unique setting ID."
             }
           ]
         }
@@ -441,7 +230,7 @@
           "schema": {
             "$ref": "#/backend/entities/Product"
           },
-          "description": "Collection for managing all products available in the store. Accessible to authorized staff for creation, updates, and viewing. Does not require specific authorization denormalization as all products are generally accessible to staff.",
+          "description": "Collection for managing all products.",
           "params": [
             {
               "name": "productId",
@@ -457,7 +246,7 @@
           "schema": {
             "$ref": "#/backend/entities/Customer"
           },
-          "description": "Collection for storing customer records. Accessible to authorized staff. Customer-specific data (like account receivables) is organized as subcollections, adhering to hierarchical access modeling.",
+          "description": "Collection for storing customer records.",
           "params": [
             {
               "name": "customerId",
@@ -473,7 +262,7 @@
           "schema": {
             "$ref": "#/backend/entities/Sale"
           },
-          "description": "Collection for recording sales transactions. Each document represents a complete sale, with line items stored in a subcollection. The 'customerId' is included in the schema for direct linking to the customer, but not for authorization independence as all sales are visible to staff.",
+          "description": "Collection for recording sales transactions.",
           "params": [
             {
               "name": "saleId",
@@ -481,88 +270,7 @@
             }
           ]
         }
-      },
-      {
-        "path": "/sales/{saleId}/saleItems/{saleItemId}",
-        "definition": {
-          "entityName": "SaleItem",
-          "schema": {
-            "$ref": "#/backend/entities/SaleItem"
-          },
-          "description": "Subcollection under each 'Sale' document, containing the individual product line items for that sale. Includes denormalized 'customerId' (from its parent Sale) to support authorization independence and efficient 'collectionGroup' queries for a customer's total purchase history.",
-          "params": [
-            {
-              "name": "saleId",
-              "description": "The unique identifier of the parent sales transaction."
-            },
-            {
-              "name": "saleItemId",
-              "description": "The unique identifier for a specific item within a sales transaction."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/inventoryMovements/{movementId}",
-        "definition": {
-          "entityName": "InventoryMovement",
-          "schema": {
-            "$ref": "#/backend/entities/InventoryMovement"
-          },
-          "description": "Top-level collection for logging all inventory movements. Stores references to 'productId' and 'saleItemId' but is not a subcollection of either, allowing for flexible querying across all movements. Accessible to authorized staff.",
-          "params": [
-            {
-              "name": "movementId",
-              "description": "The unique identifier for an inventory movement record."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/customers/{customerId}/accountReceivables/{receivableId}",
-        "definition": {
-          "entityName": "AccountReceivable",
-          "schema": {
-            "$ref": "#/backend/entities/AccountReceivable"
-          },
-          "description": "Subcollection under each 'Customer' document, representing individual debts owed by the customer. The 'customerId' is part of the path and present in the schema, simplifying authorization rules and supporting queries for a customer's pending debts.",
-          "params": [
-            {
-              "name": "customerId",
-              "description": "The unique identifier of the parent customer."
-            },
-            {
-              "name": "receivableId",
-              "description": "The unique identifier for a specific account receivable (debt)."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/customers/{customerId}/accountReceivables/{receivableId}/payments/{paymentId}",
-        "definition": {
-          "entityName": "Payment",
-          "schema": {
-            "$ref": "#/backend/entities/Payment"
-          },
-          "description": "Subcollection under each 'AccountReceivable' document, recording payments made towards that specific debt. 'customerId' and 'accountReceivableId' are denormalized (present in the path and schema) for authorization independence and efficient retrieval of payments for a particular debt or customer.",
-          "params": [
-            {
-              "name": "customerId",
-              "description": "The unique identifier of the grandparent customer."
-            },
-            {
-              "name": "receivableId",
-              "description": "The unique identifier of the parent account receivable."
-            },
-            {
-              "name": "paymentId",
-              "description": "The unique identifier for a specific payment record."
-            }
-          ]
-        }
       }
-    ],
-    "reasoning": "The Firestore data structure for CommerceManager Pro prioritizes robust security, scalability, and debuggability in alignment with the core design principles and strategy mandates. All data is primarily managed by authenticated staff members, simplifying the overall authorization model. Authorization relies heavily on a dedicated `staff_roles` collection, where the mere existence of a document for a user's UID signifies their staff status. This adheres to the **DBAC (No Custom Claims)** principle and enables simple `exists()` checks in security rules.\n\n**Authorization Independence (CRITICAL)** is achieved by minimizing `get()` calls in security rules:\n1.  **Staff Roles:** A top-level collection `/staff_roles/{staffId}` (where `staffId` is the `request.auth.uid`) allows for an atomic and independent check if a user is authorized as staff, avoiding any hierarchical dependencies.\n2.  **Denormalization in Subcollections:** For subcollections where access might otherwise depend on a parent document's attributes, critical parent IDs are denormalized. For instance, `SaleItem` documents, residing in `/sales/{saleId}/saleItems/{saleItemId}`, will include the `customerId` from the parent `Sale` document. This allows security rules for `SaleItem` to evaluate access based solely on the `SaleItem` document itself and its path, without needing to `get()` the parent `Sale` document. This denormalization also supports QAPs.\n3.  **Path-Based Ownership:** For customer-specific data like `AccountReceivable` and `Payment`, a clear hierarchical path (`/customers/{customerId}/accountReceivables/{receivableId}/payments/{paymentId}`) is used. The parent IDs (`customerId`, `accountReceivableId`) are explicitly part of the document's path and also present in the document's schema, making authorization checks simple (`request.path[2] == resource.data.customerId`) and independent of parent document `get()` calls.\n\n**QAPs (Rules are not Filters)** are supported through structural segregation and judicious denormalization:\n1.  **Top-Level Collections:** Collections like `/products`, `/customers`, `/sales`, and `/inventoryMovements` are top-level. Access rules simply check for staff authorization (`exists(/staff_roles/$(request.auth.uid))`). This allows `list` operations without requiring filters in the security rules, as all documents within these collections are equally accessible to authorized staff.\n2.  **Denormalized Parent IDs for Subcollections:** By including `customerId` in `SaleItem` documents, `list` queries for all `SaleItems` by a specific customer can be performed efficiently (e.g., `db.collectionGroup('saleItems').where('customerId', '==', customerId)`), with security rules validating `resource.data.customerId == customerId` and staff status. Similarly, for `AccountReceivables` and `Payments`, the hierarchical paths and denormalized IDs within the document enable secure and efficient listing for specific customers or receivables.\n\n**Structural Segregation** ensures a homogeneous security posture: All documents within a given collection or subcollection (e.g., `/products`, `/customers/{customerId}/accountReceivables`) are intended for staff access only. There is no mixing of public/private or different permission levels within the same logical collection.\n\nOverall, this structure provides a secure, scalable, and easily debuggable foundation for CommerceManager Pro, supporting all described core features with clear authorization intent and efficient data access patterns."
+    ]
   }
 }

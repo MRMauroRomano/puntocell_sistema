@@ -1,20 +1,80 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FileText, Save, Info } from "lucide-react"
-import { MOCK_BILLING_CONFIGS } from "@/lib/mock-data"
+import { FileText, Save, Info, Loader2 } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking } from "@/firebase"
+import { collection, doc } from "firebase/firestore"
+import { BillingConfig } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
+
+const DEFAULT_CONFIGS: BillingConfig[] = [
+  { id: 'config-1', name: 'RAZON SOCIAL 1', cuit: '00-00000000-0', description: 'Entidad Principal' },
+  { id: 'config-2', name: 'RAZON SOCIAL 2', cuit: '00-00000000-0', description: 'Entidad Secundaria' },
+]
 
 export default function SettingsPage() {
-  const [configs, setConfigs] = useState(MOCK_BILLING_CONFIGS)
+  const firestore = useFirestore()
+  const { toast } = useToast()
+  const [isSaving, setIsSaving] = useState(false)
+  
+  const settingsRef = useMemoFirebase(() => collection(firestore, 'settings'), [firestore])
+  const { data: remoteConfigs, isLoading } = useCollection<BillingConfig>(settingsRef)
+  
+  const [localConfigs, setLocalConfigs] = useState<BillingConfig[]>(DEFAULT_CONFIGS)
+
+  // Sincronizar con datos de Firebase al cargar
+  useEffect(() => {
+    if (remoteConfigs && remoteConfigs.length > 0) {
+      // Mapear los datos remotos para asegurar que config-1 y config-2 estén presentes
+      const merged = DEFAULT_CONFIGS.map(def => {
+        const found = remoteConfigs.find(r => r.id === def.id)
+        return found || def
+      })
+      setLocalConfigs(merged)
+    }
+  }, [remoteConfigs])
 
   const handleUpdate = (id: string, field: string, value: string) => {
-    setConfigs(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
+    setLocalConfigs(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c))
+  }
+
+  const handleSaveAll = () => {
+    setIsSaving(true)
+    
+    try {
+      localConfigs.forEach(config => {
+        const configDocRef = doc(firestore, 'settings', config.id)
+        setDocumentNonBlocking(configDocRef, config, { merge: true })
+      })
+      
+      toast({
+        title: "Configuración guardada",
+        description: "Los datos de facturación se han actualizado correctamente.",
+      })
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron guardar los cambios.",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-2">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground text-sm">Cargando configuración...</p>
+      </div>
+    )
   }
 
   return (
@@ -34,8 +94,8 @@ export default function SettingsPage() {
       </Alert>
 
       <div className="grid gap-6">
-        {configs.map((config, index) => (
-          <Card key={config.id} className="border-primary/10">
+        {localConfigs.map((config, index) => (
+          <Card key={config.id} className="border-primary/10 overflow-hidden">
             <CardHeader className="flex flex-row items-center gap-4 bg-muted/30">
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <FileText className="h-5 w-5" />
@@ -53,6 +113,7 @@ export default function SettingsPage() {
                     id={`name-${config.id}`}
                     value={config.name}
                     onChange={(e) => handleUpdate(config.id, 'name', e.target.value)}
+                    disabled={isSaving}
                   />
                 </div>
                 <div className="space-y-2">
@@ -62,6 +123,7 @@ export default function SettingsPage() {
                     placeholder="XX-XXXXXXXX-X"
                     value={config.cuit}
                     onChange={(e) => handleUpdate(config.id, 'cuit', e.target.value)}
+                    disabled={isSaving}
                   />
                 </div>
               </div>
@@ -70,18 +132,25 @@ export default function SettingsPage() {
                 <Input 
                   id={`desc-${config.id}`}
                   placeholder="Ej: Solo para accesorios, Monotributo, etc."
-                  value={config.description}
+                  value={config.description || ""}
                   onChange={(e) => handleUpdate(config.id, 'description', e.target.value)}
+                  disabled={isSaving}
                 />
               </div>
             </CardContent>
-            <CardFooter className="bg-muted/10 justify-end py-3">
-               <Button className="gap-2">
-                 <Save className="h-4 w-4" /> Guardar Cambios
-               </Button>
-            </CardFooter>
           </Card>
         ))}
+      </div>
+
+      <div className="flex justify-end pt-4">
+        <Button 
+          className="gap-2 h-12 px-8 font-bold text-lg shadow-lg" 
+          onClick={handleSaveAll}
+          disabled={isSaving}
+        >
+          {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+          Guardar Todos los Cambios
+        </Button>
       </div>
     </div>
   )

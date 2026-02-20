@@ -1,81 +1,50 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    /**
-     * CORE PHILOSOPHY
-     * This ruleset implements a Database-Backed Access Control (DBAC) model.
-     * For this MVP/Prototype stage, any authenticated user is granted staff access.
-     */
-
-    // --- Helper Functions ---
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** 
-     * @description In prototype mode, any signed-in user is treated as staff.
-     */
     function isStaff() {
       return isSignedIn();
     }
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function isExistingStaff() {
-      return isStaff() && resource != null;
-    }
-
-    // --- Collection Rules ---
-
     match /staff_roles/{staffId} {
-      allow get: if isOwner(staffId) || isStaff();
-      allow list: if isStaff();
-      allow create, update, delete: if isStaff();
+      allow read, write: if isStaff();
+    }
+
+    match /settings/{settingId} {
+      allow read, write: if isStaff();
     }
 
     match /products/{productId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isExistingStaff();
+      allow read, write: if isStaff();
     }
 
     match /customers/{customerId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isExistingStaff();
+      allow read, write: if isStaff();
       
-      // Allow nested collections
       match /{allSubcollections=**} {
         allow read, write: if isStaff();
       }
     }
 
     match /sales/{saleId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isExistingStaff();
+      allow read, write: if isStaff();
       
       match /saleItems/{saleItemId} {
-        allow get, list: if isStaff();
-        allow create: if isStaff();
-        allow update, delete: if isExistingStaff();
+        allow read, write: if isStaff();
       }
     }
 
     match /inventoryMovements/{movementId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isExistingStaff();
+      allow read, write: if isStaff();
     }
 
     match /expenses/{expenseId} {
-      allow get, list: if isStaff();
-      allow create: if isStaff();
-      allow update, delete: if isExistingStaff();
+      allow read, write: if isStaff();
     }
   }
 }
