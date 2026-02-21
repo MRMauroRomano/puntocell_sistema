@@ -225,8 +225,8 @@ export default function SalesPage() {
             </CardContent>
             <CardFooter className="flex-col border-t bg-muted/20 p-4 lg:p-6 space-y-4">
               <div className="w-full flex justify-between items-center py-2">
-                <span className="text-base font-bold">TOTAL:</span>
-                <span className="text-2xl font-black text-primary font-headline">${total.toFixed(2)}</span>
+                <span className="text-base font-black uppercase">Monto Total:</span>
+                <span className="text-3xl font-black text-primary font-headline">${total.toFixed(2)}</span>
               </div>
               <div className="w-full space-y-3 pt-2">
                  <div className="grid grid-cols-2 gap-3">
@@ -287,10 +287,7 @@ export default function SalesPage() {
       {lastSale && (
         <div className="print-only p-8 text-black bg-white min-h-screen font-sans">
           <div className="border-[2px] border-black p-0 overflow-hidden rounded-sm relative">
-            
-            {/* Cabecera AFIP Style */}
             <div className="border-b-[2px] border-black relative">
-              {/* Central Box for Invoice Letter */}
               <div className="absolute left-1/2 top-0 -translate-x-1/2 bg-white border-b-[2px] border-x-[2px] border-black w-16 h-16 flex flex-col items-center justify-center z-10">
                 <span className="text-5xl font-black leading-none mt-1">
                   {lastSale.invoiceType === 'factura_a' ? 'A' : lastSale.invoiceType === 'factura_b' ? 'B' : 'C'}
@@ -299,7 +296,6 @@ export default function SalesPage() {
               </div>
 
               <div className="grid grid-cols-2 h-36">
-                {/* Lado Izquierdo: Datos del Titular */}
                 <div className="p-4 flex flex-col justify-center border-r-[1px] border-black/50">
                   <h1 className="text-3xl font-black uppercase leading-tight tracking-tight">{lastSale.billingName || "NOMBRE TITULAR"}</h1>
                   <p className="text-[11px] font-black mt-2">RAZÓN SOCIAL TITULAR</p>
@@ -307,7 +303,6 @@ export default function SalesPage() {
                   <p className="text-[11px]">Condición frente al IVA: Responsable Inscripto</p>
                 </div>
 
-                {/* Lado Derecho: Datos del Comprobante */}
                 <div className="p-4 flex flex-col justify-center pl-14">
                   <h2 className="text-3xl font-black tracking-tighter mb-1">FACTURA</h2>
                   <p className="font-black text-base">Punto de Venta: 0001</p>
@@ -316,7 +311,6 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              {/* Barra Intermedia: CUIT / IIBB / Inicio Act */}
               <div className="border-t-[2px] border-black grid grid-cols-2 px-6 py-1 text-[11px] font-bold bg-gray-50">
                 <div>CUIT: {lastSale.billingCuit}</div>
                 <div className="flex justify-between">
@@ -326,7 +320,6 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* Datos del Cliente */}
             <div className="border-b-[2px] border-black grid grid-cols-2 bg-white">
               <div className="p-4 border-r-[2px] border-black">
                 <p className="text-[10px] uppercase font-black text-gray-500 mb-1">DATOS DEL CLIENTE</p>
@@ -340,7 +333,6 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* Tabla de Items */}
             <div className="min-h-[500px]">
               <table className="w-full text-xs">
                 <thead>
@@ -360,20 +352,10 @@ export default function SalesPage() {
                       <td className="p-3 text-right font-black font-mono">${item.subtotal.toFixed(2)}</td>
                     </tr>
                   ))}
-                  {/* Espacios en blanco para completar la hoja */}
-                  {Array.from({ length: Math.max(0, 12 - lastSale.items.length) }).map((_, i) => (
-                    <tr key={`empty-${i}`} className="border-b border-gray-100 h-10">
-                      <td className="border-r-[2px] border-black"></td>
-                      <td className="border-r-[2px] border-black"></td>
-                      <td className="border-r-[2px] border-black"></td>
-                      <td></td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Pie de Factura con Totales */}
             <div className="border-t-[2px] border-black p-6 flex justify-between items-end bg-gray-50">
               <div className="text-[10px] font-bold space-y-2">
                 <p className="uppercase text-gray-600">Observaciones: {lastSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO'}</p>

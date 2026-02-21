@@ -47,7 +47,6 @@ export default function SalesHistoryPage() {
     if (sale.status === 'returned') return
     setIsReturning(true)
     try {
-      // 1. Devolver el stock a los productos
       for (const item of sale.items) {
         const productRef = doc(firestore, 'products', item.productId)
         const productSnap = await getDoc(productRef)
@@ -57,7 +56,6 @@ export default function SalesHistoryPage() {
         }
       }
 
-      // 2. Si fue venta a cuenta corriente, descontar la deuda del cliente
       if (sale.paymentMethod === 'credit_account' && sale.customerId && sale.customerId !== 'final') {
         const customerRef = doc(firestore, 'customers', sale.customerId)
         const customerSnap = await getDoc(customerRef)
@@ -67,13 +65,12 @@ export default function SalesHistoryPage() {
         }
       }
 
-      // 3. Cambiar estado a "returned" (AFIP compliance: NO BORRAR, emitir Nota de Crédito)
       const saleDocRef = doc(firestore, 'sales', sale.id)
       updateDocumentNonBlocking(saleDocRef, { status: 'returned' })
 
       toast({
         title: "Nota de Crédito Generada",
-        description: "El stock ha sido restaurado y la venta se marca como devuelta.",
+        description: "El stock ha sido restaurado y el registro se marca como devuelto.",
       })
     } catch (error) {
       toast({
@@ -103,7 +100,7 @@ export default function SalesHistoryPage() {
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Buscar por ID de venta o nombre de cliente..." 
+              placeholder="Buscar por ID o cliente..." 
               className="pl-9 bg-muted/30 border-none"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -141,7 +138,7 @@ export default function SalesHistoryPage() {
                       <TableCell>
                         <div className="text-sm font-bold flex items-center gap-2">
                           {sale.customerName}
-                          {sale.status === 'returned' && <Badge variant="destructive" className="text-[8px] h-4">DEVUELTO</Badge>}
+                          {sale.status === 'returned' && <Badge variant="destructive" className="text-[8px] h-4 font-black">DEVUELTO</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">{sale.customerCuit}</div>
                       </TableCell>
@@ -180,12 +177,9 @@ export default function SalesHistoryPage() {
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Generar Nota de Crédito?</AlertDialogTitle>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Generar Nota de Crédito?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción anulará legalmente la venta #{sale.id.slice(-6)}, devolverá el stock al inventario y ajustará el saldo del cliente. Se mantendrá el registro como "Devuelto".
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
+                                  <AlertDialogDescription>
+                                    Esta acción anulará legalmente la venta #{sale.id.slice(-6)}, devolverá el stock al inventario y ajustará el saldo del cliente. Se mantendrá el registro como "Devuelto".
+                                  </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -217,7 +211,6 @@ export default function SalesHistoryPage() {
         </CardContent>
       </Card>
 
-      {/* DIÁLOGO DE FACTURA PARA REIMPRESIÓN / NOTA DE CRÉDITO */}
       <Dialog open={isInvoiceOpen} onOpenChange={setIsInvoiceOpen}>
         <DialogContent className="max-w-[850px] w-[95vw] h-[90vh] overflow-y-auto no-print rounded-xl">
           <DialogHeader>
