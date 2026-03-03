@@ -146,52 +146,88 @@ export default function ProductsPage() {
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
-        const bstr = event.target?.result
-        const wb = XLSX.read(bstr, { type: 'binary' })
-        const wsname = wb.SheetNames[0]
-        const ws = wb.Sheets[wsname]
-        const data = XLSX.utils.sheet_to_json(ws) as any[]
+        const data = new Uint8Array(event.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[]
+
+        if (jsonData.length === 0) {
+          toast({
+            variant: "destructive",
+            title: "Archivo vacío",
+            description: "No se encontraron datos en el archivo Excel.",
+          })
+          setIsImporting(false)
+          return
+        }
 
         let count = 0
-        data.forEach((row) => {
-          const productId = Math.random().toString(36).substr(2, 9)
-          const productRef = doc(firestore, 'products', productId)
-          
-          // Importación simplificada: solo requiere Nombre y Precio
-          // Otros campos toman valores por defecto
-          const productData: Product = {
-            id: productId,
-            name: row.Nombre || row.name || row.Producto || "Sin nombre",
-            price: Number(row.Precio || row.price) || 0,
-            category: row.Categoría || row.category || "Otros",
-            subCategory: row.Marca || row.subCategory || "",
-            condition: (row.Estado || row.condition) === 'Usado' ? 'Usado' : 'Nuevo',
-            stock: Number(row.Stock || row.stock) || 0,
-            minStock: Number(row.Mínimo || row.minStock) || 5,
-            isActive: true
-          }
+        jsonData.forEach((row) => {
+          // Normalizar las claves del objeto (headers del Excel en minúsculas y sin espacios)
+          const normalizedRow: any = {}
+          Object.keys(row).forEach(key => {
+            normalizedRow[key.toLowerCase().trim()] = row[key]
+          })
 
-          setDocumentNonBlocking(productRef, productData, { merge: true })
-          count++
+          // Buscar nombre del producto con variantes comunes
+          const name = normalizedRow.nombre || 
+                       normalizedRow.name || 
+                       normalizedRow.producto || 
+                       normalizedRow["nombre del producto"] || 
+                       normalizedRow.item || 
+                       normalizedRow.modelo || ""
+          
+          // Buscar precio con variantes (PVA, Costo, Valor, etc)
+          const priceRaw = normalizedRow.precio || 
+                           normalizedRow.price || 
+                           normalizedRow.pva || 
+                           normalizedRow.costo || 
+                           normalizedRow.valor || 
+                           normalizedRow.unitario || "0"
+          
+          // Limpiar el precio de símbolos de moneda y convertir a número
+          const price = parseFloat(String(priceRaw).replace(/[^0-9.-]+/g, "")) || 0
+
+          if (name) {
+            const productId = Math.random().toString(36).substr(2, 9)
+            const productRef = doc(firestore, 'products', productId)
+            
+            const productData: Product = {
+              id: productId,
+              name: String(name).trim(),
+              price: price,
+              category: normalizedRow.categoría || normalizedRow.categoria || normalizedRow.category || "Otros",
+              subCategory: normalizedRow.marca || normalizedRow.brand || normalizedRow.subcategoría || normalizedRow.subcategory || "",
+              condition: String(normalizedRow.estado || normalizedRow.condition || "").toLowerCase().includes('usado') ? 'Usado' : 'Nuevo',
+              stock: parseInt(String(normalizedRow.stock || normalizedRow.cantidad || "0")) || 0,
+              minStock: parseInt(String(normalizedRow.mínimo || normalizedRow.minimo || normalizedRow.minstock || "5")) || 5,
+              isActive: true
+            }
+
+            setDocumentNonBlocking(productRef, productData, { merge: true })
+            count++
+          }
         })
 
         toast({
-          title: "Importación exitosa",
-          description: `Se han importado ${count} productos correctamente.`,
+          title: "Importación finalizada",
+          description: `Se han procesado ${count} productos correctamente.`,
         })
         setIsImportDialogOpen(false)
       } catch (error) {
+        console.error("Error importando excel:", error)
         toast({
           variant: "destructive",
           title: "Error de importación",
-          description: "No se pudo procesar el archivo Excel. Verifica el formato.",
+          description: "No se pudo procesar el archivo. Verifica que sea un Excel válido.",
         })
       } finally {
         setIsImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
     }
-    reader.readAsBinaryString(file)
+    reader.readAsArrayBuffer(file)
   }
 
   return (
@@ -215,10 +251,10 @@ export default function ProductsPage() {
                 <div className="text-sm text-muted-foreground space-y-2 py-2">
                   <p>Asegúrate de que tu Excel tenga al menos estas dos columnas:</p>
                   <ul className="list-disc pl-5 font-mono text-[11px] text-primary font-bold">
-                    <li>Nombre (Modelo del producto)</li>
+                    <li>Nombre (o Producto/Modelo)</li>
                     <li>Precio (Valor de venta)</li>
                   </ul>
-                  <p className="text-[10px] italic pt-2">El resto de los datos (stock, categoría, marca) se cargarán con valores por defecto y podrás editarlos luego.</p>
+                  <p className="text-[10px] italic pt-2">El resto de los datos se cargarán con valores por defecto y podrás editarlos luego.</p>
                 </div>
               </DialogHeader>
               <div className="grid gap-4 py-4">
