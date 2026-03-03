@@ -1,12 +1,12 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, AlertCircle, Edit2 } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
+import * as XLSX from 'xlsx'
 
 const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
@@ -25,9 +26,12 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [currentId, setCurrentId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
   const { data: products, isLoading } = useCollection<Product>(productsRef)
@@ -134,6 +138,60 @@ export default function ProductsPage() {
     }
   }
 
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsImporting(true)
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const bstr = event.target?.result
+        const wb = XLSX.read(bstr, { type: 'binary' })
+        const wsname = wb.SheetNames[0]
+        const ws = wb.Sheets[wsname]
+        const data = XLSX.utils.sheet_to_json(ws) as any[]
+
+        let count = 0
+        data.forEach((row) => {
+          const productId = Math.random().toString(36).substr(2, 9)
+          const productRef = doc(firestore, 'products', productId)
+          
+          const productData: Product = {
+            id: productId,
+            name: row.Nombre || row.name || "Sin nombre",
+            category: row.Categoría || row.category || "Otros",
+            subCategory: row.Marca || row.subCategory || "",
+            condition: (row.Estado || row.condition) === 'Usado' ? 'Usado' : 'Nuevo',
+            price: Number(row.Precio || row.price) || 0,
+            stock: Number(row.Stock || row.stock) || 0,
+            minStock: Number(row.Mínimo || row.minStock) || 5,
+            isActive: true
+          }
+
+          setDocumentNonBlocking(productRef, productData, { merge: true })
+          count++
+        })
+
+        toast({
+          title: "Importación exitosa",
+          description: `Se han importado ${count} productos correctamente.`,
+        })
+        setIsImportDialogOpen(false)
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "Error de importación",
+          description: "No se pudo procesar el archivo Excel. Verifica el formato.",
+        })
+      } finally {
+        setIsImporting(false)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      }
+    }
+    reader.readAsBinaryString(file)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -142,107 +200,148 @@ export default function ProductsPage() {
           <p className="text-sm text-muted-foreground">Gestiona tus equipos por categoría, marca y estado.</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto gap-2 shadow-sm" onClick={handleOpenAdd}>
-              <Plus className="h-4 w-4" /> Nuevo Producto
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-headline">
-                {isEditing ? "Editar Producto" : "Registrar Producto"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre / Modelo del Equipo</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Ej: iPhone 15 Pro Max" 
-                  value={formProduct.name}
-                  onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Categoría</Label>
-                  <Select 
-                    value={formProduct.category} 
-                    onValueChange={(v) => setFormProduct({...formProduct, category: v})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIES.map(cat => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Sub-categoría / Marca</Label>
-                  <Input 
-                    placeholder="Ej: iPhone, Samsung, Xiaomi" 
-                    value={formProduct.subCategory}
-                    onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Estado del Equipo</Label>
-                  <Select 
-                    value={formProduct.condition} 
-                    onValueChange={(v: any) => setFormProduct({...formProduct, condition: v})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Nuevo">Nuevo</SelectItem>
-                      <SelectItem value="Usado">Usado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Precio de Venta ($)</Label>
-                  <Input 
-                    type="number" 
-                    value={formProduct.price || ""}
-                    onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Stock Actual</Label>
-                  <Input 
-                    type="number" 
-                    value={formProduct.stock || ""}
-                    onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Stock Mínimo (Alerta)</Label>
-                  <Input 
-                    type="number" 
-                    value={formProduct.minStock || ""}
-                    onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2">
-              <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleSaveProduct} className="w-full sm:w-auto gap-2" disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {isEditing ? "Actualizar" : "Guardar"}
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex-1 sm:flex-none gap-2">
+                <FileUp className="h-4 w-4" /> Importar Excel
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Importar desde Excel</DialogTitle>
+                <div className="text-sm text-muted-foreground space-y-2 py-2">
+                  <p>Asegúrate de que tu Excel tenga las siguientes columnas:</p>
+                  <ul className="list-disc pl-5 font-mono text-[11px]">
+                    <li>Nombre (Modelo del equipo)</li>
+                    <li>Categoría (Celulares, Audio, etc.)</li>
+                    <li>Marca (iPhone, Samsung, etc.)</li>
+                    <li>Precio</li>
+                    <li>Stock</li>
+                    <li>Mínimo (Stock de alerta)</li>
+                    <li>Estado (Nuevo o Usado)</li>
+                  </ul>
+                </div>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <Input 
+                  type="file" 
+                  accept=".xlsx, .xls, .csv" 
+                  onChange={handleImportExcel}
+                  disabled={isImporting}
+                  ref={fileInputRef}
+                />
+                {isImporting && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-primary font-bold">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Procesando productos...
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}>
+                <Plus className="h-4 w-4" /> Nuevo Producto
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-headline">
+                  {isEditing ? "Editar Producto" : "Registrar Producto"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre / Modelo del Equipo</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="Ej: iPhone 15 Pro Max" 
+                    value={formProduct.name}
+                    onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Categoría</Label>
+                    <Select 
+                      value={formProduct.category} 
+                      onValueChange={(v) => setFormProduct({...formProduct, category: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sub-categoría / Marca</Label>
+                    <Input 
+                      placeholder="Ej: iPhone, Samsung, Xiaomi" 
+                      value={formProduct.subCategory}
+                      onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Estado del Equipo</Label>
+                    <Select 
+                      value={formProduct.condition} 
+                      onValueChange={(v: any) => setFormProduct({...formProduct, condition: v})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Nuevo">Nuevo</SelectItem>
+                        <SelectItem value="Usado">Usado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Precio de Venta ($)</Label>
+                    <Input 
+                      type="number" 
+                      value={formProduct.price || ""}
+                      onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Stock Actual</Label>
+                    <Input 
+                      type="number" 
+                      value={formProduct.stock || ""}
+                      onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Stock Mínimo (Alerta)</Label>
+                    <Input 
+                      type="number" 
+                      value={formProduct.minStock || ""}
+                      onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+                <Button onClick={handleSaveProduct} className="w-full sm:w-auto gap-2" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {isEditing ? "Actualizar" : "Guardar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card className="shadow-sm border-primary/10 overflow-hidden">
