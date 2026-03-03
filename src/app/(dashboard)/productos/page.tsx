@@ -54,7 +54,7 @@ export default function ProductsPage() {
       const matchesSearch = (
         p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
         p.subCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.code?.includes(searchTerm)
+        String(p.code || "").includes(searchTerm)
       )
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
       return matchesSearch && matchesCategory
@@ -151,20 +151,32 @@ export default function ProductsPage() {
   }
 
   const handleGenerateMissingCodes = () => {
-    if (!products) return
+    if (!products || products.length === 0) {
+      toast({ title: "Información", description: "No hay productos en el inventario para procesar." })
+      return
+    }
+
     let count = 0
     products.forEach(p => {
-      if (!p.code || p.code.length !== 4) {
+      const currentCode = String(p.code || "").trim()
+      if (currentCode.length !== 4) {
         const newCode = Math.floor(1000 + Math.random() * 9000).toString()
         const productRef = doc(firestore, 'products', p.id)
         updateDocumentNonBlocking(productRef, { code: newCode })
         count++
       }
     })
+
     if (count > 0) {
-      toast({ title: "Códigos generados", description: `Se asignaron ${count} códigos nuevos.` })
+      toast({ 
+        title: "Códigos generados", 
+        description: `Se han actualizado ${count} productos con nuevos códigos de 4 dígitos.` 
+      })
     } else {
-      toast({ title: "Información", description: "Todos los productos ya tienen códigos válidos." })
+      toast({ 
+        title: "Información", 
+        description: "Todos los productos actuales ya poseen un código de 4 dígitos válido." 
+      })
     }
   }
 
@@ -280,7 +292,6 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Vista de Impresión (Solo se ve al imprimir) */}
       <div className="print-only p-8 bg-white text-black">
         <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
           <div>
@@ -427,7 +438,6 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog for Add/Edit */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl no-print">
           <DialogHeader>
@@ -539,7 +549,6 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog for Import */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent className="no-print">
           <DialogHeader>
