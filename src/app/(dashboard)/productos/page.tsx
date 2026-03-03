@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2 } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, AlertCircle } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -53,7 +53,7 @@ export default function ProductsPage() {
   })
 
   const [bulkData, setBulkData] = useState({
-    actionType: 'price_percent', // 'price_percent', 'category', 'brand'
+    actionType: 'price_percent',
     value: ''
   })
 
@@ -351,11 +351,17 @@ export default function ProductsPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {selectedIds.length > 0 && (
-            <Button variant="secondary" className="flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200" onClick={() => setIsBulkDialogOpen(true)}>
-              <Layers className="h-4 w-4" /> Modificación Masiva ({selectedIds.length})
-            </Button>
-          )}
+          <Button 
+            variant="secondary" 
+            className={cn(
+              "flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200",
+              selectedIds.length === 0 && "opacity-50 cursor-not-allowed"
+            )} 
+            onClick={() => selectedIds.length > 0 && setIsBulkDialogOpen(true)}
+            disabled={selectedIds.length === 0}
+          >
+            <Layers className="h-4 w-4" /> Modificación Masiva {selectedIds.length > 0 && `(${selectedIds.length})`}
+          </Button>
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrintInventory}>
             <Printer className="h-4 w-4" /> Imprimir
@@ -530,7 +536,6 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {/* Diálogo Edición Masiva */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
