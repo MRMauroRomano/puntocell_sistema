@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2 } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -28,10 +29,12 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [currentId, setCurrentId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
@@ -47,6 +50,11 @@ export default function ProductsPage() {
     stock: 0,
     minStock: 5,
     description: ""
+  })
+
+  const [bulkData, setBulkData] = useState({
+    actionType: 'price_percent', // 'price_percent', 'category', 'brand'
+    value: ''
   })
 
   const filtered = useMemo(() => {
@@ -139,6 +147,57 @@ export default function ProductsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleBulkUpdate = () => {
+    if (selectedIds.length === 0) return
+    if (!bulkData.value) {
+      toast({ variant: "destructive", title: "Valor requerido", description: "Ingresa el valor a aplicar." })
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      selectedIds.forEach(id => {
+        const product = products?.find(p => p.id === id)
+        if (!product) return
+        
+        const productRef = doc(firestore, 'products', id)
+        let update: any = {}
+
+        if (bulkData.actionType === 'price_percent') {
+          const percent = parseFloat(bulkData.value)
+          const newPrice = product.price * (1 + percent / 100)
+          update = { price: Number(newPrice.toFixed(2)) }
+        } else if (bulkData.actionType === 'category') {
+          update = { category: bulkData.value }
+        } else if (bulkData.actionType === 'brand') {
+          update = { subCategory: bulkData.value }
+        }
+
+        updateDocumentNonBlocking(productRef, update)
+      })
+
+      toast({ title: "Modificación masiva completada", description: `Se actualizaron ${selectedIds.length} productos.` })
+      setIsBulkDialogOpen(false)
+      setSelectedIds([])
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar los productos." })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map(p => p.id))
+    }
+  }
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
   }
 
   const handleGenerateMissingCodes = () => {
@@ -292,6 +351,12 @@ export default function ProductsPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          {selectedIds.length > 0 && (
+            <Button variant="secondary" className="flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200" onClick={() => setIsBulkDialogOpen(true)}>
+              <Layers className="h-4 w-4" /> Modificación Masiva ({selectedIds.length})
+            </Button>
+          )}
+
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrintInventory}>
             <Printer className="h-4 w-4" /> Imprimir
           </Button>
@@ -389,6 +454,12 @@ export default function ProductsPage() {
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox 
+                        checked={selectedIds.length === filtered.length && filtered.length > 0} 
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead className="w-24">Código</TableHead>
                     <TableHead>Producto</TableHead>
                     <TableHead>Estado</TableHead>
@@ -400,7 +471,13 @@ export default function ProductsPage() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((product) => (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className={cn(selectedIds.includes(product.id) && "bg-primary/5")}>
+                      <TableCell>
+                        <Checkbox 
+                          checked={selectedIds.includes(product.id)} 
+                          onCheckedChange={() => toggleSelect(product.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs font-bold bg-primary/5 border-primary/20">
                           {product.code || "----"}
@@ -452,6 +529,66 @@ export default function ProductsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Diálogo Edición Masiva */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modificación Masiva</DialogTitle>
+            <DialogDescription>
+              Aplicar cambios a los {selectedIds.length} productos seleccionados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>¿Qué desea modificar?</Label>
+              <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="price_percent">Precio por Porcentaje (%)</SelectItem>
+                  <SelectItem value="category">Categoría</SelectItem>
+                  <SelectItem value="brand">Marca / Subcategoría</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nuevo Valor</Label>
+              {bulkData.actionType === 'price_percent' ? (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    placeholder="Ej: 10 para aumentar, -10 para disminuir" 
+                    value={bulkData.value}
+                    onChange={(e) => setBulkData({...bulkData, value: e.target.value})}
+                  />
+                  <span className="font-bold">%</span>
+                </div>
+              ) : bulkData.actionType === 'category' ? (
+                <Select value={bulkData.value} onValueChange={(v) => setBulkData({...bulkData, value: v})}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input 
+                  placeholder="Ej: Apple, Samsung, etc." 
+                  value={bulkData.value}
+                  onChange={(e) => setBulkData({...bulkData, value: e.target.value})}
+                />
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleBulkUpdate} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Aplicar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl no-print">
