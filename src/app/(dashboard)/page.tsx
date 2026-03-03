@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection } from "firebase/firestore"
-import { Product, Customer } from "@/lib/types"
+import { Product, Customer, Sale } from "@/lib/types"
 
 export default function DashboardPage() {
   const firestore = useFirestore()
@@ -22,14 +22,32 @@ export default function DashboardPage() {
   const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
   const { data: customers } = useCollection<Customer>(customersRef)
 
+  // Obtener ventas reales
+  const salesRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore])
+  const { data: sales } = useCollection<Sale>(salesRef)
+
+  // Cálculo de ventas de hoy
+  const todayStats = useMemo(() => {
+    if (!sales) return { total: 0, count: 0 }
+    const today = new Date().setHours(0, 0, 0, 0)
+    const filtered = sales.filter(s => {
+      const saleDate = new Date(s.date).setHours(0, 0, 0, 0)
+      return saleDate === today && s.status !== 'returned'
+    })
+    return {
+      total: filtered.reduce((acc, s) => acc + (s.total || 0), 0),
+      count: filtered.length
+    }
+  }, [sales])
+
   const lowStockCount = useMemo(() => {
     if (!products) return 0
-    return products.filter(p => p.stock < p.minStock).length
+    return products.filter(p => (Number(p.stock) || 0) < (Number(p.minStock) || 0)).length
   }, [products])
 
   const lowStockProducts = useMemo(() => {
     if (!products) return []
-    return products.filter(p => p.stock < p.minStock).slice(0, 5)
+    return products.filter(p => (Number(p.stock) || 0) < (Number(p.minStock) || 0)).slice(0, 5)
   }, [products])
 
   const totalDebt = useMemo(() => {
@@ -55,10 +73,9 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
           title="Ventas del Día" 
-          value="$0.00" 
-          description="vs ayer" 
+          value={`$${todayStats.total.toFixed(2)}`} 
+          description="hoy" 
           icon={DollarSign}
-          trend={{ value: "+0%", positive: true }}
         />
         
         <Link href="/productos/stock-bajo" className="block transition-transform hover:scale-[1.02] active:scale-[0.98]">
@@ -83,7 +100,7 @@ export default function DashboardPage() {
 
         <StatCard 
           title="Transacciones Hoy" 
-          value="0" 
+          value={todayStats.count} 
           description="ventas realizadas" 
           icon={TrendingUp}
         />

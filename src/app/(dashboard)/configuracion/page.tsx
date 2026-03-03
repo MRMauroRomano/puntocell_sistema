@@ -14,8 +14,8 @@ import { BillingConfig } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
 
 const DEFAULT_CONFIGS: BillingConfig[] = [
-  { id: 'config-1', name: 'RAZON SOCIAL 1', cuit: '00-00000000-0', description: 'Entidad Principal' },
-  { id: 'config-2', name: 'RAZON SOCIAL 2', cuit: '00-00000000-0', description: 'Entidad Secundaria' },
+  { id: 'config-1', name: '', cuit: '', description: 'Entidad Principal' },
+  { id: 'config-2', name: '', cuit: '', description: 'Entidad Secundaria' },
 ]
 
 export default function SettingsPage() {
@@ -112,6 +112,7 @@ export default function SettingsPage() {
                   <Input 
                     id={`name-${config.id}`}
                     value={config.name}
+                    placeholder="Ej: Mi Empresa S.R.L."
                     onChange={(e) => handleUpdate(config.id, 'name', e.target.value)}
                     disabled={isSaving}
                   />
