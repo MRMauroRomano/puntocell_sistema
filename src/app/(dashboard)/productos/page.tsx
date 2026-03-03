@@ -171,17 +171,25 @@ export default function ProductsPage() {
   }
 
   const handleDeleteAll = () => {
-    if (confirm("¿EstÁS COMPLETAMENTE SEGURO de eliminar TODOS los productos? Esta acción no se puede deshacer y borrará todo el catálogo actual.")) {
-      if (!products || products.length === 0) return
-      
+    if (!products || products.length === 0) {
+      toast({
+        title: "Sin productos",
+        description: "No hay productos en el inventario para eliminar.",
+      })
+      return
+    }
+
+    const confirmMessage = "¿ESTÁS COMPLETAMENTE SEGURO de eliminar TODOS los productos? Esta acción borrará TODO el catálogo y no se puede deshacer."
+    
+    if (confirm(confirmMessage)) {
       products.forEach(p => {
         const docRef = doc(firestore, 'products', p.id)
         deleteDocumentNonBlocking(docRef)
       })
       
       toast({
-        title: "Inventario vaciado",
-        description: "Se han eliminado todos los productos del sistema.",
+        title: "Procesando eliminación",
+        description: `Se están eliminando ${products.length} productos del sistema.`,
       })
     }
   }
