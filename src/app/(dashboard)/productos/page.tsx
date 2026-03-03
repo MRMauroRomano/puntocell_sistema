@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -96,16 +96,22 @@ export default function ProductsPage() {
   }
 
   const handleSaveProduct = () => {
-    if (!formProduct.name || !formProduct.code) {
+    if (!formProduct.name) {
       toast({
         variant: "destructive",
         title: "Campos incompletos",
-        description: "El nombre y el código de 4 dígitos son obligatorios.",
+        description: "El nombre es obligatorio.",
       })
       return
     }
 
-    if (formProduct.code.length !== 4 || isNaN(Number(formProduct.code))) {
+    // Auto-generar código si está vacío
+    let finalCode = formProduct.code
+    if (!finalCode || finalCode.trim() === "") {
+      finalCode = Math.floor(1000 + Math.random() * 9000).toString()
+    }
+
+    if (finalCode.length !== 4 || isNaN(Number(finalCode))) {
       toast({
         variant: "destructive",
         title: "Código inválido",
@@ -120,6 +126,7 @@ export default function ProductsPage() {
     
     const productData = {
       ...formProduct,
+      code: finalCode,
       price: Number(formProduct.price) || 0,
       stock: Number(formProduct.stock) || 0,
       minStock: Number(formProduct.minStock) || 0,
@@ -141,6 +148,28 @@ export default function ProductsPage() {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleGenerateMissingCodes = () => {
+    if (!products) return
+    let count = 0
+    products.forEach(p => {
+      if (!p.code || p.code.length !== 4) {
+        const newCode = Math.floor(1000 + Math.random() * 9000).toString()
+        const productRef = doc(firestore, 'products', p.id)
+        updateDocumentNonBlocking(productRef, { code: newCode })
+        count++
+      }
+    })
+    if (count > 0) {
+      toast({ title: "Códigos generados", description: `Se asignaron ${count} códigos nuevos.` })
+    } else {
+      toast({ title: "Información", description: "Todos los productos ya tienen códigos válidos." })
+    }
+  }
+
+  const handlePrintInventory = () => {
+    if (typeof window !== 'undefined') window.print()
   }
 
   const handleDeleteProduct = (id: string, name: string) => {
@@ -230,13 +259,17 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Inventario</h1>
           <p className="text-sm text-muted-foreground">Gestiona tus equipos con códigos de 4 dígitos para una búsqueda rápida.</p>
         </div>
         
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrintInventory}>
+            <Printer className="h-4 w-4" /> Imprimir
+          </Button>
+
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}>
             <FileUp className="h-4 w-4" /> Importar Excel
           </Button>
@@ -247,29 +280,76 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <Card className="shadow-sm border-primary/10 overflow-hidden">
+      {/* Vista de Impresión (Solo se ve al imprimir) */}
+      <div className="print-only p-8 bg-white text-black">
+        <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
+          <div>
+            <h1 className="text-2xl font-black uppercase">LISTADO DE INVENTARIO</h1>
+            <p className="text-xs font-bold uppercase">Fecha de Reporte: {new Date().toLocaleDateString('es-AR')}</p>
+          </div>
+          <div className="text-right">
+            <h2 className="text-xl font-bold">CommerceManager Pro</h2>
+            <p className="text-xs">Sistema de Gestión de Electrónica</p>
+          </div>
+        </div>
+        <Table className="border-black">
+          <TableHeader className="bg-gray-100">
+            <TableRow className="border-black">
+              <TableHead className="text-black font-bold border-r border-black">Cód.</TableHead>
+              <TableHead className="text-black font-bold border-r border-black">Producto</TableHead>
+              <TableHead className="text-black font-bold border-r border-black text-center">Estado</TableHead>
+              <TableHead className="text-black font-bold border-r border-black text-right">Precio</TableHead>
+              <TableHead className="text-black font-bold text-center">Stock</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((product) => (
+              <TableRow key={product.id} className="border-black">
+                <TableCell className="font-mono text-xs border-r border-black">{product.code}</TableCell>
+                <TableCell className="border-r border-black">
+                  <div className="font-bold">{product.name}</div>
+                  <div className="text-[10px] uppercase text-gray-500">{product.category} {product.subCategory && `| ${product.subCategory}`}</div>
+                </TableCell>
+                <TableCell className="text-center text-xs uppercase border-r border-black">{product.condition}</TableCell>
+                <TableCell className="text-right font-bold border-r border-black">${product.price.toFixed(2)}</TableCell>
+                <TableCell className="text-center font-bold">{product.stock}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <div className="mt-8 text-right text-[10px] font-bold text-gray-400">
+          DOCUMENTO DE CONTROL INTERNO - PÁGINA 1
+        </div>
+      </div>
+
+      <Card className="shadow-sm border-primary/10 overflow-hidden no-print">
         <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por código, nombre o marca..." 
-                className="pl-9 bg-muted/30 border-none"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar por código, nombre o marca..." 
+                  className="pl-9 bg-muted/30 border-none"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none">
+                  <SelectValue placeholder="Todas las categorías" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none">
-                <SelectValue placeholder="Todas las categorías" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {CATEGORIES.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 gap-1 font-bold" onClick={handleGenerateMissingCodes}>
+               <Sparkles className="h-4 w-4" /> Generar Códigos Faltantes
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -297,7 +377,7 @@ export default function ProductsPage() {
                     <TableRow key={product.id}>
                       <TableCell>
                         <Badge variant="outline" className="font-mono text-xs font-bold bg-primary/5 border-primary/20">
-                          {product.code}
+                          {product.code || "----"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -349,7 +429,7 @@ export default function ProductsPage() {
 
       {/* Dialog for Add/Edit */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl">
+        <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl no-print">
           <DialogHeader>
             <DialogTitle className="text-xl font-headline">
               {isEditing ? "Editar Producto" : "Registrar Producto"}
@@ -358,11 +438,13 @@ export default function ProductsPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2 col-span-1">
-                <Label htmlFor="code" className="flex items-center gap-1"><Hash className="h-3 w-3" /> Código (4 dígitos)</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="code" className="flex items-center gap-1"><Hash className="h-3 w-3" /> Cód.</Label>
+                </div>
                 <Input 
                   id="code" 
                   maxLength={4}
-                  placeholder="0000" 
+                  placeholder="Auto" 
                   value={formProduct.code}
                   onChange={(e) => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})}
                 />
@@ -459,12 +541,12 @@ export default function ProductsPage() {
 
       {/* Dialog for Import */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent>
+        <DialogContent className="no-print">
           <DialogHeader>
             <DialogTitle>Importar desde Excel</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <p className="text-sm text-muted-foreground">Sube tu archivo Excel con las columnas <b>Nombre</b> y <b>Precio</b>. Si incluyes <b>Código</b>, se respetará; de lo contrario se generará uno.</p>
+            <p className="text-sm text-muted-foreground">Sube tu archivo Excel con las columnas <b>Nombre</b> y <b>Precio</b>. Se generarán códigos de 4 dígitos automáticamente si no existen.</p>
             <Input 
               type="file" 
               accept=".xlsx, .xls, .csv" 
