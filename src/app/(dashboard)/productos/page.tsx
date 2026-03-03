@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, AlertTriangle } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -105,19 +105,9 @@ export default function ProductsPage() {
       return
     }
 
-    // Auto-generar código si está vacío
     let finalCode = formProduct.code
     if (!finalCode || finalCode.trim() === "") {
       finalCode = Math.floor(1000 + Math.random() * 9000).toString()
-    }
-
-    if (finalCode.length !== 4 || isNaN(Number(finalCode))) {
-      toast({
-        variant: "destructive",
-        title: "Código inválido",
-        description: "El código debe ser de exactamente 4 números.",
-      })
-      return
     }
 
     setIsSaving(true)
@@ -176,6 +166,22 @@ export default function ProductsPage() {
       toast({ 
         title: "Información", 
         description: "Todos los productos actuales ya poseen un código de 4 dígitos válido." 
+      })
+    }
+  }
+
+  const handleDeleteAll = () => {
+    if (confirm("¿EstÁS COMPLETAMENTE SEGURO de eliminar TODOS los productos? Esta acción no se puede deshacer y borrará todo el catálogo actual.")) {
+      if (!products || products.length === 0) return
+      
+      products.forEach(p => {
+        const docRef = doc(firestore, 'products', p.id)
+        deleteDocumentNonBlocking(docRef)
+      })
+      
+      toast({
+        title: "Inventario vaciado",
+        description: "Se han eliminado todos los productos del sistema.",
       })
     }
   }
@@ -274,7 +280,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestiona tus equipos con códigos de 4 dígitos para una búsqueda rápida.</p>
+          <p className="text-sm text-muted-foreground">Gestiona tus equipos con códigos de 4 dígitos.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -284,6 +290,10 @@ export default function ProductsPage() {
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}>
             <FileUp className="h-4 w-4" /> Importar Excel
+          </Button>
+
+          <Button variant="destructive" className="flex-1 sm:flex-none gap-2" onClick={handleDeleteAll} disabled={!products || products.length === 0}>
+            <Trash2 className="h-4 w-4" /> Vaciar Todo
           </Button>
 
           <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}>
@@ -296,11 +306,11 @@ export default function ProductsPage() {
         <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
           <div>
             <h1 className="text-2xl font-black uppercase">LISTADO DE INVENTARIO</h1>
-            <p className="text-xs font-bold uppercase">Fecha de Reporte: {new Date().toLocaleDateString('es-AR')}</p>
+            <p className="text-xs font-bold uppercase">Fecha: {new Date().toLocaleDateString('es-AR')}</p>
           </div>
           <div className="text-right">
-            <h2 className="text-xl font-bold">CommerceManager Pro</h2>
-            <p className="text-xs">Sistema de Gestión de Electrónica</p>
+            <h2 className="text-xl font-bold font-headline text-primary">CommerceManager Pro</h2>
+            <p className="text-xs">Control de Inventario</p>
           </div>
         </div>
         <Table className="border-black">
@@ -328,9 +338,6 @@ export default function ProductsPage() {
             ))}
           </TableBody>
         </Table>
-        <div className="mt-8 text-right text-[10px] font-bold text-gray-400">
-          DOCUMENTO DE CONTROL INTERNO - PÁGINA 1
-        </div>
       </div>
 
       <Card className="shadow-sm border-primary/10 overflow-hidden no-print">
@@ -359,7 +366,7 @@ export default function ProductsPage() {
               </Select>
             </div>
             <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 gap-1 font-bold" onClick={handleGenerateMissingCodes}>
-               <Sparkles className="h-4 w-4" /> Generar Códigos Faltantes
+               <Sparkles className="h-4 w-4" /> Generar Códigos
             </Button>
           </div>
         </CardHeader>
@@ -448,9 +455,7 @@ export default function ProductsPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2 col-span-1">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="code" className="flex items-center gap-1"><Hash className="h-3 w-3" /> Cód.</Label>
-                </div>
+                <Label htmlFor="code" className="flex items-center gap-1"><Hash className="h-3 w-3" /> Cód.</Label>
                 <Input 
                   id="code" 
                   maxLength={4}
@@ -460,7 +465,7 @@ export default function ProductsPage() {
                 />
               </div>
               <div className="space-y-2 col-span-2">
-                <Label htmlFor="name">Nombre / Modelo del Equipo</Label>
+                <Label htmlFor="name">Nombre / Modelo</Label>
                 <Input 
                   id="name" 
                   placeholder="Ej: iPhone 15 Pro Max" 
@@ -472,70 +477,27 @@ export default function ProductsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Categoría</Label>
-                <Select 
-                  value={formProduct.category} 
-                  onValueChange={(v) => setFormProduct({...formProduct, category: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select value={formProduct.category} onValueChange={(v) => setFormProduct({...formProduct, category: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Sub-categoría / Marca</Label>
-                <Input 
-                  placeholder="Ej: iPhone, Samsung, Xiaomi" 
-                  value={formProduct.subCategory}
-                  onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})}
-                />
+                <Label>Marca</Label>
+                <Input placeholder="Ej: Apple, Samsung" value={formProduct.subCategory} onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Estado del Equipo</Label>
-                <Select 
-                  value={formProduct.condition} 
-                  onValueChange={(v: any) => setFormProduct({...formProduct, condition: v})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nuevo">Nuevo</SelectItem>
-                    <SelectItem value="Usado">Usado</SelectItem>
-                  </SelectContent>
+                <Label>Estado</Label>
+                <Select value={formProduct.condition} onValueChange={(v: any) => setFormProduct({...formProduct, condition: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent><SelectItem value="Nuevo">Nuevo</SelectItem><SelectItem value="Usado">Usado</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Precio de Venta ($)</Label>
-                <Input 
-                  type="number" 
-                  value={formProduct.price || ""}
-                  onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Stock Actual</Label>
-                <Input 
-                  type="number" 
-                  value={formProduct.stock || ""}
-                  onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Stock Mínimo (Alerta)</Label>
-                <Input 
-                  type="number" 
-                  value={formProduct.minStock || ""}
-                  onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})}
-                />
+                <Label>Precio ($)</Label>
+                <Input type="number" value={formProduct.price || ""} onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})} />
               </div>
             </div>
           </div>
@@ -555,17 +517,11 @@ export default function ProductsPage() {
             <DialogTitle>Importar desde Excel</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <p className="text-sm text-muted-foreground">Sube tu archivo Excel con las columnas <b>Nombre</b> y <b>Precio</b>. Se generarán códigos de 4 dígitos automáticamente si no existen.</p>
-            <Input 
-              type="file" 
-              accept=".xlsx, .xls, .csv" 
-              onChange={handleImportExcel}
-              disabled={isImporting}
-              ref={fileInputRef}
-            />
+            <p className="text-sm text-muted-foreground">Sube tu archivo con las columnas <b>Nombre</b> y <b>Precio</b>.</p>
+            <Input type="file" accept=".xlsx, .xls, .csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />
             {isImporting && (
               <div className="flex items-center justify-center gap-2 text-sm text-primary font-bold">
-                <Loader2 className="h-4 w-4 animate-spin" /> Procesando productos...
+                <Loader2 className="h-4 w-4 animate-spin" /> Procesando...
               </div>
             )}
           </div>
