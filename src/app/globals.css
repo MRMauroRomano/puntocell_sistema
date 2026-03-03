@@ -58,40 +58,36 @@
 }
 
 @media print {
-  /* Hide EVERYTHING by default */
-  body * {
-    visibility: hidden !important;
-  }
-  
-  /* Show only the print-only area and its content */
-  .print-only, .print-only * {
-    visibility: visible !important;
-  }
-
-  .print-only {
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    display: block !important;
-    visibility: visible !important;
-    background: white !important;
-  }
-
-  /* Specifically hide common UI elements that might stay visible */
+  /* Hide UI elements */
   .no-print, 
   [data-radix-portal], 
   [role="dialog"], 
   .fixed, 
   header, 
   aside,
-  button {
+  button,
+  .sidebar-trigger {
     display: none !important;
-    visibility: hidden !important;
+  }
+
+  /* Show print area */
+  .print-only {
+    display: block !important;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    padding: 2rem !important;
+    margin: 0 !important;
+  }
+
+  body {
+    background: white !important;
   }
 
   @page {
-    margin: 0;
+    margin: 1cm;
     size: auto;
   }
 }

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, AlertTriangle } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -17,6 +17,7 @@ import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, d
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
+import { cn } from "@/lib/utils"
 
 const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
@@ -174,28 +175,27 @@ export default function ProductsPage() {
     if (!products || products.length === 0) {
       toast({
         title: "Sin productos",
-        description: "No hay productos en el inventario para eliminar.",
+        description: "No hay productos para eliminar.",
       })
       return
     }
 
-    const confirmMessage = "¿ESTÁS COMPLETAMENTE SEGURO de eliminar TODOS los productos? Esta acción borrará TODO el catálogo y no se puede deshacer."
-    
-    if (confirm(confirmMessage)) {
+    if (confirm("¿ESTÁS SEGURO de eliminar TODOS los productos? Esta acción no se puede deshacer.")) {
       products.forEach(p => {
         const docRef = doc(firestore, 'products', p.id)
         deleteDocumentNonBlocking(docRef)
       })
-      
       toast({
-        title: "Procesando eliminación",
-        description: `Se están eliminando ${products.length} productos del sistema.`,
+        title: "Limpiando inventario",
+        description: "Se han eliminado todos los productos correctamente.",
       })
     }
   }
 
   const handlePrintInventory = () => {
-    if (typeof window !== 'undefined') window.print()
+    if (typeof window !== 'undefined') {
+      window.print()
+    }
   }
 
   const handleDeleteProduct = (id: string, name: string) => {
@@ -288,7 +288,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestiona tus equipos con códigos de 4 dígitos.</p>
+          <p className="text-sm text-muted-foreground">Gestiona tus equipos y stock.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -506,6 +506,16 @@ export default function ProductsPage() {
               <div className="space-y-2">
                 <Label>Precio ($)</Label>
                 <Input type="number" value={formProduct.price || ""} onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Stock Inicial</Label>
+                <Input type="number" value={formProduct.stock || ""} onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Mínimo Alerta</Label>
+                <Input type="number" value={formProduct.minStock || ""} onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
           </div>
