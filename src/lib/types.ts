@@ -1,6 +1,7 @@
 
 export interface Product {
   id: string;
+  code: string; // 4-digit numeric code
   name: string;
   category: string; // Celulares, Audio, etc.
   subCategory?: string; // iPhone, Samsung, etc.

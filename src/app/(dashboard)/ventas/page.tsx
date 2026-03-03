@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, FileCheck, Loader2, Printer, X } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, FileCheck, Loader2, Printer, X, Hash } from "lucide-react"
 import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -54,9 +54,11 @@ export default function SalesPage() {
   const filteredProducts = useMemo(() => {
     if (!products) return []
     return products.filter(p => {
+      const search = searchTerm.toLowerCase()
       const matchesSearch = (
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (p.subCategory && p.subCategory.toLowerCase().includes(searchTerm.toLowerCase()))
+        p.name.toLowerCase().includes(search) || 
+        (p.subCategory && p.subCategory.toLowerCase().includes(search)) ||
+        (p.code && p.code.includes(search))
       )
       const matchesCategory = selectedCategory === "all" || p.category === selectedCategory
       return matchesSearch && matchesCategory
@@ -73,7 +75,7 @@ export default function SalesPage() {
             : item
         )
       }
-      const displayName = `${product.name} (${product.condition})`
+      const displayName = `[${product.code}] ${product.name} (${product.condition})`
       return [...prev, {
         productId: product.id,
         productName: displayName,
@@ -148,7 +150,7 @@ export default function SalesPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por nombre o marca..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input placeholder="Buscar por código, nombre o marca..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full sm:w-[180px]">
@@ -168,8 +170,8 @@ export default function SalesPage() {
                 <Table>
                   <TableHeader className="bg-muted/10 sticky top-0 z-10">
                     <TableRow>
+                      <TableHead className="w-20">Código</TableHead>
                       <TableHead>Producto</TableHead>
-                      <TableHead>Estado</TableHead>
                       <TableHead>Precio</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead className="text-right">Acción</TableHead>
@@ -179,10 +181,12 @@ export default function SalesPage() {
                     {filteredProducts.map(product => (
                       <TableRow key={product.id} className="hover:bg-primary/5 transition-colors">
                         <TableCell>
-                          <div className="font-bold text-sm">{product.name}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase">{product.subCategory}</div>
+                          <span className="font-mono text-[10px] font-bold text-muted-foreground">{product.code}</span>
                         </TableCell>
-                        <TableCell><Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[9px]">{product.condition}</Badge></TableCell>
+                        <TableCell>
+                          <div className="font-bold text-sm">{product.name}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase">{product.subCategory} • {product.condition}</div>
+                        </TableCell>
                         <TableCell className="font-bold text-primary">${product.price.toFixed(2)}</TableCell>
                         <TableCell><Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="text-[10px]">{product.stock}</Badge></TableCell>
                         <TableCell className="text-right">
