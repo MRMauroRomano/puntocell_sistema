@@ -157,13 +157,15 @@ export default function ProductsPage() {
           const productId = Math.random().toString(36).substr(2, 9)
           const productRef = doc(firestore, 'products', productId)
           
+          // Importación simplificada: solo requiere Nombre y Precio
+          // Otros campos toman valores por defecto
           const productData: Product = {
             id: productId,
-            name: row.Nombre || row.name || "Sin nombre",
+            name: row.Nombre || row.name || row.Producto || "Sin nombre",
+            price: Number(row.Precio || row.price) || 0,
             category: row.Categoría || row.category || "Otros",
             subCategory: row.Marca || row.subCategory || "",
             condition: (row.Estado || row.condition) === 'Usado' ? 'Usado' : 'Nuevo',
-            price: Number(row.Precio || row.price) || 0,
             stock: Number(row.Stock || row.stock) || 0,
             minStock: Number(row.Mínimo || row.minStock) || 5,
             isActive: true
@@ -211,16 +213,12 @@ export default function ProductsPage() {
               <DialogHeader>
                 <DialogTitle>Importar desde Excel</DialogTitle>
                 <div className="text-sm text-muted-foreground space-y-2 py-2">
-                  <p>Asegúrate de que tu Excel tenga las siguientes columnas:</p>
-                  <ul className="list-disc pl-5 font-mono text-[11px]">
-                    <li>Nombre (Modelo del equipo)</li>
-                    <li>Categoría (Celulares, Audio, etc.)</li>
-                    <li>Marca (iPhone, Samsung, etc.)</li>
-                    <li>Precio</li>
-                    <li>Stock</li>
-                    <li>Mínimo (Stock de alerta)</li>
-                    <li>Estado (Nuevo o Usado)</li>
+                  <p>Asegúrate de que tu Excel tenga al menos estas dos columnas:</p>
+                  <ul className="list-disc pl-5 font-mono text-[11px] text-primary font-bold">
+                    <li>Nombre (Modelo del producto)</li>
+                    <li>Precio (Valor de venta)</li>
                   </ul>
+                  <p className="text-[10px] italic pt-2">El resto de los datos (stock, categoría, marca) se cargarán con valores por defecto y podrás editarlos luego.</p>
                 </div>
               </DialogHeader>
               <div className="grid gap-4 py-4">
