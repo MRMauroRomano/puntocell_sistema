@@ -11,7 +11,7 @@ import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
@@ -164,13 +164,11 @@ export default function ProductsPage() {
 
         let count = 0
         jsonData.forEach((row) => {
-          // Normalizar las claves del objeto (headers del Excel en minúsculas y sin espacios)
           const normalizedRow: any = {}
           Object.keys(row).forEach(key => {
             normalizedRow[key.toLowerCase().trim()] = row[key]
           })
 
-          // Buscar nombre del producto con variantes comunes
           const name = normalizedRow.nombre || 
                        normalizedRow.name || 
                        normalizedRow.producto || 
@@ -178,7 +176,6 @@ export default function ProductsPage() {
                        normalizedRow.item || 
                        normalizedRow.modelo || ""
           
-          // Buscar precio con variantes (PVA, Costo, Valor, etc)
           const priceRaw = normalizedRow.precio || 
                            normalizedRow.price || 
                            normalizedRow.pva || 
@@ -186,7 +183,6 @@ export default function ProductsPage() {
                            normalizedRow.valor || 
                            normalizedRow.unitario || "0"
           
-          // Limpiar el precio de símbolos de moneda y convertir a número
           const price = parseFloat(String(priceRaw).replace(/[^0-9.-]+/g, "")) || 0
 
           if (name) {
@@ -240,11 +236,9 @@ export default function ProductsPage() {
         
         <div className="flex gap-2 w-full sm:w-auto">
           <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="flex-1 sm:flex-none gap-2">
-                <FileUp className="h-4 w-4" /> Importar Excel
-              </Button>
-            </DialogTrigger>
+            <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}>
+              <FileUp className="h-4 w-4" /> Importar Excel
+            </Button>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Importar desde Excel</DialogTitle>
@@ -274,12 +268,11 @@ export default function ProductsPage() {
             </DialogContent>
           </Dialog>
 
+          <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}>
+            <Plus className="h-4 w-4" /> Nuevo Producto
+          </Button>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}>
-                <Plus className="h-4 w-4" /> Nuevo Producto
-              </Button>
-            </DialogTrigger>
             <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl">
               <DialogHeader>
                 <DialogTitle className="text-xl font-headline">
@@ -449,10 +442,10 @@ export default function ProductsPage() {
                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenEdit(product)}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleOpenEdit(product); }}>
                               <Edit2 className="h-4 w-4 mr-2" /> Editar
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDeleteProduct(product.id, product.name)} className="text-destructive">
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteProduct(product.id, product.name); }} className="text-destructive">
                               <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                             </DropdownMenuItem>
                           </DropdownMenuContent>
