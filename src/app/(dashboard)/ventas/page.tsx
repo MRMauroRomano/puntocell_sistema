@@ -145,8 +145,9 @@ export default function SalesPage() {
 
   return (
     <div className="relative">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[calc(100vh-12rem)] no-print">
-        <div className="lg:col-span-7 space-y-4 flex flex-col">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+        {/* Lado Izquierdo: Catálogo de Productos */}
+        <div className="lg:col-span-7 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -163,9 +164,9 @@ export default function SalesPage() {
             </Select>
           </div>
           
-          <Card className="flex-1 overflow-hidden flex flex-col shadow-sm border-primary/10">
-            <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catálogo</CardTitle></CardHeader>
-            <CardContent className="p-0 overflow-auto max-h-[400px] lg:max-h-full">
+          <Card className="shadow-sm border-primary/10 overflow-hidden">
+            <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catálogo de Equipos</CardTitle></CardHeader>
+            <CardContent className="p-0 max-h-[600px] overflow-auto">
               {isProductsLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" />Cargando...</div> : (
                 <Table>
                   <TableHeader className="bg-muted/10 sticky top-0 z-10">
@@ -203,70 +204,98 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-5 flex flex-col gap-4">
-          <Card className="flex-1 flex flex-col overflow-hidden border-primary/20 bg-white shadow-lg">
+        {/* Lado Derecho: Carrito (Compacto) */}
+        <div className="lg:col-span-5">
+          <Card className="sticky top-6 border-primary/20 bg-white shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
             <CardHeader className="py-4 border-b bg-primary/5">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2 font-headline"><ShoppingCart className="h-5 w-5 text-primary" /> Carrito</CardTitle>
                 <Badge variant="secondary" className="font-bold">{cart.length} items</Badge>
               </div>
             </CardHeader>
-            <CardContent className="flex-1 overflow-auto p-0 max-h-[300px] lg:max-h-full">
-              {cart.length === 0 ? <div className="p-10 text-center text-muted-foreground text-sm">Carrito vacío</div> : (
+            <CardContent className="flex-1 overflow-auto p-0">
+              {cart.length === 0 ? <div className="p-10 text-center text-muted-foreground text-sm">El carrito está vacío</div> : (
                 <Table>
                   <TableBody>
                     {cart.map(item => (
-                      <TableRow key={item.productId}>
-                        <TableCell className="text-xs font-medium">{item.productName}</TableCell>
-                        <TableCell className="text-center text-xs">x{item.quantity}</TableCell>
-                        <TableCell className="text-right text-xs font-bold">${item.subtotal.toFixed(2)}</TableCell>
-                        <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-7 w-7 p-0"><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                      <TableRow key={item.productId} className="hover:bg-muted/10 border-b">
+                        <TableCell className="text-xs font-medium py-2">
+                          <div className="line-clamp-1">{item.productName}</div>
+                          <div className="text-[10px] text-muted-foreground">${item.price.toFixed(2)} c/u</div>
+                        </TableCell>
+                        <TableCell className="text-center text-xs py-2">x{item.quantity}</TableCell>
+                        <TableCell className="text-right text-xs font-bold py-2">${item.subtotal.toFixed(2)}</TableCell>
+                        <TableCell className="text-right py-2">
+                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-7 w-7 p-0">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               )}
             </CardContent>
-            <CardFooter className="flex-col border-t bg-muted/20 p-4 lg:p-6 space-y-4">
-              <div className="w-full flex justify-between items-center py-2">
-                <span className="text-base font-black uppercase">Monto Total:</span>
+            <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-4">
+              <div className="w-full flex justify-between items-center py-1">
+                <span className="text-sm font-black uppercase tracking-tight">Total a Cobrar:</span>
                 <span className="text-3xl font-black text-primary font-headline">${total.toFixed(2)}</span>
               </div>
-              <div className="w-full space-y-3 pt-2">
-                 <div className="grid grid-cols-2 gap-3">
+              
+              <div className="w-full space-y-3">
+                 <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Emisor:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Emisor Factura:</label>
                       <Select onValueChange={setSelectedBillingCuitId} value={selectedBillingCuitId}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                        <SelectContent>{billingConfigs?.map(b => <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0]}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="h-8 text-[11px]"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <SelectContent>
+                          {billingConfigs?.map(b => (
+                            <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0]}</SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Factura:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Tipo de Comprobante:</label>
                       <Select onValueChange={(v) => setInvoiceType(v as any)} value={invoiceType}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="factura_a">Factura A</SelectItem><SelectItem value="factura_b">Factura B</SelectItem><SelectItem value="ticket">Ticket</SelectItem></SelectContent>
+                        <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="factura_a">Factura A</SelectItem>
+                          <SelectItem value="factura_b">Factura B</SelectItem>
+                          <SelectItem value="ticket">Ticket</SelectItem>
+                        </SelectContent>
                       </Select>
                     </div>
                  </div>
-                 <div className="grid grid-cols-2 gap-3">
+                 
+                 <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Cliente:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Cliente:</label>
                       <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId || ""}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Final" /></SelectTrigger>
-                        <SelectContent><SelectItem value="final">Consumidor Final</SelectItem>{customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="h-8 text-[11px]"><SelectValue placeholder="Cons. Final" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="final">Consumidor Final</SelectItem>
+                          {customers?.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground">Pago:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Medio de Pago:</label>
                       <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
-                        <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="cash">Efectivo</SelectItem><SelectItem value="debit">Débito</SelectItem><SelectItem value="credit_account" disabled={!selectedCustomerId || selectedCustomerId === 'final'}>Cta Cte</SelectItem></SelectContent>
+                        <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Efectivo</SelectItem>
+                          <SelectItem value="debit">Débito</SelectItem>
+                          <SelectItem value="credit_account" disabled={!selectedCustomerId || selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
+                        </SelectContent>
                       </Select>
                     </div>
                  </div>
-                <Button className="w-full h-12 font-bold uppercase" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
-                  {isFinishing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 className="mr-2" /> Confirmar Venta</>}
+
+                <Button className="w-full h-12 font-bold uppercase text-base shadow-md mt-2" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
+                  {isFinishing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Finalizar Venta</>}
                 </Button>
               </div>
             </CardFooter>
@@ -274,6 +303,7 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* Diálogo de Éxito */}
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[425px] no-print rounded-xl">
           <DialogHeader className="items-center text-center">
@@ -288,6 +318,7 @@ export default function SalesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Plantilla de Impresión */}
       {lastSale && (
         <div className="print-only p-8 text-black bg-white min-h-screen font-sans">
           <div className="border-[2px] border-black p-0 overflow-hidden rounded-sm relative">
