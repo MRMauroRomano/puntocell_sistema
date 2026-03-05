@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 export default function CustomersPage() {
   const firestore = useFirestore()
@@ -43,8 +44,8 @@ export default function CustomersPage() {
     if (!customers) return []
     return customers.filter(c => 
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone.includes(searchTerm) ||
+      (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (c.phone && c.phone.includes(searchTerm)) ||
       (c.cuit && c.cuit.includes(searchTerm))
     )
   }, [customers, searchTerm])
@@ -117,26 +118,24 @@ export default function CustomersPage() {
     }
   }
 
-  const handleDeleteCustomer = (id: string, name: string) => {
-    if (confirm(`¿Estás seguro de eliminar a ${name}?`)) {
-      const docRef = doc(firestore, 'customers', id)
-      deleteDocumentNonBlocking(docRef)
-      toast({ title: "Cliente eliminado" })
-    }
+  const handleDeleteCustomer = (id: string) => {
+    const docRef = doc(firestore, 'customers', id)
+    deleteDocumentNonBlocking(docRef)
+    toast({ title: "Cliente eliminado" })
   }
 
   const handleClearAllCustomers = () => {
     if (!customers || customers.length === 0) return
-    if (confirm("¿Estás seguro de eliminar TODOS los clientes? Esta acción borrará permanentemente todos los saldos y deudas. No se puede deshacer.")) {
-      customers.forEach(customer => {
-        const docRef = doc(firestore, 'customers', customer.id)
-        deleteDocumentNonBlocking(docRef)
-      })
-      toast({
-        title: "Directorio vaciado",
-        description: "Todos los clientes y sus deudas han sido eliminados.",
-      })
-    }
+    
+    customers.forEach(customer => {
+      const docRef = doc(firestore, 'customers', customer.id)
+      deleteDocumentNonBlocking(docRef)
+    })
+    
+    toast({
+      title: "Directorio vaciado",
+      description: "Todos los clientes y sus deudas han sido eliminados del sistema.",
+    })
   }
 
   return (
@@ -148,14 +147,31 @@ export default function CustomersPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button 
-            variant="destructive" 
-            className="gap-2 flex-1 sm:flex-none" 
-            onClick={handleClearAllCustomers}
-            disabled={!customers || customers.length === 0}
-          >
-            <Trash2 className="h-4 w-4" /> Vaciar Directorio
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                className="gap-2 flex-1 sm:flex-none" 
+                disabled={!customers || customers.length === 0}
+              >
+                <Trash2 className="h-4 w-4" /> Vaciar Directorio
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción eliminará a TODOS los clientes y sus deudas actuales. Esto pondrá los saldos en $0 y no se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleClearAllCustomers} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Confirmar y Vaciar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
@@ -281,7 +297,7 @@ export default function CustomersPage() {
                       <DropdownMenuItem onClick={() => handleOpenEdit(customer)}>
                         <Edit2 className="h-4 w-4 mr-2" /> Editar
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleDeleteCustomer(customer.id, customer.name)} className="text-destructive">
+                      <DropdownMenuItem onClick={() => { if(confirm("¿Eliminar cliente?")) handleDeleteCustomer(customer.id) }} className="text-destructive">
                         <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>

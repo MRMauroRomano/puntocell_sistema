@@ -19,6 +19,7 @@ import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
 import { cn } from "@/lib/utils"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
@@ -171,13 +172,11 @@ export default function ProductsPage() {
 
   const handleDeleteAll = () => {
     if (!products || products.length === 0) return
-    if (confirm("¿Estás seguro de eliminar TODOS los productos? Esta acción no se puede deshacer.")) {
-      products.forEach(p => {
-        const docRef = doc(firestore, 'products', p.id)
-        deleteDocumentNonBlocking(docRef)
-      })
-      toast({ title: "Inventario vaciado" })
-    }
+    products.forEach(p => {
+      const docRef = doc(firestore, 'products', p.id)
+      deleteDocumentNonBlocking(docRef)
+    })
+    toast({ title: "Inventario vaciado con éxito" })
   }
 
   const handlePrint = () => { if (typeof window !== 'undefined') window.print() }
@@ -266,7 +265,29 @@ export default function ProductsPage() {
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrint}><Printer className="h-4 w-4" /> Imprimir</Button>
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}><FileUp className="h-4 w-4" /> Importar</Button>
-          <Button variant="destructive" className="flex-1 sm:flex-none gap-2" onClick={handleDeleteAll}><Trash2 className="h-4 w-4" /> Vaciar</Button>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="flex-1 sm:flex-none gap-2" disabled={!products || products.length === 0}>
+                <Trash2 className="h-4 w-4" /> Vaciar Todo
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Borrar todo el inventario?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta acción eliminará permanentemente todos los productos registrados. No se puede revertir.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Confirmar Eliminación
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}><Plus className="h-4 w-4" /> Nuevo</Button>
         </div>
       </div>
@@ -334,7 +355,6 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
 
-      {/* Vista de Impresión */}
       <div className="print-only p-8 bg-white text-black">
         <h1 className="text-2xl font-black uppercase mb-4 border-b-2 border-black pb-2">LISTADO DE INVENTARIO</h1>
         <Table className="border-black">
@@ -352,7 +372,6 @@ export default function ProductsPage() {
         </Table>
       </div>
 
-      {/* Diálogos */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader><DialogTitle>Modificación Masiva</DialogTitle><DialogDescription>Aplicar cambios a {selectedIds.length} productos.</DialogDescription></DialogHeader>
