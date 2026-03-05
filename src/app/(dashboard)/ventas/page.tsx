@@ -128,7 +128,8 @@ export default function SalesPage() {
         const p = products?.find(prod => prod.id === item.productId)
         if (p) {
           const productRef = doc(firestore, 'users', user.uid, 'products', item.productId)
-          updateDocumentNonBlocking(productRef, { stock: Math.max(0, p.stock - item.quantity) })
+          // Actualización de stock: Permite valores negativos restando directamente la cantidad vendida
+          updateDocumentNonBlocking(productRef, { stock: p.stock - item.quantity })
         }
       })
 
@@ -211,7 +212,7 @@ export default function SalesPage() {
                             variant="secondary" 
                             className="h-8 w-8 p-0" 
                             onClick={() => addToCart(product)} 
-                            disabled={product.stock <= 0}
+                            // Eliminado: disabled={product.stock <= 0} para permitir ventas sin stock previo
                           >
                             <Plus className="h-4 w-4" />
                           </Button>
