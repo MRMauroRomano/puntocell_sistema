@@ -125,6 +125,20 @@ export default function CustomersPage() {
     }
   }
 
+  const handleClearAllCustomers = () => {
+    if (!customers || customers.length === 0) return
+    if (confirm("¿Estás seguro de eliminar TODOS los clientes? Esta acción borrará permanentemente todos los saldos y deudas. No se puede deshacer.")) {
+      customers.forEach(customer => {
+        const docRef = doc(firestore, 'customers', customer.id)
+        deleteDocumentNonBlocking(docRef)
+      })
+      toast({
+        title: "Directorio vaciado",
+        description: "Todos los clientes y sus deudas han sido eliminados.",
+      })
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -133,87 +147,98 @@ export default function CustomersPage() {
           <p className="text-muted-foreground">Gestiona la información y contacto de tus clientes.</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2" onClick={handleOpenAdd}>
-              <UserPlus className="h-4 w-4" /> Nuevo Cliente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-headline">
-                {isEditing ? "Editar Cliente" : "Registrar Cliente"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Ej: Juan Pérez" 
-                  value={formCustomer.name}
-                  onChange={(e) => setFormCustomer({...formCustomer, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cuit">CUIT / CUIL</Label>
-                <Input 
-                  id="cuit" 
-                  placeholder="Ej: 20-12345678-9" 
-                  value={formCustomer.cuit}
-                  onChange={(e) => setFormCustomer({...formCustomer, cuit: e.target.value})}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
-                  <Input 
-                    id="phone" 
-                    placeholder="Ej: 11 1234 5678" 
-                    value={formCustomer.phone}
-                    onChange={(e) => setFormCustomer({...formCustomer, phone: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="balance">Saldo Inicial</Label>
-                  <Input 
-                    id="balance" 
-                    type="number"
-                    placeholder="0.00" 
-                    value={formCustomer.balance}
-                    onChange={(e) => setFormCustomer({...formCustomer, balance: Number(e.target.value)})}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
-                <Input 
-                  id="email" 
-                  type="email"
-                  placeholder="ejemplo@correo.com" 
-                  value={formCustomer.email}
-                  onChange={(e) => setFormCustomer({...formCustomer, email: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Dirección (Opcional)</Label>
-                <Input 
-                  id="address" 
-                  placeholder="Ej: Av. Rivadavia 1234" 
-                  value={formCustomer.address}
-                  onChange={(e) => setFormCustomer({...formCustomer, address: e.target.value})}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-              <Button onClick={handleSaveCustomer} disabled={isSaving}>
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                Guardar Cliente
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button 
+            variant="destructive" 
+            className="gap-2 flex-1 sm:flex-none" 
+            onClick={handleClearAllCustomers}
+            disabled={!customers || customers.length === 0}
+          >
+            <Trash2 className="h-4 w-4" /> Vaciar Directorio
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 flex-1 sm:flex-none" onClick={handleOpenAdd}>
+                <UserPlus className="h-4 w-4" /> Nuevo Cliente
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-headline">
+                  {isEditing ? "Editar Cliente" : "Registrar Cliente"}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nombre Completo</Label>
+                  <Input 
+                    id="name" 
+                    placeholder="Ej: Juan Pérez" 
+                    value={formCustomer.name}
+                    onChange={(e) => setFormCustomer({...formCustomer, name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cuit">CUIT / CUIL</Label>
+                  <Input 
+                    id="cuit" 
+                    placeholder="Ej: 20-12345678-9" 
+                    value={formCustomer.cuit}
+                    onChange={(e) => setFormCustomer({...formCustomer, cuit: e.target.value})}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <Input 
+                      id="phone" 
+                      placeholder="Ej: 11 1234 5678" 
+                      value={formCustomer.phone}
+                      onChange={(e) => setFormCustomer({...formCustomer, phone: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="balance">Saldo Inicial</Label>
+                    <Input 
+                      id="balance" 
+                      type="number"
+                      placeholder="0.00" 
+                      value={formCustomer.balance}
+                      onChange={(e) => setFormCustomer({...formCustomer, balance: Number(e.target.value)})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo Electrónico</Label>
+                  <Input 
+                    id="email" 
+                    type="email"
+                    placeholder="ejemplo@correo.com" 
+                    value={formCustomer.email}
+                    onChange={(e) => setFormCustomer({...formCustomer, email: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Dirección (Opcional)</Label>
+                  <Input 
+                    id="address" 
+                    placeholder="Ej: Av. Rivadavia 1234" 
+                    value={formCustomer.address}
+                    onChange={(e) => setFormCustomer({...formCustomer, address: e.target.value})}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+                <Button onClick={handleSaveCustomer} disabled={isSaving}>
+                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                  Guardar Cliente
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6">
