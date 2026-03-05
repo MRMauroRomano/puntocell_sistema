@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, FileCheck, Loader2, Printer, X, Hash } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, Printer } from "lucide-react"
 import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -23,7 +22,7 @@ export default function SalesPage() {
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("final")
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('factura_b')
@@ -38,7 +37,7 @@ export default function SalesPage() {
   const { data: customers } = useCollection<Customer>(customersRef)
 
   const settingsRef = useMemoFirebase(() => collection(firestore, 'settings'), [firestore])
-  const { data: billingConfigs, isLoading: isSettingsLoading } = useCollection<BillingConfig>(settingsRef)
+  const { data: billingConfigs } = useCollection<BillingConfig>(settingsRef)
 
   useEffect(() => {
     if (billingConfigs && billingConfigs.length > 0 && !selectedBillingCuitId) {
@@ -75,7 +74,7 @@ export default function SalesPage() {
             : item
         )
       }
-      const displayName = `[${product.code}] ${product.name} (${product.condition})`
+      const displayName = `[${product.code || '----'}] ${product.name} (${product.condition})`
       return [...prev, {
         productId: product.id,
         productName: displayName,
@@ -105,7 +104,7 @@ export default function SalesPage() {
     const saleData: Sale = {
       id: saleId,
       date: new Date().toISOString(),
-      customerId: selectedCustomerId || 'final',
+      customerId: selectedCustomerId,
       customerName: selectedCustomerId === 'final' || !customer ? 'Consumidor Final' : customer.name,
       customerCuit: customer?.cuit || "Consumidor Final",
       items: [...cart],
@@ -128,7 +127,7 @@ export default function SalesPage() {
           updateDocumentNonBlocking(productRef, { stock: Math.max(0, p.stock - item.quantity) })
         }
       })
-      if (paymentMethod === 'credit_account' && selectedCustomerId && selectedCustomerId !== 'final' && customer) {
+      if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         updateDocumentNonBlocking(doc(firestore, 'customers', selectedCustomerId), { balance: (customer.balance || 0) + total })
       }
       setLastSale({ ...saleData, customerAddress: customer?.address || "Domicilio no registrado" })
@@ -141,13 +140,13 @@ export default function SalesPage() {
   }
 
   const handlePrint = () => { if (typeof window !== 'undefined') window.print() }
-  const resetSale = () => { setCart([]); setSelectedCustomerId(null); setIsSuccessDialogOpen(false); setLastSale(null); }
+  const resetSale = () => { setCart([]); setSelectedCustomerId('final'); setIsSuccessDialogOpen(false); setLastSale(null); }
 
   return (
     <div className="relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
         {/* Lado Izquierdo: Catálogo de Productos */}
-        <div className="lg:col-span-7 space-y-4">
+        <div className="lg:col-span-8 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -166,7 +165,7 @@ export default function SalesPage() {
           
           <Card className="shadow-sm border-primary/10 overflow-hidden">
             <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catálogo de Equipos</CardTitle></CardHeader>
-            <CardContent className="p-0 max-h-[600px] overflow-auto">
+            <CardContent className="p-0">
               {isProductsLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" />Cargando...</div> : (
                 <Table>
                   <TableHeader className="bg-muted/10 sticky top-0 z-10">
@@ -182,7 +181,7 @@ export default function SalesPage() {
                     {filteredProducts.map(product => (
                       <TableRow key={product.id} className="hover:bg-primary/5 transition-colors">
                         <TableCell>
-                          <span className="font-mono text-[10px] font-bold text-muted-foreground">{product.code}</span>
+                          <span className="font-mono text-[10px] font-bold text-muted-foreground">{product.code || '----'}</span>
                         </TableCell>
                         <TableCell>
                           <div className="font-bold text-sm">{product.name}</div>
@@ -204,30 +203,30 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        {/* Lado Derecho: Carrito (Compacto) */}
-        <div className="lg:col-span-5">
+        {/* Lado Derecho: Carrito Compacto y Fijo */}
+        <div className="lg:col-span-4">
           <Card className="sticky top-6 border-primary/20 bg-white shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
-            <CardHeader className="py-4 border-b bg-primary/5">
+            <CardHeader className="py-3 border-b bg-primary/5">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2 font-headline"><ShoppingCart className="h-5 w-5 text-primary" /> Carrito</CardTitle>
-                <Badge variant="secondary" className="font-bold">{cart.length} items</Badge>
+                <CardTitle className="text-base flex items-center gap-2 font-headline"><ShoppingCart className="h-4 w-4 text-primary" /> Carrito</CardTitle>
+                <Badge variant="secondary" className="font-bold">{cart.length}</Badge>
               </div>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-0">
-              {cart.length === 0 ? <div className="p-10 text-center text-muted-foreground text-sm">El carrito está vacío</div> : (
+              {cart.length === 0 ? <div className="p-8 text-center text-muted-foreground text-xs italic">Carrito vacío</div> : (
                 <Table>
                   <TableBody>
                     {cart.map(item => (
                       <TableRow key={item.productId} className="hover:bg-muted/10 border-b">
-                        <TableCell className="text-xs font-medium py-2">
+                        <TableCell className="text-[11px] font-medium py-2">
                           <div className="line-clamp-1">{item.productName}</div>
-                          <div className="text-[10px] text-muted-foreground">${item.price.toFixed(2)} c/u</div>
+                          <div className="text-[9px] text-muted-foreground">${item.price.toFixed(2)} c/u</div>
                         </TableCell>
-                        <TableCell className="text-center text-xs py-2">x{item.quantity}</TableCell>
-                        <TableCell className="text-right text-xs font-bold py-2">${item.subtotal.toFixed(2)}</TableCell>
+                        <TableCell className="text-center text-[11px] py-2">x{item.quantity}</TableCell>
+                        <TableCell className="text-right text-[11px] font-bold py-2">${item.subtotal.toFixed(2)}</TableCell>
                         <TableCell className="text-right py-2">
-                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-7 w-7 p-0">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-6 w-6 p-0">
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -236,29 +235,29 @@ export default function SalesPage() {
                 </Table>
               )}
             </CardContent>
-            <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-4">
+            <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-3">
               <div className="w-full flex justify-between items-center py-1">
-                <span className="text-sm font-black uppercase tracking-tight">Total a Cobrar:</span>
-                <span className="text-3xl font-black text-primary font-headline">${total.toFixed(2)}</span>
+                <span className="text-xs font-black uppercase tracking-tight">Total:</span>
+                <span className="text-2xl font-black text-primary font-headline">${total.toFixed(2)}</span>
               </div>
               
-              <div className="w-full space-y-3">
+              <div className="w-full space-y-2">
                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Emisor Factura:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Emisor:</label>
                       <Select onValueChange={setSelectedBillingCuitId} value={selectedBillingCuitId}>
-                        <SelectTrigger className="h-8 text-[11px]"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue placeholder="Emisor" /></SelectTrigger>
                         <SelectContent>
                           {billingConfigs?.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0]}</SelectItem>
+                            <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0] || "Entidad"}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Tipo de Comprobante:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Comprobante:</label>
                       <Select onValueChange={(v) => setInvoiceType(v as any)} value={invoiceType}>
-                        <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="factura_a">Factura A</SelectItem>
                           <SelectItem value="factura_b">Factura B</SelectItem>
@@ -271,8 +270,8 @@ export default function SalesPage() {
                  <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
                       <label className="text-[9px] font-bold uppercase text-muted-foreground">Cliente:</label>
-                      <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId || ""}>
-                        <SelectTrigger className="h-8 text-[11px]"><SelectValue placeholder="Cons. Final" /></SelectTrigger>
+                      <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="final">Consumidor Final</SelectItem>
                           {customers?.map(c => (
@@ -282,20 +281,20 @@ export default function SalesPage() {
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Medio de Pago:</label>
+                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Pago:</label>
                       <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
-                        <SelectTrigger className="h-8 text-[11px]"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="cash">Efectivo</SelectItem>
                           <SelectItem value="debit">Débito</SelectItem>
-                          <SelectItem value="credit_account" disabled={!selectedCustomerId || selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
+                          <SelectItem value="credit_account" disabled={selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                  </div>
 
-                <Button className="w-full h-12 font-bold uppercase text-base shadow-md mt-2" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
-                  {isFinishing ? <Loader2 className="animate-spin" /> : <><CheckCircle2 className="mr-2 h-5 w-5" /> Finalizar Venta</>}
+                <Button className="w-full h-10 font-bold uppercase text-xs shadow-md mt-2" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
+                  {isFinishing ? <Loader2 className="animate-spin h-4 w-4" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Cobrar</>}
                 </Button>
               </div>
             </CardFooter>
@@ -305,16 +304,19 @@ export default function SalesPage() {
 
       {/* Diálogo de Éxito */}
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[425px] no-print rounded-xl">
-          <DialogHeader className="items-center text-center">
-            <div className="h-14 w-14 rounded-full bg-green-100 flex items-center justify-center mb-2"><CheckCircle2 className="h-8 w-8 text-green-600" /></div>
-            <DialogTitle className="text-xl font-bold">¡Venta Exitosa!</DialogTitle>
-          </DialogHeader>
-          <div className="bg-muted/30 p-4 rounded-xl text-center"><span className="text-2xl font-black text-green-700">${total.toFixed(2)}</span></div>
-          <DialogFooter className="flex flex-col gap-2">
+        <DialogContent className="w-[95vw] sm:max-w-[400px] no-print rounded-xl">
+          <div className="flex flex-col items-center text-center py-4">
+            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4"><CheckCircle2 className="h-7 w-7 text-green-600" /></div>
+            <DialogTitle className="text-xl font-bold mb-1">¡Venta Registrada!</DialogTitle>
+            <p className="text-muted-foreground text-sm">La transacción se completó correctamente.</p>
+          </div>
+          <div className="bg-primary/5 p-4 rounded-xl text-center mb-4">
+            <span className="text-3xl font-black text-primary">${total.toFixed(2)}</span>
+          </div>
+          <div className="flex flex-col gap-2">
             <Button className="w-full" variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Imprimir Factura</Button>
-            <Button className="w-full" variant="ghost" onClick={resetSale}>Nueva Venta</Button>
-          </DialogFooter>
+            <Button className="w-full" onClick={resetSale}>Nueva Venta</Button>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -332,7 +334,7 @@ export default function SalesPage() {
 
               <div className="grid grid-cols-2 h-36">
                 <div className="p-4 flex flex-col justify-center border-r-[1px] border-black/50">
-                  <h1 className="text-3xl font-black uppercase leading-tight tracking-tight">{lastSale.billingName || "NOMBRE TITULAR"}</h1>
+                  <h1 className="text-3xl font-black uppercase leading-tight tracking-tight">{lastSale.billingName || "COMERCIO PRO"}</h1>
                   <p className="text-[11px] font-black mt-2">RAZÓN SOCIAL TITULAR</p>
                   <p className="text-[11px]">Dirección Comercial: Av. Principal 1234</p>
                   <p className="text-[11px]">Condición frente al IVA: Responsable Inscripto</p>
@@ -342,27 +344,27 @@ export default function SalesPage() {
                   <h2 className="text-3xl font-black tracking-tighter mb-1">FACTURA</h2>
                   <p className="font-black text-base">Punto de Venta: 0001</p>
                   <p className="font-black text-base">Comp. Nro: 000{lastSale.id.slice(-5)}</p>
-                  <p className="font-black text-base">Fecha de Emisión: {new Date(lastSale.date).toLocaleDateString('es-AR')}</p>
+                  <p className="font-black text-base">Fecha: {new Date(lastSale.date).toLocaleDateString('es-AR')}</p>
                 </div>
               </div>
 
               <div className="border-t-[2px] border-black grid grid-cols-2 px-6 py-1 text-[11px] font-bold bg-gray-50">
-                <div>CUIT: {lastSale.billingCuit}</div>
+                <div>CUIT: {lastSale.billingCuit || "30-00000000-0"}</div>
                 <div className="flex justify-between">
-                  <span>Ingresos Brutos: {lastSale.billingCuit}</span>
-                  <span>Inicio de Actividades: 01/01/2024</span>
+                  <span>Ingresos Brutos: {lastSale.billingCuit || "30-00000000-0"}</span>
+                  <span>Inicio Act: 01/01/2024</span>
                 </div>
               </div>
             </div>
 
             <div className="border-b-[2px] border-black grid grid-cols-2 bg-white">
               <div className="p-4 border-r-[2px] border-black">
-                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">DATOS DEL CLIENTE</p>
+                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">CLIENTE</p>
                 <p className="font-black text-base">{lastSale.customerName}</p>
-                <p className="text-sm font-medium">{lastSale.customerAddress}</p>
+                <p className="text-sm">{lastSale.customerAddress}</p>
               </div>
               <div className="p-4">
-                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">CONDICIÓN / IDENTIFICACIÓN</p>
+                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">IDENTIFICACIÓN</p>
                 <p className="font-black text-base font-mono">CUIT: {lastSale.customerCuit}</p>
                 <p className="text-sm uppercase font-black">IVA: {lastSale.customerId === 'final' ? 'Consumidor Final' : 'RESP. INSCRIPTO'}</p>
               </div>
@@ -373,16 +375,16 @@ export default function SalesPage() {
                 <thead>
                   <tr className="border-b-[2px] border-black bg-gray-100 text-left font-black uppercase text-[11px]">
                     <th className="p-3 border-r-[2px] border-black w-20 text-center">CANT.</th>
-                    <th className="p-3 border-r-[2px] border-black">DESCRIPCIÓN / PRODUCTO</th>
-                    <th className="p-3 border-r-[2px] border-black text-right">PRECIO UNIT.</th>
-                    <th className="p-3 text-right">SUBTOTAL</th>
+                    <th className="p-3 border-r-[2px] border-black">DESCRIPCIÓN</th>
+                    <th className="p-3 border-r-[2px] border-black text-right">UNIT.</th>
+                    <th className="p-3 text-right">TOTAL</th>
                   </tr>
                 </thead>
                 <tbody className="font-bold">
                   {lastSale.items.map((item, idx) => (
                     <tr key={idx} className="border-b border-gray-300">
-                      <td className="p-3 border-r-[2px] border-black text-center text-sm">{item.quantity}</td>
-                      <td className="p-3 border-r-[2px] border-black uppercase tracking-tight">{item.productName}</td>
+                      <td className="p-3 border-r-[2px] border-black text-center">{item.quantity}</td>
+                      <td className="p-3 border-r-[2px] border-black uppercase">{item.productName}</td>
                       <td className="p-3 border-r-[2px] border-black text-right font-mono">${item.price.toFixed(2)}</td>
                       <td className="p-3 text-right font-black font-mono">${item.subtotal.toFixed(2)}</td>
                     </tr>
@@ -392,29 +394,25 @@ export default function SalesPage() {
             </div>
 
             <div className="border-t-[2px] border-black p-6 flex justify-between items-end bg-gray-50">
-              <div className="text-[10px] font-bold space-y-2">
-                <p className="uppercase text-gray-600">Observaciones: {lastSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO'}</p>
-                <p className="italic">Comprobante generado por CommerceManager Pro</p>
+              <div className="text-[10px] font-bold">
+                <p className="uppercase text-gray-600">Condición: {lastSale.paymentMethod === 'credit_account' ? 'CUENTA CORRIENTE' : 'CONTADO'}</p>
+                <p className="italic mt-1">Generado por CommerceManager Pro</p>
               </div>
-              <div className="w-80 space-y-2">
-                <div className="flex justify-between border-b border-black/20 pb-1">
-                  <span className="text-[13px] font-bold">Subtotal:</span>
-                  <span className="text-[13px] font-black font-mono">${lastSale.subtotal.toFixed(2)}</span>
+              <div className="w-64 space-y-1">
+                <div className="flex justify-between border-b border-black/10">
+                  <span className="text-xs font-bold">Subtotal:</span>
+                  <span className="text-xs font-black font-mono">${lastSale.subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between border-b border-black/20 pb-1">
-                  <span className="text-[13px] font-bold">IVA (21%):</span>
-                  <span className="text-[13px] font-black font-mono">${lastSale.tax.toFixed(2)}</span>
+                <div className="flex justify-between border-b border-black/10">
+                  <span className="text-xs font-bold">IVA (21%):</span>
+                  <span className="text-xs font-black font-mono">${lastSale.tax.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between pt-2">
-                  <span className="text-2xl font-black uppercase tracking-tighter">TOTAL:</span>
-                  <span className="text-3xl font-black font-mono tracking-tight">${lastSale.total.toFixed(2)}</span>
+                  <span className="text-xl font-black">TOTAL:</span>
+                  <span className="text-2xl font-black font-mono">${lastSale.total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
-          </div>
-          <div className="mt-8 flex justify-between items-center text-[9px] font-black uppercase text-gray-400 italic px-2">
-            <span>CAE: 74125896321458</span>
-            <span>Fecha de Vto. de CAE: {new Date(new Date().getTime() + 864000000).toLocaleDateString('es-AR')}</span>
           </div>
         </div>
       )}

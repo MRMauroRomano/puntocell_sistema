@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, AlertCircle } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2 } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -106,17 +106,8 @@ export default function ProductsPage() {
 
   const handleSaveProduct = () => {
     if (!formProduct.name) {
-      toast({
-        variant: "destructive",
-        title: "Campos incompletos",
-        description: "El nombre es obligatorio.",
-      })
+      toast({ variant: "destructive", title: "Campos incompletos", description: "El nombre es obligatorio." })
       return
-    }
-
-    let finalCode = formProduct.code
-    if (!finalCode || finalCode.trim() === "") {
-      finalCode = Math.floor(1000 + Math.random() * 9000).toString()
     }
 
     setIsSaving(true)
@@ -125,7 +116,6 @@ export default function ProductsPage() {
     
     const productData = {
       ...formProduct,
-      code: finalCode,
       price: Number(formProduct.price) || 0,
       stock: Number(formProduct.stock) || 0,
       minStock: Number(formProduct.minStock) || 0,
@@ -139,7 +129,7 @@ export default function ProductsPage() {
         toast({ title: "Producto actualizado" })
       } else {
         setDocumentNonBlocking(productDocRef, productData, { merge: true })
-        toast({ title: "Producto guardado" })
+        toast({ title: "Producto registrado" })
       }
       setIsDialogOpen(false)
     } catch (error) {
@@ -150,21 +140,14 @@ export default function ProductsPage() {
   }
 
   const handleBulkUpdate = () => {
-    if (selectedIds.length === 0) return
-    if (!bulkData.value) {
-      toast({ variant: "destructive", title: "Valor requerido", description: "Ingresa el valor a aplicar." })
-      return
-    }
-
+    if (selectedIds.length === 0 || !bulkData.value) return
     setIsSaving(true)
     try {
       selectedIds.forEach(id => {
         const product = products?.find(p => p.id === id)
         if (!product) return
-        
         const productRef = doc(firestore, 'products', id)
         let update: any = {}
-
         if (bulkData.actionType === 'price_percent') {
           const percent = parseFloat(bulkData.value)
           const newPrice = product.price * (1 + percent / 100)
@@ -174,166 +157,87 @@ export default function ProductsPage() {
         } else if (bulkData.actionType === 'brand') {
           update = { subCategory: bulkData.value }
         }
-
         updateDocumentNonBlocking(productRef, update)
       })
-
-      toast({ title: "Modificación masiva completada", description: `Se actualizaron ${selectedIds.length} productos.` })
+      toast({ title: "Actualización completada", description: `Se modificaron ${selectedIds.length} productos.` })
       setIsBulkDialogOpen(false)
       setSelectedIds([])
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar los productos." })
+      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar." })
     } finally {
       setIsSaving(false)
     }
   }
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filtered.length) {
-      setSelectedIds([])
-    } else {
-      setSelectedIds(filtered.map(p => p.id))
-    }
-  }
-
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
-  }
-
-  const handleGenerateMissingCodes = () => {
-    if (!products || products.length === 0) {
-      toast({ title: "Información", description: "No hay productos en el inventario para procesar." })
-      return
-    }
-
-    let count = 0
-    products.forEach(p => {
-      const currentCode = String(p.code || "").trim()
-      if (currentCode.length !== 4) {
-        const newCode = Math.floor(1000 + Math.random() * 9000).toString()
-        const productRef = doc(firestore, 'products', p.id)
-        updateDocumentNonBlocking(productRef, { code: newCode })
-        count++
-      }
-    })
-
-    if (count > 0) {
-      toast({ 
-        title: "Códigos generados", 
-        description: `Se han actualizado ${count} productos con nuevos códigos de 4 dígitos.` 
-      })
-    } else {
-      toast({ 
-        title: "Información", 
-        description: "Todos los productos actuales ya poseen un código de 4 dígitos válido." 
-      })
-    }
-  }
-
   const handleDeleteAll = () => {
-    if (!products || products.length === 0) {
-      toast({
-        title: "Sin productos",
-        description: "No hay productos para eliminar.",
-      })
-      return
-    }
-
-    if (confirm("¿ESTÁS SEGURO de eliminar TODOS los productos? Esta acción no se puede deshacer.")) {
+    if (!products || products.length === 0) return
+    if (confirm("¿Estás seguro de eliminar TODOS los productos? Esta acción no se puede deshacer.")) {
       products.forEach(p => {
         const docRef = doc(firestore, 'products', p.id)
         deleteDocumentNonBlocking(docRef)
       })
-      toast({
-        title: "Limpiando inventario",
-        description: "Se han eliminado todos los productos correctamente.",
-      })
+      toast({ title: "Inventario vaciado" })
     }
   }
 
-  const handlePrintInventory = () => {
-    if (typeof window !== 'undefined') {
-      window.print()
-    }
-  }
+  const handlePrint = () => { if (typeof window !== 'undefined') window.print() }
 
-  const handleDeleteProduct = (id: string, name: string) => {
-    if (confirm(`¿Estás seguro de eliminar ${name}?`)) {
-      const docRef = doc(firestore, 'products', id)
-      deleteDocumentNonBlocking(docRef)
-      toast({ title: "Producto eliminado" })
-    }
+  const handleGenerateCodes = () => {
+    if (!products) return
+    let count = 0
+    products.forEach(p => {
+      if (!p.code || p.code.length !== 4) {
+        const newCode = Math.floor(1000 + Math.random() * 9000).toString()
+        updateDocumentNonBlocking(doc(firestore, 'products', p.id), { code: newCode })
+        count++
+      }
+    })
+    toast({ title: count > 0 ? "Códigos generados" : "Sin cambios", description: `Se actualizaron ${count} productos.` })
   }
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setIsImporting(true)
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer)
         const workbook = XLSX.read(data, { type: 'array' })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[]
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const jsonData = XLSX.utils.sheet_to_json(sheet) as any[]
+        
+        jsonData.forEach(row => {
+          const normalized = Object.keys(row).reduce((acc: any, key) => {
+            acc[key.toLowerCase().trim()] = row[key];
+            return acc;
+          }, {});
 
-        if (jsonData.length === 0) {
-          toast({
-            variant: "destructive",
-            title: "Archivo vacío",
-            description: "No se encontraron datos en el archivo Excel.",
-          })
-          setIsImporting(false)
-          return
-        }
-
-        let count = 0
-        jsonData.forEach((row) => {
-          const normalizedRow: any = {}
-          Object.keys(row).forEach(key => {
-            normalizedRow[key.toLowerCase().trim()] = row[key]
-          })
-
-          const name = normalizedRow.nombre || normalizedRow.name || normalizedRow.producto || normalizedRow.item || normalizedRow.modelo || ""
-          const priceRaw = normalizedRow.precio || normalizedRow.price || normalizedRow.valor || "0"
-          const price = parseFloat(String(priceRaw).replace(/[^0-9.-]+/g, "")) || 0
-          const code = normalizedRow.codigo || normalizedRow.code || Math.floor(1000 + Math.random() * 9000).toString()
-
+          const name = normalized.nombre || normalized.name || normalized.producto || "";
+          const price = parseFloat(String(normalized.precio || normalized.price || "0").replace(/[^0-9.-]+/g, "")) || 0;
+          
           if (name) {
-            const productId = Math.random().toString(36).substr(2, 9)
-            const productRef = doc(firestore, 'products', productId)
-            
-            const productData: Product = {
-              id: productId,
-              code: String(code).padStart(4, '0').slice(0, 4),
-              name: String(name).trim(),
-              price: price,
-              category: normalizedRow.categoría || normalizedRow.categoria || normalizedRow.category || "Otros",
-              subCategory: normalizedRow.marca || normalizedRow.brand || "",
-              condition: String(normalizedRow.estado || "").toLowerCase().includes('usado') ? 'Usado' : 'Nuevo',
-              stock: parseInt(String(normalizedRow.stock || "0")) || 0,
-              minStock: parseInt(String(normalizedRow.minimo || "5")) || 5,
+            const id = Math.random().toString(36).substr(2, 9)
+            const code = normalized.codigo || normalized.code || Math.floor(1000 + Math.random() * 9000).toString()
+            const pData: Product = {
+              id,
+              name: String(name),
+              price,
+              code: String(code).slice(0, 4),
+              category: normalized.categoria || normalized.category || "Otros",
+              subCategory: normalized.marca || normalized.brand || "",
+              condition: 'Nuevo',
+              stock: Number(normalized.stock) || 0,
+              minStock: Number(normalized.minimo) || 5,
               isActive: true
             }
-
-            setDocumentNonBlocking(productRef, productData, { merge: true })
-            count++
+            setDocumentNonBlocking(doc(firestore, 'products', id), pData, { merge: true })
           }
         })
-
-        toast({
-          title: "Importación finalizada",
-          description: `Se han procesado ${count} productos correctamente.`,
-        })
+        toast({ title: "Importación finalizada" })
         setIsImportDialogOpen(false)
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error de importación",
-          description: "No se pudo procesar el archivo.",
-        })
+      } catch (err) {
+        toast({ variant: "destructive", title: "Error al importar" })
       } finally {
         setIsImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ""
@@ -346,77 +250,25 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl lg:text-3xl font-bold font-headline text-primary">Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestiona tus equipos y stock.</p>
+          <h1 className="text-2xl font-bold font-headline text-primary">Inventario</h1>
+          <p className="text-sm text-muted-foreground">Gestión de stock y equipos.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button 
             variant="secondary" 
-            className={cn(
-              "flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200",
-              selectedIds.length === 0 && "opacity-50 cursor-not-allowed"
-            )} 
+            className={cn("flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100", selectedIds.length === 0 && "opacity-50")} 
             onClick={() => selectedIds.length > 0 && setIsBulkDialogOpen(true)}
             disabled={selectedIds.length === 0}
           >
-            <Layers className="h-4 w-4" /> Modificación Masiva {selectedIds.length > 0 && `(${selectedIds.length})`}
+            <Layers className="h-4 w-4" /> Masivo ({selectedIds.length})
           </Button>
 
-          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrintInventory}>
-            <Printer className="h-4 w-4" /> Imprimir
-          </Button>
-
-          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}>
-            <FileUp className="h-4 w-4" /> Importar Excel
-          </Button>
-
-          <Button variant="destructive" className="flex-1 sm:flex-none gap-2" onClick={handleDeleteAll} disabled={!products || products.length === 0}>
-            <Trash2 className="h-4 w-4" /> Vaciar Todo
-          </Button>
-
-          <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}>
-            <Plus className="h-4 w-4" /> Nuevo Producto
-          </Button>
+          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrint}><Printer className="h-4 w-4" /> Imprimir</Button>
+          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}><FileUp className="h-4 w-4" /> Importar</Button>
+          <Button variant="destructive" className="flex-1 sm:flex-none gap-2" onClick={handleDeleteAll}><Trash2 className="h-4 w-4" /> Vaciar</Button>
+          <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}><Plus className="h-4 w-4" /> Nuevo</Button>
         </div>
-      </div>
-
-      <div className="print-only p-8 bg-white text-black">
-        <div className="flex justify-between items-center mb-6 border-b-2 border-black pb-4">
-          <div>
-            <h1 className="text-2xl font-black uppercase">LISTADO DE INVENTARIO</h1>
-            <p className="text-xs font-bold uppercase">Fecha: {new Date().toLocaleDateString('es-AR')}</p>
-          </div>
-          <div className="text-right">
-            <h2 className="text-xl font-bold font-headline text-primary">CommerceManager Pro</h2>
-            <p className="text-xs">Control de Inventario</p>
-          </div>
-        </div>
-        <Table className="border-black">
-          <TableHeader className="bg-gray-100">
-            <TableRow className="border-black">
-              <TableHead className="text-black font-bold border-r border-black">Cód.</TableHead>
-              <TableHead className="text-black font-bold border-r border-black">Producto</TableHead>
-              <TableHead className="text-black font-bold border-r border-black text-center">Estado</TableHead>
-              <TableHead className="text-black font-bold border-r border-black text-right">Precio</TableHead>
-              <TableHead className="text-black font-bold text-center">Stock</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((product) => (
-              <TableRow key={product.id} className="border-black">
-                <TableCell className="font-mono text-xs border-r border-black">{product.code}</TableCell>
-                <TableCell className="border-r border-black">
-                  <div className="font-bold">{product.name}</div>
-                  <div className="text-[10px] uppercase text-gray-500">{product.category} {product.subCategory && `| ${product.subCategory}`}</div>
-                </TableCell>
-                <TableCell className="text-center text-xs uppercase border-r border-black">{product.condition}</TableCell>
-                <TableCell className="text-right font-bold border-r border-black">${product.price.toFixed(2)}</TableCell>
-                <TableCell className="text-center font-bold">{product.stock}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
       </div>
 
       <Card className="shadow-sm border-primary/10 overflow-hidden no-print">
@@ -425,51 +277,31 @@ export default function ProductsPage() {
             <div className="flex flex-col sm:flex-row gap-4 flex-1">
               <div className="relative w-full sm:max-w-md">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por código, nombre o marca..." 
-                  className="pl-9 bg-muted/30 border-none"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+                <Input placeholder="Buscar por código, nombre o marca..." className="pl-9 bg-muted/30 border-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
               </div>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none">
-                  <SelectValue placeholder="Todas las categorías" />
-                </SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none"><SelectValue placeholder="Categoría" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  {CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
+                  {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 gap-1 font-bold" onClick={handleGenerateMissingCodes}>
+            <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold" onClick={handleGenerateCodes}>
                <Sparkles className="h-4 w-4" /> Generar Códigos
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-muted-foreground text-sm">Cargando inventario...</p>
-            </div>
-          ) : (
+          {isLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" />Cargando...</div> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox 
-                        checked={selectedIds.length === filtered.length && filtered.length > 0} 
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead className="w-24">Código</TableHead>
+                    <TableHead className="w-12"><Checkbox checked={selectedIds.length === filtered.length && filtered.length > 0} onCheckedChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(p => p.id))} /></TableHead>
+                    <TableHead className="w-24">Cód.</TableHead>
                     <TableHead>Producto</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Categoría / Marca</TableHead>
                     <TableHead className="text-right">Precio</TableHead>
                     <TableHead className="text-center">Stock</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -478,47 +310,18 @@ export default function ProductsPage() {
                 <TableBody>
                   {filtered.map((product) => (
                     <TableRow key={product.id} className={cn(selectedIds.includes(product.id) && "bg-primary/5")}>
-                      <TableCell>
-                        <Checkbox 
-                          checked={selectedIds.includes(product.id)} 
-                          onCheckedChange={() => toggleSelect(product.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono text-xs font-bold bg-primary/5 border-primary/20">
-                          {product.code || "----"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-bold text-sm">{product.name}</div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">
-                          {product.condition}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs font-medium text-muted-foreground">{product.category}</div>
-                        <div className="text-[10px] text-primary font-bold uppercase">{product.subCategory}</div>
-                      </TableCell>
+                      <TableCell><Checkbox checked={selectedIds.includes(product.id)} onCheckedChange={() => setSelectedIds(prev => prev.includes(product.id) ? prev.filter(i => i !== product.id) : [...prev, product.id])} /></TableCell>
+                      <TableCell><Badge variant="outline" className="font-mono text-xs font-bold">{product.code || "----"}</Badge></TableCell>
+                      <TableCell><div className="font-bold text-sm">{product.name}</div><div className="text-[10px] text-muted-foreground uppercase">{product.category} • {product.subCategory}</div></TableCell>
+                      <TableCell><Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">{product.condition}</Badge></TableCell>
                       <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={product.stock < product.minStock ? "text-red-600 font-black text-base" : "text-sm"}>
-                          {product.stock}
-                        </span>
-                      </TableCell>
+                      <TableCell className="text-center"><span className={product.stock < product.minStock ? "text-red-600 font-black" : ""}>{product.stock}</span></TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
+                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleOpenEdit(product); }}>
-                              <Edit2 className="h-4 w-4 mr-2" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleDeleteProduct(product.id, product.name); }} className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleOpenEdit(product)}><Edit2 className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { if(confirm("Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'products', product.id)) }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Eliminar</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -526,166 +329,65 @@ export default function ProductsPage() {
                   ))}
                 </TableBody>
               </Table>
-              {filtered.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground italic text-sm">
-                  No se encontraron productos.
-                </div>
-              )}
             </div>
           )}
         </CardContent>
       </Card>
 
+      {/* Vista de Impresión */}
+      <div className="print-only p-8 bg-white text-black">
+        <h1 className="text-2xl font-black uppercase mb-4 border-b-2 border-black pb-2">LISTADO DE INVENTARIO</h1>
+        <Table className="border-black">
+          <TableHeader><TableRow className="border-black bg-gray-100"><TableHead>Cód.</TableHead><TableHead>Producto</TableHead><TableHead className="text-right">Precio</TableHead><TableHead className="text-center">Stock</TableHead></TableRow></TableHeader>
+          <TableBody>
+            {filtered.map(p => (
+              <TableRow key={p.id} className="border-black">
+                <TableCell className="font-mono text-xs">{p.code}</TableCell>
+                <TableCell><div className="font-bold">{p.name}</div><div className="text-[9px] uppercase">{p.category} - {p.subCategory}</div></TableCell>
+                <TableCell className="text-right font-bold">${p.price.toFixed(2)}</TableCell>
+                <TableCell className="text-center font-bold">{p.stock}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Diálogos */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Modificación Masiva</DialogTitle>
-            <DialogDescription>
-              Aplicar cambios a los {selectedIds.length} productos seleccionados.
-            </DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Modificación Masiva</DialogTitle><DialogDescription>Aplicar cambios a {selectedIds.length} productos.</DialogDescription></DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>¿Qué desea modificar?</Label>
-              <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="price_percent">Precio por Porcentaje (%)</SelectItem>
-                  <SelectItem value="category">Categoría</SelectItem>
-                  <SelectItem value="brand">Marca / Subcategoría</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Nuevo Valor</Label>
-              {bulkData.actionType === 'price_percent' ? (
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="number" 
-                    placeholder="Ej: 10 para aumentar, -10 para disminuir" 
-                    value={bulkData.value}
-                    onChange={(e) => setBulkData({...bulkData, value: e.target.value})}
-                  />
-                  <span className="font-bold">%</span>
-                </div>
-              ) : bulkData.actionType === 'category' ? (
-                <Select value={bulkData.value} onValueChange={(v) => setBulkData({...bulkData, value: v})}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input 
-                  placeholder="Ej: Apple, Samsung, etc." 
-                  value={bulkData.value}
-                  onChange={(e) => setBulkData({...bulkData, value: e.target.value})}
-                />
-              )}
-            </div>
+            <div className="space-y-2"><Label>Acción</Label><Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="price_percent">Precio (%)</SelectItem><SelectItem value="category">Categoría</SelectItem><SelectItem value="brand">Marca</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Nuevo Valor</Label><Input value={bulkData.value} onChange={(e) => setBulkData({...bulkData, value: e.target.value})} placeholder="Valor..." /></div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleBulkUpdate} disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-              Aplicar Cambios
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleBulkUpdate} disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Aplicar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[525px] rounded-xl no-print">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-headline">
-              {isEditing ? "Editar Producto" : "Registrar Producto"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2 col-span-1">
-                <Label htmlFor="code" className="flex items-center gap-1"><Hash className="h-3 w-3" /> Cód.</Label>
-                <Input 
-                  id="code" 
-                  maxLength={4}
-                  placeholder="Auto" 
-                  value={formProduct.code}
-                  onChange={(e) => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})}
-                />
-              </div>
-              <div className="space-y-2 col-span-2">
-                <Label htmlFor="name">Nombre / Modelo</Label>
-                <Input 
-                  id="name" 
-                  placeholder="Ej: iPhone 15 Pro Max" 
-                  value={formProduct.name}
-                  onChange={(e) => setFormProduct({...formProduct, name: e.target.value})}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Categoría</Label>
-                <Select value={formProduct.category} onValueChange={(v) => setFormProduct({...formProduct, category: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Marca</Label>
-                <Input placeholder="Ej: Apple, Samsung" value={formProduct.subCategory} onChange={(e) => setFormProduct({...formProduct, subCategory: e.target.value})} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <Select value={formProduct.condition} onValueChange={(v: any) => setFormProduct({...formProduct, condition: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="Nuevo">Nuevo</SelectItem><SelectItem value="Usado">Usado</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Precio ($)</Label>
-                <Input type="number" value={formProduct.price || ""} onChange={(e) => setFormProduct({...formProduct, price: Number(e.target.value)})} />
-              </div>
+        <DialogContent className="w-[95vw] sm:max-w-[500px] rounded-xl">
+          <DialogHeader><DialogTitle>{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid grid-cols-4 gap-4">
+              <div className="col-span-1 space-y-1"><Label>Cód.</Label><Input value={formProduct.code} maxLength={4} onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} /></div>
+              <div className="col-span-3 space-y-1"><Label>Nombre</Label><Input value={formProduct.name} onChange={e => setFormProduct({...formProduct, name: e.target.value})} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Stock Inicial</Label>
-                <Input type="number" value={formProduct.stock || ""} onChange={(e) => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
-              </div>
-              <div className="space-y-2">
-                <Label>Mínimo Alerta</Label>
-                <Input type="number" value={formProduct.minStock || ""} onChange={(e) => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
-              </div>
+              <div className="space-y-1"><Label>Categoría</Label><Select value={formProduct.category} onValueChange={v => setFormProduct({...formProduct, category: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1"><Label>Marca</Label><Input value={formProduct.subCategory} onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1"><Label>Precio</Label><Input type="number" value={formProduct.price || ""} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} /></div>
+              <div className="space-y-1"><Label>Stock</Label><Input type="number" value={formProduct.stock || ""} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} /></div>
+              <div className="space-y-1"><Label>Mínimo</Label><Input type="number" value={formProduct.minStock || ""} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} /></div>
             </div>
           </div>
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
-            <Button onClick={handleSaveProduct} className="w-full sm:w-auto gap-2" disabled={isSaving}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {isEditing ? "Actualizar" : "Guardar"}
-            </Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={handleSaveProduct} disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />} Guardar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="no-print">
-          <DialogHeader>
-            <DialogTitle>Importar desde Excel</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <p className="text-sm text-muted-foreground">Sube tu archivo con las columnas <b>Nombre</b> y <b>Precio</b>.</p>
-            <Input type="file" accept=".xlsx, .xls, .csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />
-            {isImporting && (
-              <div className="flex items-center justify-center gap-2 text-sm text-primary font-bold">
-                <Loader2 className="h-4 w-4 animate-spin" /> Procesando...
-              </div>
-            )}
-          </div>
-        </DialogContent>
+        <DialogContent><DialogHeader><DialogTitle>Importar Excel</DialogTitle></DialogHeader><div className="py-4 space-y-4"><p className="text-xs text-muted-foreground">Sube un archivo con columnas <b>Nombre</b> y <b>Precio</b>.</p><Input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />{isImporting && <div className="flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>}</div></DialogContent>
       </Dialog>
     </div>
   )
