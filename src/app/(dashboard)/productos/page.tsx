@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2 } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -70,6 +70,15 @@ export default function ProductsPage() {
       return matchesSearch && matchesCategory
     })
   }, [products, searchTerm, selectedCategory])
+
+  const categoryCounts = useMemo(() => {
+    if (!products) return {}
+    const counts: Record<string, number> = { all: products.length }
+    products.forEach(p => {
+      counts[p.category] = (counts[p.category] || 0) + 1
+    })
+    return counts
+  }, [products])
 
   const handleOpenAdd = () => {
     setIsEditing(false)
@@ -250,7 +259,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold font-headline text-primary">Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestión de stock y equipos.</p>
+          <p className="text-sm text-muted-foreground">Gestión de stock y equipos por categoría.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -292,121 +301,312 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <Card className="shadow-sm border-primary/10 overflow-hidden no-print">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div className="flex flex-col sm:flex-row gap-4 flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Menú de Categorías Lateral */}
+        <Card className="lg:col-span-3 border-primary/10 shadow-sm no-print sticky top-6">
+          <CardHeader className="pb-3 border-b bg-muted/20">
+            <CardTitle className="text-sm font-black uppercase tracking-wider text-primary flex items-center gap-2">
+              <Tag className="h-4 w-4" /> Menú Categorías
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-2">
+            <nav className="flex flex-col gap-1">
+              <Button 
+                variant={selectedCategory === 'all' ? 'secondary' : 'ghost'} 
+                className={cn(
+                  "justify-between font-bold h-10 px-3",
+                  selectedCategory === 'all' && "bg-primary/10 text-primary hover:bg-primary/20"
+                )}
+                onClick={() => setSelectedCategory('all')}
+              >
+                <div className="flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4" />
+                  <span>Todos los Productos</span>
+                </div>
+                <Badge variant="outline" className="h-5 min-w-5 justify-center font-mono">{categoryCounts.all || 0}</Badge>
+              </Button>
+              <div className="h-px bg-muted my-1" />
+              {CATEGORIES.map(cat => (
+                <Button 
+                  key={cat}
+                  variant={selectedCategory === cat ? 'secondary' : 'ghost'} 
+                  className={cn(
+                    "justify-between font-medium h-10 px-3",
+                    selectedCategory === cat && "bg-primary/10 text-primary hover:bg-primary/20"
+                  )}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  <div className="flex items-center gap-2">
+                    <ChevronRight className={cn("h-3 w-3 transition-transform", selectedCategory === cat ? "rotate-90 text-primary" : "text-muted-foreground")} />
+                    <span>{cat}</span>
+                  </div>
+                  <Badge variant="outline" className="h-5 min-w-5 justify-center font-mono bg-white">{categoryCounts[cat] || 0}</Badge>
+                </Button>
+              ))}
+            </nav>
+          </CardContent>
+        </Card>
+
+        {/* Tabla de Productos y Filtros */}
+        <Card className="lg:col-span-9 shadow-sm border-primary/10 overflow-hidden no-print">
+          <CardHeader className="pb-4 border-b bg-muted/10">
+            <div className="flex flex-col md:flex-row gap-4 justify-between">
               <div className="relative w-full sm:max-w-md">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por código, nombre o marca..." className="pl-9 bg-muted/30 border-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                <Input 
+                  placeholder="Buscar por código, nombre o marca..." 
+                  className="pl-9 bg-white border-primary/20 focus-visible:ring-primary" 
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                />
               </div>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-full sm:w-[180px] bg-muted/30 border-none"><SelectValue placeholder="Categoría" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas</SelectItem>
-                  {CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold h-10" onClick={handleGenerateCodes}>
+                <Sparkles className="h-4 w-4" /> Generar Códigos
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold" onClick={handleGenerateCodes}>
-               <Sparkles className="h-4 w-4" /> Generar Códigos
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" />Cargando...</div> : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/30">
-                  <TableRow>
-                    <TableHead className="w-12"><Checkbox checked={selectedIds.length === filtered.length && filtered.length > 0} onCheckedChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(p => p.id))} /></TableHead>
-                    <TableHead className="w-24">Cód.</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Precio</TableHead>
-                    <TableHead className="text-center">Stock</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((product) => (
-                    <TableRow key={product.id} className={cn(selectedIds.includes(product.id) && "bg-primary/5")}>
-                      <TableCell><Checkbox checked={selectedIds.includes(product.id)} onCheckedChange={() => setSelectedIds(prev => prev.includes(product.id) ? prev.filter(i => i !== product.id) : [...prev, product.id])} /></TableCell>
-                      <TableCell><Badge variant="outline" className="font-mono text-xs font-bold">{product.code || "----"}</Badge></TableCell>
-                      <TableCell><div className="font-bold text-sm">{product.name}</div><div className="text-[10px] text-muted-foreground uppercase">{product.category} • {product.subCategory}</div></TableCell>
-                      <TableCell><Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">{product.condition}</Badge></TableCell>
-                      <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
-                      <TableCell className="text-center"><span className={product.stock < product.minStock ? "text-red-600 font-black" : ""}>{product.stock}</span></TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleOpenEdit(product)}><Edit2 className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => { if(confirm("Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'products', product.id)) }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Eliminar</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-20 text-center flex flex-col items-center gap-2">
+                <Loader2 className="animate-spin h-8 w-8 text-primary" />
+                <p className="text-sm text-muted-foreground font-medium">Sincronizando inventario...</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-muted/30">
+                    <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox 
+                          checked={selectedIds.length === filtered.length && filtered.length > 0} 
+                          onCheckedChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(p => p.id))} 
+                        />
+                      </TableHead>
+                      <TableHead className="w-24">Cód.</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-center">Stock</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((product) => (
+                      <TableRow key={product.id} className={cn("hover:bg-primary/5 transition-colors", selectedIds.includes(product.id) && "bg-primary/5")}>
+                        <TableCell>
+                          <Checkbox 
+                            checked={selectedIds.includes(product.id)} 
+                            onCheckedChange={() => setSelectedIds(prev => prev.includes(product.id) ? prev.filter(i => i !== product.id) : [...prev, product.id])} 
+                          />
+                        </TableCell>
+                        <TableCell><Badge variant="outline" className="font-mono text-xs font-bold border-primary/20">{product.code || "----"}</Badge></TableCell>
+                        <TableCell>
+                          <div className="font-bold text-sm">{product.name}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-black">{product.category} • {product.subCategory}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">
+                            {product.condition}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-black text-sm text-primary">
+                          ${product.price.toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={product.stock < product.minStock ? "destructive" : "outline"} 
+                            className={cn("font-bold min-w-[30px] justify-center", product.stock < product.minStock ? "animate-pulse" : "")}
+                          >
+                            {product.stock}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={() => handleOpenEdit(product)}>
+                                <Edit2 className="h-4 w-4 mr-2" /> Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => { if(confirm("¿Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'products', product.id)) }} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {filtered.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-20">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Tag className="h-10 w-10 opacity-20" />
+                            <p className="text-sm italic">No se encontraron productos en esta categoría.</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
+      {/* Vista de Impresión */}
       <div className="print-only p-8 bg-white text-black">
-        <h1 className="text-2xl font-black uppercase mb-4 border-b-2 border-black pb-2">LISTADO DE INVENTARIO</h1>
+        <div className="flex justify-between items-end mb-6 border-b-2 border-black pb-4">
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter">LISTADO DE INVENTARIO</h1>
+            <p className="text-xs font-bold uppercase text-gray-600">Categoría: {selectedCategory === 'all' ? 'TODAS' : selectedCategory}</p>
+          </div>
+          <p className="text-xs font-bold">Fecha: {new Date().toLocaleDateString('es-AR')}</p>
+        </div>
         <Table className="border-black">
-          <TableHeader><TableRow className="border-black bg-gray-100"><TableHead>Cód.</TableHead><TableHead>Producto</TableHead><TableHead className="text-right">Precio</TableHead><TableHead className="text-center">Stock</TableHead></TableRow></TableHeader>
+          <TableHeader>
+            <TableRow className="border-black bg-gray-100">
+              <TableHead className="text-black font-black uppercase text-[10px]">Cód.</TableHead>
+              <TableHead className="text-black font-black uppercase text-[10px]">Producto / Categoría</TableHead>
+              <TableHead className="text-black font-black uppercase text-[10px] text-right">Precio</TableHead>
+              <TableHead className="text-black font-black uppercase text-[10px] text-center">Stock</TableHead>
+            </TableRow>
+          </TableHeader>
           <TableBody>
             {filtered.map(p => (
               <TableRow key={p.id} className="border-black">
-                <TableCell className="font-mono text-xs">{p.code}</TableCell>
-                <TableCell><div className="font-bold">{p.name}</div><div className="text-[9px] uppercase">{p.category} - {p.subCategory}</div></TableCell>
-                <TableCell className="text-right font-bold">${p.price.toFixed(2)}</TableCell>
-                <TableCell className="text-center font-bold">{p.stock}</TableCell>
+                <TableCell className="font-mono text-xs font-bold">{p.code}</TableCell>
+                <TableCell>
+                  <div className="font-black text-sm uppercase">{p.name}</div>
+                  <div className="text-[9px] font-bold text-gray-500 uppercase">{p.category} - {p.subCategory}</div>
+                </TableCell>
+                <TableCell className="text-right font-black font-mono text-sm">${p.price.toFixed(2)}</TableCell>
+                <TableCell className="text-center font-black text-sm">{p.stock}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
 
+      {/* Diálogos */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>Modificación Masiva</DialogTitle><DialogDescription>Aplicar cambios a {selectedIds.length} productos.</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Modificación Masiva</DialogTitle>
+            <DialogDescription>Aplicar cambios a {selectedIds.length} productos seleccionados.</DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="space-y-2"><Label>Acción</Label><Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="price_percent">Precio (%)</SelectItem><SelectItem value="category">Categoría</SelectItem><SelectItem value="brand">Marca</SelectItem></SelectContent></Select></div>
-            <div className="space-y-2"><Label>Nuevo Valor</Label><Input value={bulkData.value} onChange={(e) => setBulkData({...bulkData, value: e.target.value})} placeholder="Valor..." /></div>
+            <div className="space-y-2">
+              <Label>Acción a Realizar</Label>
+              <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="price_percent">Actualizar Precio (%)</SelectItem>
+                  <SelectItem value="category">Cambiar Categoría</SelectItem>
+                  <SelectItem value="brand">Cambiar Marca/Subcat.</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Nuevo Valor / Porcentaje</Label>
+              <Input 
+                value={bulkData.value} 
+                onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
+                placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15 para un 15% de aumento" : "Nuevo valor..."} 
+              />
+            </div>
           </div>
-          <DialogFooter><Button onClick={handleBulkUpdate} disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />} Aplicar</Button></DialogFooter>
+          <DialogFooter>
+            <Button onClick={handleBulkUpdate} disabled={isSaving} className="w-full gap-2">
+              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} 
+              Aplicar Cambios Masivos
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[500px] rounded-xl">
-          <DialogHeader><DialogTitle>{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-headline">{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle>
+          </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 gap-4">
-              <div className="col-span-1 space-y-1"><Label>Cód.</Label><Input value={formProduct.code} maxLength={4} onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} /></div>
-              <div className="col-span-3 space-y-1"><Label>Nombre</Label><Input value={formProduct.name} onChange={e => setFormProduct({...formProduct, name: e.target.value})} /></div>
+              <div className="col-span-1 space-y-1">
+                <Label>Código</Label>
+                <Input 
+                  value={formProduct.code} 
+                  maxLength={4} 
+                  placeholder="0000"
+                  className="font-mono text-center"
+                  onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} 
+                />
+              </div>
+              <div className="col-span-3 space-y-1">
+                <Label>Nombre del Equipo / Producto</Label>
+                <Input value={formProduct.name} placeholder="Ej: iPhone 15 Pro Max" onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1"><Label>Categoría</Label><Select value={formProduct.category} onValueChange={v => setFormProduct({...formProduct, category: v})}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-              <div className="space-y-1"><Label>Marca</Label><Input value={formProduct.subCategory} onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} /></div>
+              <div className="space-y-1">
+                <Label>Categoría</Label>
+                <Select value={formProduct.category} onValueChange={v => setFormProduct({...formProduct, category: v})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Marca / Sub-categoría</Label>
+                <Input value={formProduct.subCategory} placeholder="Ej: Apple" onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1"><Label>Precio</Label><Input type="number" value={formProduct.price || ""} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} /></div>
-              <div className="space-y-1"><Label>Stock</Label><Input type="number" value={formProduct.stock || ""} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} /></div>
-              <div className="space-y-1"><Label>Mínimo</Label><Input type="number" value={formProduct.minStock || ""} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} /></div>
+              <div className="space-y-1">
+                <Label>Precio ($)</Label>
+                <Input type="number" value={formProduct.price || ""} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-1">
+                <Label>Stock Actual</Label>
+                <Input type="number" value={formProduct.stock || ""} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
+              </div>
+              <div className="space-y-1">
+                <Label>Aviso Mínimo</Label>
+                <Input type="number" value={formProduct.minStock || ""} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
+              </div>
             </div>
           </div>
-          <DialogFooter><Button onClick={handleSaveProduct} disabled={isSaving}>{isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />} Guardar</Button></DialogFooter>
+          <DialogFooter>
+            <Button onClick={handleSaveProduct} disabled={isSaving} className="w-full gap-2">
+              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} 
+              {isEditing ? "Actualizar Equipo" : "Registrar Equipo"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent><DialogHeader><DialogTitle>Importar Excel</DialogTitle></DialogHeader><div className="py-4 space-y-4"><p className="text-xs text-muted-foreground">Sube un archivo con columnas <b>Nombre</b> y <b>Precio</b>.</p><Input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />{isImporting && <div className="flex justify-center"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>}</div></DialogContent>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar Inventario desde Excel</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg text-xs space-y-2">
+              <p className="font-bold text-primary uppercase flex items-center gap-2"><FileUp className="h-3 w-3" /> Instrucciones:</p>
+              <p>El sistema reconocerá automáticamente columnas llamadas <b>Nombre</b> (o Producto) y <b>Precio</b>.</p>
+              <p>Si incluyes una columna <b>Stock</b> o <b>Categoría</b>, también se cargarán.</p>
+            </div>
+            <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />
+            {isImporting && <div className="flex flex-col items-center gap-2 py-4">
+              <Loader2 className="animate-spin h-6 w-6 text-primary" />
+              <p className="text-xs text-muted-foreground animate-pulse">Procesando archivo...</p>
+            </div>}
+          </div>
+        </DialogContent>
       </Dialog>
     </div>
   )
