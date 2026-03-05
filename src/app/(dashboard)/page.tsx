@@ -7,23 +7,30 @@ import { TrendingUp, Users, DollarSign, AlertTriangle, ArrowRight, Package } fro
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { Product, Customer, Sale } from "@/lib/types"
 
 export default function DashboardPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
 
-  // Obtener productos reales
-  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  // Obtener productos reales segmentados por usuario
+  const productsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'products') : null, 
+  [firestore, user])
   const { data: products } = useCollection<Product>(productsRef)
 
-  // Obtener clientes reales
-  const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
+  // Obtener clientes reales segmentados por usuario
+  const customersRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'customers') : null, 
+  [firestore, user])
   const { data: customers } = useCollection<Customer>(customersRef)
 
-  // Obtener ventas reales
-  const salesRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore])
+  // Obtener ventas reales segmentadas por usuario
+  const salesRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'sales') : null, 
+  [firestore, user])
   const { data: sales } = useCollection<Sale>(salesRef)
 
   // Cálculo de ventas de hoy
@@ -66,8 +73,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold font-headline">Resumen General</h1>
-        <p className="text-muted-foreground">Bienvenido al panel de control de CommerceManager Pro.</p>
+        <h1 className="text-3xl font-bold font-headline">Resumen de mi Tienda</h1>
+        <p className="text-muted-foreground">Bienvenido al panel exclusivo de tu negocio.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

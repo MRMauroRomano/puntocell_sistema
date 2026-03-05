@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -21,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 export default function CustomersPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -28,7 +29,9 @@ export default function CustomersPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(null)
 
-  const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
+  const customersRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'customers') : null, 
+  [firestore, user])
   const { data: customers, isLoading } = useCollection<Customer>(customersRef)
 
   const [formCustomer, setFormCustomer] = useState<Partial<Customer>>({
@@ -79,7 +82,7 @@ export default function CustomersPage() {
   }
 
   const handleSaveCustomer = () => {
-    if (!formCustomer.name || !formCustomer.cuit) {
+    if (!user || !formCustomer.name || !formCustomer.cuit) {
       toast({
         variant: "destructive",
         title: "Campos obligatorios",
@@ -90,7 +93,7 @@ export default function CustomersPage() {
 
     setIsSaving(true)
     const customerId = isEditing && currentCustomerId ? currentCustomerId : Math.random().toString(36).substr(2, 9)
-    const customerDocRef = doc(firestore, 'customers', customerId)
+    const customerDocRef = doc(firestore, 'users', user.uid, 'customers', customerId)
 
     const customerData = {
       ...formCustomer,
@@ -119,22 +122,23 @@ export default function CustomersPage() {
   }
 
   const handleDeleteCustomer = (id: string) => {
-    const docRef = doc(firestore, 'customers', id)
+    if (!user) return
+    const docRef = doc(firestore, 'users', user.uid, 'customers', id)
     deleteDocumentNonBlocking(docRef)
     toast({ title: "Cliente eliminado" })
   }
 
   const handleClearAllCustomers = () => {
-    if (!customers || customers.length === 0) return
+    if (!user || !customers || customers.length === 0) return
     
     customers.forEach(customer => {
-      const docRef = doc(firestore, 'customers', customer.id)
+      const docRef = doc(firestore, 'users', user.uid, 'customers', customer.id)
       deleteDocumentNonBlocking(docRef)
     })
     
     toast({
       title: "Directorio vaciado",
-      description: "Todos los clientes y sus deudas han sido eliminados del sistema.",
+      description: "Todos los clientes de tu tienda han sido eliminados.",
     })
   }
 
@@ -142,8 +146,8 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold font-headline text-primary">Directorio de Clientes</h1>
-          <p className="text-muted-foreground">Gestiona la información y contacto de tus clientes.</p>
+          <h1 className="text-3xl font-bold font-headline text-primary">Mis Clientes</h1>
+          <p className="text-muted-foreground">Directorio exclusivo de tu negocio.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -159,9 +163,9 @@ export default function CustomersPage() {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>¿Estás completamente seguro?</AlertDialogTitle>
+                <AlertDialogTitle>¿Borrar todos tus clientes?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción eliminará a TODOS los clientes y sus deudas actuales. Esto pondrá los saldos en $0 y no se puede deshacer.
+                  Esta acción eliminará a TODOS los clientes de TU tienda. Las deudas volverán a $0.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -190,7 +194,6 @@ export default function CustomersPage() {
                   <Label htmlFor="name">Nombre Completo</Label>
                   <Input 
                     id="name" 
-                    placeholder="Ej: Juan Pérez" 
                     value={formCustomer.name}
                     onChange={(e) => setFormCustomer({...formCustomer, name: e.target.value})}
                   />
@@ -199,7 +202,6 @@ export default function CustomersPage() {
                   <Label htmlFor="cuit">CUIT / CUIL</Label>
                   <Input 
                     id="cuit" 
-                    placeholder="Ej: 20-12345678-9" 
                     value={formCustomer.cuit}
                     onChange={(e) => setFormCustomer({...formCustomer, cuit: e.target.value})}
                   />
@@ -209,7 +211,6 @@ export default function CustomersPage() {
                     <Label htmlFor="phone">Teléfono</Label>
                     <Input 
                       id="phone" 
-                      placeholder="Ej: 11 1234 5678" 
                       value={formCustomer.phone}
                       onChange={(e) => setFormCustomer({...formCustomer, phone: e.target.value})}
                     />
@@ -219,29 +220,18 @@ export default function CustomersPage() {
                     <Input 
                       id="balance" 
                       type="number"
-                      placeholder="0.00" 
                       value={formCustomer.balance}
                       onChange={(e) => setFormCustomer({...formCustomer, balance: Number(e.target.value)})}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Correo Electrónico</Label>
+                  <Label htmlFor="email">Correo</Label>
                   <Input 
                     id="email" 
                     type="email"
-                    placeholder="ejemplo@correo.com" 
                     value={formCustomer.email}
                     onChange={(e) => setFormCustomer({...formCustomer, email: e.target.value})}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Dirección (Opcional)</Label>
-                  <Input 
-                    id="address" 
-                    placeholder="Ej: Av. Rivadavia 1234" 
-                    value={formCustomer.address}
-                    onChange={(e) => setFormCustomer({...formCustomer, address: e.target.value})}
                   />
                 </div>
               </div>
@@ -249,7 +239,7 @@ export default function CustomersPage() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
                 <Button onClick={handleSaveCustomer} disabled={isSaving}>
                   {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                  Guardar Cliente
+                  Guardar
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -261,7 +251,7 @@ export default function CustomersPage() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input 
-            placeholder="Buscar por nombre, CUIT, email o teléfono..." 
+            placeholder="Buscar en mi directorio..." 
             className="pl-9"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -271,7 +261,7 @@ export default function CustomersPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-muted-foreground">Cargando clientes...</p>
+            <p className="text-muted-foreground">Sincronizando tus clientes...</p>
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -285,7 +275,7 @@ export default function CustomersPage() {
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{customer.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "No registrado"}</p>
+                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit}</p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -306,10 +296,6 @@ export default function CustomersPage() {
                 <CardContent className="space-y-4 pt-4">
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <FileText className="h-4 w-4" />
-                      <span className="truncate">{customer.cuit || "Sin CUIT"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Mail className="h-4 w-4" />
                       <span className="truncate">{customer.email || "Sin email"}</span>
                     </div>
@@ -317,17 +303,11 @@ export default function CustomersPage() {
                       <Phone className="h-4 w-4" />
                       <span>{customer.phone || "Sin teléfono"}</span>
                     </div>
-                    {customer.address && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        <span className="truncate">{customer.address}</span>
-                      </div>
-                    )}
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Saldo Pendiente</span>
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Deuda en mi tienda</span>
                       <span className={cn("text-lg font-bold", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
                         ${customer.balance.toFixed(2)}
                       </span>
@@ -339,12 +319,6 @@ export default function CustomersPage() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-
-        {!isLoading && filtered.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground bg-white rounded-xl border border-dashed">
-            No se encontraron clientes registrados.
           </div>
         )}
       </div>

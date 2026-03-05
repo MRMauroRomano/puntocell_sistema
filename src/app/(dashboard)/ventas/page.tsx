@@ -11,13 +11,14 @@ import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingC
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
 export default function SalesPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [cart, setCart] = useState<SaleItem[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -30,13 +31,19 @@ export default function SalesPage() {
   const [isFinishing, setIsFinishing] = useState(false)
   const [lastSale, setLastSale] = useState<(Sale & { customerAddress?: string }) | null>(null)
 
-  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const productsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'products') : null, 
+  [firestore, user])
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
 
-  const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
+  const customersRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'customers') : null, 
+  [firestore, user])
   const { data: customers } = useCollection<Customer>(customersRef)
 
-  const settingsRef = useMemoFirebase(() => collection(firestore, 'settings'), [firestore])
+  const settingsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'settings') : null, 
+  [firestore, user])
   const { data: billingConfigs } = useCollection<BillingConfig>(settingsRef)
 
   useEffect(() => {
@@ -74,7 +81,7 @@ export default function SalesPage() {
             : item
         )
       }
-      const displayName = `[${product.code || '----'}] ${product.name} (${product.condition})`
+      const displayName = `[${product.code || '----'}] ${product.name}`
       return [...prev, {
         productId: product.id,
         productName: displayName,
@@ -95,10 +102,10 @@ export default function SalesPage() {
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishSale = () => {
-    if (cart.length === 0) return
+    if (!user || cart.length === 0) return
     setIsFinishing(true)
     const saleId = Math.random().toString(36).substr(2, 9)
-    const saleRef = doc(firestore, 'sales', saleId)
+    const saleRef = doc(firestore, 'users', user.uid, 'sales', saleId)
     const customer = customers?.find(c => c.id === selectedCustomerId)
     
     const saleData: Sale = {
@@ -123,12 +130,12 @@ export default function SalesPage() {
       cart.forEach(item => {
         const p = products?.find(prod => prod.id === item.productId)
         if (p) {
-          const productRef = doc(firestore, 'products', item.productId)
+          const productRef = doc(firestore, 'users', user.uid, 'products', item.productId)
           updateDocumentNonBlocking(productRef, { stock: Math.max(0, p.stock - item.quantity) })
         }
       })
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
-        updateDocumentNonBlocking(doc(firestore, 'customers', selectedCustomerId), { balance: (customer.balance || 0) + total })
+        updateDocumentNonBlocking(doc(firestore, 'users', user.uid, 'customers', selectedCustomerId), { balance: (customer.balance || 0) + total })
       }
       setLastSale({ ...saleData, customerAddress: customer?.address || "Domicilio no registrado" })
       setIsSuccessDialogOpen(true)
@@ -145,52 +152,39 @@ export default function SalesPage() {
   return (
     <div className="relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
-        {/* Lado Izquierdo: Catálogo de Productos */}
         <div className="lg:col-span-8 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar por código, nombre o marca..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              <Input placeholder="Buscar por código o nombre..." className="pl-9" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {categories.filter(c => c !== 'all').map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-              </SelectContent>
-            </Select>
           </div>
-          
           <Card className="shadow-sm border-primary/10 overflow-hidden">
-            <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Catálogo de Equipos</CardTitle></CardHeader>
+            <CardHeader className="bg-muted/30 py-3"><CardTitle className="text-xs font-bold uppercase">Mis Productos Disponibles</CardTitle></CardHeader>
             <CardContent className="p-0">
-              {isProductsLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin inline mr-2" />Cargando...</div> : (
+              {isProductsLoading ? <div className="p-10 text-center"><Loader2 className="animate-spin" /></div> : (
                 <Table>
-                  <TableHeader className="bg-muted/10 sticky top-0 z-10">
+                  <TableHeader>
                     <TableRow>
-                      <TableHead className="w-20">Código</TableHead>
+                      <TableHead>Cód.</TableHead>
                       <TableHead>Producto</TableHead>
                       <TableHead>Precio</TableHead>
                       <TableHead>Stock</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
+                      <TableHead className="text-right">Añadir</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProducts.map(product => (
-                      <TableRow key={product.id} className="hover:bg-primary/5 transition-colors">
-                        <TableCell>
-                          <span className="font-mono text-[10px] font-bold text-muted-foreground">{product.code || '----'}</span>
-                        </TableCell>
+                      <TableRow key={product.id}>
+                        <TableCell className="font-mono text-xs">{product.code}</TableCell>
                         <TableCell>
                           <div className="font-bold text-sm">{product.name}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase">{product.subCategory} • {product.condition}</div>
+                          <div className="text-[10px] text-muted-foreground">{product.category}</div>
                         </TableCell>
                         <TableCell className="font-bold text-primary">${product.price.toFixed(2)}</TableCell>
-                        <TableCell><Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="text-[10px]">{product.stock}</Badge></TableCell>
+                        <TableCell><Badge variant={product.stock < product.minStock ? "destructive" : "outline"}>{product.stock}</Badge></TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-primary hover:text-white" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
                             <Plus className="h-4 w-4" />
                           </Button>
                         </TableCell>
@@ -203,27 +197,21 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        {/* Lado Derecho: Carrito Compacto y Fijo */}
         <div className="lg:col-span-4">
-          <Card className="sticky top-6 border-primary/20 bg-white shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
+          <Card className="sticky top-6 border-primary/20 bg-white shadow-lg flex flex-col max-h-[calc(100vh-8rem)]">
             <CardHeader className="py-3 border-b bg-primary/5">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2 font-headline"><ShoppingCart className="h-4 w-4 text-primary" /> Carrito</CardTitle>
-                <Badge variant="secondary" className="font-bold">{cart.length}</Badge>
-              </div>
+              <CardTitle className="text-base flex items-center gap-2 font-headline"><ShoppingCart className="h-4 w-4 text-primary" /> Carrito de Venta</CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-0">
-              {cart.length === 0 ? <div className="p-8 text-center text-muted-foreground text-xs italic">Carrito vacío</div> : (
+              {cart.length === 0 ? <div className="p-8 text-center text-xs italic">Vacío</div> : (
                 <Table>
                   <TableBody>
                     {cart.map(item => (
-                      <TableRow key={item.productId} className="hover:bg-muted/10 border-b">
-                        <TableCell className="text-[11px] font-medium py-2">
-                          <div className="line-clamp-1">{item.productName}</div>
-                          <div className="text-[9px] text-muted-foreground">${item.price.toFixed(2)} c/u</div>
+                      <TableRow key={item.productId}>
+                        <TableCell className="text-[11px] py-2">
+                          <div className="font-bold">{item.productName}</div>
+                          <div>${item.price.toFixed(2)} x{item.quantity}</div>
                         </TableCell>
-                        <TableCell className="text-center text-[11px] py-2">x{item.quantity}</TableCell>
-                        <TableCell className="text-right text-[11px] font-bold py-2">${item.subtotal.toFixed(2)}</TableCell>
                         <TableCell className="text-right py-2">
                           <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-6 w-6 p-0">
                             <Trash2 className="h-3 w-3" />
@@ -236,65 +224,27 @@ export default function SalesPage() {
               )}
             </CardContent>
             <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-3">
-              <div className="w-full flex justify-between items-center py-1">
-                <span className="text-xs font-black uppercase tracking-tight">Total:</span>
+              <div className="w-full flex justify-between items-center">
+                <span className="text-xs font-black">TOTAL:</span>
                 <span className="text-2xl font-black text-primary font-headline">${total.toFixed(2)}</span>
               </div>
-              
               <div className="w-full space-y-2">
-                 <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Emisor:</label>
-                      <Select onValueChange={setSelectedBillingCuitId} value={selectedBillingCuitId}>
-                        <SelectTrigger className="h-8 text-[10px]"><SelectValue placeholder="Emisor" /></SelectTrigger>
-                        <SelectContent>
-                          {billingConfigs?.map(b => (
-                            <SelectItem key={b.id} value={b.id}>{b.name.split(' ')[0] || "Entidad"}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Comprobante:</label>
-                      <Select onValueChange={(v) => setInvoiceType(v as any)} value={invoiceType}>
-                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="factura_a">Factura A</SelectItem>
-                          <SelectItem value="factura_b">Factura B</SelectItem>
-                          <SelectItem value="ticket">Ticket</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                 </div>
-                 
-                 <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Cliente:</label>
-                      <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
-                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="final">Consumidor Final</SelectItem>
-                          {customers?.map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase text-muted-foreground">Pago:</label>
-                      <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
-                        <SelectTrigger className="h-8 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cash">Efectivo</SelectItem>
-                          <SelectItem value="debit">Débito</SelectItem>
-                          <SelectItem value="credit_account" disabled={selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                 </div>
-
-                <Button className="w-full h-10 font-bold uppercase text-xs shadow-md mt-2" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
-                  {isFinishing ? <Loader2 className="animate-spin h-4 w-4" /> : <><CheckCircle2 className="mr-2 h-4 w-4" /> Cobrar</>}
+                 <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                   <SelectTrigger className="h-8 text-[10px]"><SelectValue placeholder="Cliente" /></SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="final">Consumidor Final</SelectItem>
+                     {customers?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                   </SelectContent>
+                 </Select>
+                 <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
+                   <SelectTrigger className="h-8 text-[10px]"><SelectValue placeholder="Pago" /></SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="cash">Efectivo</SelectItem>
+                     <SelectItem value="credit_account" disabled={selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
+                   </SelectContent>
+                 </Select>
+                <Button className="w-full" disabled={cart.length === 0 || isFinishing} onClick={handleFinishSale}>
+                  {isFinishing ? <Loader2 className="animate-spin" /> : "Finalizar Cobro"}
                 </Button>
               </div>
             </CardFooter>
@@ -302,120 +252,15 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* Diálogo de Éxito */}
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[400px] no-print rounded-xl">
-          <div className="flex flex-col items-center text-center py-4">
-            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mb-4"><CheckCircle2 className="h-7 w-7 text-green-600" /></div>
-            <DialogTitle className="text-xl font-bold mb-1">¡Venta Registrada!</DialogTitle>
-            <p className="text-muted-foreground text-sm">La transacción se completó correctamente.</p>
+        <DialogContent className="max-w-[400px]">
+          <div className="text-center py-4">
+            <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-2" />
+            <DialogTitle className="text-xl font-bold">¡Venta Exitosa!</DialogTitle>
           </div>
-          <div className="bg-primary/5 p-4 rounded-xl text-center mb-4">
-            <span className="text-3xl font-black text-primary">${total.toFixed(2)}</span>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button className="w-full" variant="outline" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Imprimir Factura</Button>
-            <Button className="w-full" onClick={resetSale}>Nueva Venta</Button>
-          </div>
+          <Button className="w-full" onClick={resetSale}>Cerrar y Nueva Venta</Button>
         </DialogContent>
       </Dialog>
-
-      {/* Plantilla de Impresión */}
-      {lastSale && (
-        <div className="print-only p-8 text-black bg-white min-h-screen font-sans">
-          <div className="border-[2px] border-black p-0 overflow-hidden rounded-sm relative">
-            <div className="border-b-[2px] border-black relative">
-              <div className="absolute left-1/2 top-0 -translate-x-1/2 bg-white border-b-[2px] border-x-[2px] border-black w-16 h-16 flex flex-col items-center justify-center z-10">
-                <span className="text-5xl font-black leading-none mt-1">
-                  {lastSale.invoiceType === 'factura_a' ? 'A' : lastSale.invoiceType === 'factura_b' ? 'B' : 'C'}
-                </span>
-                <span className="text-[9px] font-bold uppercase mb-1">cod. 01</span>
-              </div>
-
-              <div className="grid grid-cols-2 h-36">
-                <div className="p-4 flex flex-col justify-center border-r-[1px] border-black/50">
-                  <h1 className="text-3xl font-black uppercase leading-tight tracking-tight">{lastSale.billingName || "COMERCIO PRO"}</h1>
-                  <p className="text-[11px] font-black mt-2">RAZÓN SOCIAL TITULAR</p>
-                  <p className="text-[11px]">Dirección Comercial: Av. Principal 1234</p>
-                  <p className="text-[11px]">Condición frente al IVA: Responsable Inscripto</p>
-                </div>
-
-                <div className="p-4 flex flex-col justify-center pl-14">
-                  <h2 className="text-3xl font-black tracking-tighter mb-1">FACTURA</h2>
-                  <p className="font-black text-base">Punto de Venta: 0001</p>
-                  <p className="font-black text-base">Comp. Nro: 000{lastSale.id.slice(-5)}</p>
-                  <p className="font-black text-base">Fecha: {new Date(lastSale.date).toLocaleDateString('es-AR')}</p>
-                </div>
-              </div>
-
-              <div className="border-t-[2px] border-black grid grid-cols-2 px-6 py-1 text-[11px] font-bold bg-gray-50">
-                <div>CUIT: {lastSale.billingCuit || "30-00000000-0"}</div>
-                <div className="flex justify-between">
-                  <span>Ingresos Brutos: {lastSale.billingCuit || "30-00000000-0"}</span>
-                  <span>Inicio Act: 01/01/2024</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-b-[2px] border-black grid grid-cols-2 bg-white">
-              <div className="p-4 border-r-[2px] border-black">
-                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">CLIENTE</p>
-                <p className="font-black text-base">{lastSale.customerName}</p>
-                <p className="text-sm">{lastSale.customerAddress}</p>
-              </div>
-              <div className="p-4">
-                <p className="text-[10px] uppercase font-black text-gray-500 mb-1">IDENTIFICACIÓN</p>
-                <p className="font-black text-base font-mono">CUIT: {lastSale.customerCuit}</p>
-                <p className="text-sm uppercase font-black">IVA: {lastSale.customerId === 'final' ? 'Consumidor Final' : 'RESP. INSCRIPTO'}</p>
-              </div>
-            </div>
-
-            <div className="min-h-[500px]">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b-[2px] border-black bg-gray-100 text-left font-black uppercase text-[11px]">
-                    <th className="p-3 border-r-[2px] border-black w-20 text-center">CANT.</th>
-                    <th className="p-3 border-r-[2px] border-black">DESCRIPCIÓN</th>
-                    <th className="p-3 border-r-[2px] border-black text-right">UNIT.</th>
-                    <th className="p-3 text-right">TOTAL</th>
-                  </tr>
-                </thead>
-                <tbody className="font-bold">
-                  {lastSale.items.map((item, idx) => (
-                    <tr key={idx} className="border-b border-gray-300">
-                      <td className="p-3 border-r-[2px] border-black text-center">{item.quantity}</td>
-                      <td className="p-3 border-r-[2px] border-black uppercase">{item.productName}</td>
-                      <td className="p-3 border-r-[2px] border-black text-right font-mono">${item.price.toFixed(2)}</td>
-                      <td className="p-3 text-right font-black font-mono">${item.subtotal.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="border-t-[2px] border-black p-6 flex justify-between items-end bg-gray-50">
-              <div className="text-[10px] font-bold">
-                <p className="uppercase text-gray-600">Condición: {lastSale.paymentMethod === 'credit_account' ? 'CUENTA CORRIENTE' : 'CONTADO'}</p>
-                <p className="italic mt-1">Generado por CommerceManager Pro</p>
-              </div>
-              <div className="w-64 space-y-1">
-                <div className="flex justify-between border-b border-black/10">
-                  <span className="text-xs font-bold">Subtotal:</span>
-                  <span className="text-xs font-black font-mono">${lastSale.subtotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between border-b border-black/10">
-                  <span className="text-xs font-bold">IVA (21%):</span>
-                  <span className="text-xs font-black font-mono">${lastSale.tax.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between pt-2">
-                  <span className="text-xl font-black">TOTAL:</span>
-                  <span className="text-2xl font-black font-mono">${lastSale.total.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

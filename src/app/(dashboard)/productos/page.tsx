@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import * as XLSX from 'xlsx'
@@ -25,6 +25,7 @@ const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuest
 
 export default function ProductsPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
@@ -38,7 +39,9 @@ export default function ProductsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const productsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'products') : null, 
+  [firestore, user])
   const { data: products, isLoading } = useCollection<Product>(productsRef)
 
   const [formProduct, setFormProduct] = useState<Partial<Product>>({
@@ -115,14 +118,14 @@ export default function ProductsPage() {
   }
 
   const handleSaveProduct = () => {
-    if (!formProduct.name) {
+    if (!user || !formProduct.name) {
       toast({ variant: "destructive", title: "Campos incompletos", description: "El nombre es obligatorio." })
       return
     }
 
     setIsSaving(true)
     const productId = isEditing && currentId ? currentId : Math.random().toString(36).substr(2, 9)
-    const productDocRef = doc(firestore, 'products', productId)
+    const productDocRef = doc(firestore, 'users', user.uid, 'products', productId)
     
     const productData = {
       ...formProduct,
@@ -150,13 +153,13 @@ export default function ProductsPage() {
   }
 
   const handleBulkUpdate = () => {
-    if (selectedIds.length === 0 || !bulkData.value) return
+    if (!user || selectedIds.length === 0 || !bulkData.value) return
     setIsSaving(true)
     try {
       selectedIds.forEach(id => {
         const product = products?.find(p => p.id === id)
         if (!product) return
-        const productRef = doc(firestore, 'products', id)
+        const productRef = doc(firestore, 'users', user.uid, 'products', id)
         let update: any = {}
         if (bulkData.actionType === 'price_percent') {
           const percent = parseFloat(bulkData.value)
@@ -180,9 +183,9 @@ export default function ProductsPage() {
   }
 
   const handleDeleteAll = () => {
-    if (!products || products.length === 0) return
+    if (!user || !products || products.length === 0) return
     products.forEach(p => {
-      const docRef = doc(firestore, 'products', p.id)
+      const docRef = doc(firestore, 'users', user.uid, 'products', p.id)
       deleteDocumentNonBlocking(docRef)
     })
     toast({ title: "Inventario vaciado con éxito" })
@@ -191,12 +194,12 @@ export default function ProductsPage() {
   const handlePrint = () => { if (typeof window !== 'undefined') window.print() }
 
   const handleGenerateCodes = () => {
-    if (!products) return
+    if (!user || !products) return
     let count = 0
     products.forEach(p => {
       if (!p.code || p.code.length !== 4) {
         const newCode = Math.floor(1000 + Math.random() * 9000).toString()
-        updateDocumentNonBlocking(doc(firestore, 'products', p.id), { code: newCode })
+        updateDocumentNonBlocking(doc(firestore, 'users', user.uid, 'products', p.id), { code: newCode })
         count++
       }
     })
@@ -204,6 +207,7 @@ export default function ProductsPage() {
   }
 
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return
     const file = e.target.files?.[0]
     if (!file) return
     setIsImporting(true)
@@ -239,7 +243,7 @@ export default function ProductsPage() {
               minStock: Number(normalized.minimo) || 5,
               isActive: true
             }
-            setDocumentNonBlocking(doc(firestore, 'products', id), pData, { merge: true })
+            setDocumentNonBlocking(doc(firestore, 'users', user.uid, 'products', id), pData, { merge: true })
           }
         })
         toast({ title: "Importación finalizada" })
@@ -258,8 +262,8 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold font-headline text-primary">Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestión de stock y equipos por categoría.</p>
+          <h1 className="text-2xl font-bold font-headline text-primary">Mi Inventario</h1>
+          <p className="text-sm text-muted-foreground">Gestión de stock de tu tienda.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -285,7 +289,7 @@ export default function ProductsPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Borrar todo el inventario?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Esta acción eliminará permanentemente todos los productos registrados. No se puede revertir.
+                  Esta acción eliminará permanentemente todos los productos registrados en TU TIENDA. No se puede revertir.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -306,7 +310,7 @@ export default function ProductsPage() {
         <Card className="lg:col-span-3 border-primary/10 shadow-sm no-print sticky top-6">
           <CardHeader className="pb-3 border-b bg-muted/20">
             <CardTitle className="text-sm font-black uppercase tracking-wider text-primary flex items-center gap-2">
-              <Tag className="h-4 w-4" /> Menú Categorías
+              <Tag className="h-4 w-4" /> Categorías
             </CardTitle>
           </CardHeader>
           <CardContent className="p-2">
@@ -321,7 +325,7 @@ export default function ProductsPage() {
               >
                 <div className="flex items-center gap-2">
                   <LayoutGrid className="h-4 w-4" />
-                  <span>Todos los Productos</span>
+                  <span>Todos</span>
                 </div>
                 <Badge variant="outline" className="h-5 min-w-5 justify-center font-mono">{categoryCounts.all || 0}</Badge>
               </Button>
@@ -347,7 +351,7 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        {/* Tabla de Productos y Filtros */}
+        {/* Tabla de Productos */}
         <Card className="lg:col-span-9 shadow-sm border-primary/10 overflow-hidden no-print">
           <CardHeader className="pb-4 border-b bg-muted/10">
             <div className="flex flex-col md:flex-row gap-4 justify-between">
@@ -361,7 +365,7 @@ export default function ProductsPage() {
                 />
               </div>
               <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold h-10" onClick={handleGenerateCodes}>
-                <Sparkles className="h-4 w-4" /> Generar Códigos
+                <Sparkles className="h-4 w-4" /> Códigos Automáticos
               </Button>
             </div>
           </CardHeader>
@@ -369,7 +373,7 @@ export default function ProductsPage() {
             {isLoading ? (
               <div className="p-20 text-center flex flex-col items-center gap-2">
                 <Loader2 className="animate-spin h-8 w-8 text-primary" />
-                <p className="text-sm text-muted-foreground font-medium">Sincronizando inventario...</p>
+                <p className="text-sm text-muted-foreground font-medium">Cargando inventario de tu tienda...</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -431,7 +435,7 @@ export default function ProductsPage() {
                               <DropdownMenuItem onSelect={() => handleOpenEdit(product)}>
                                 <Edit2 className="h-4 w-4 mr-2" /> Editar
                               </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => { if(confirm("¿Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'products', product.id)) }} className="text-destructive">
+                              <DropdownMenuItem onSelect={() => { if(confirm("¿Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'users', user?.uid!, 'products', product.id)) }} className="text-destructive">
                                 <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -439,16 +443,6 @@ export default function ProductsPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filtered.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-20">
-                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <Tag className="h-10 w-10 opacity-20" />
-                            <p className="text-sm italic">No se encontraron productos en esta categoría.</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -457,72 +451,38 @@ export default function ProductsPage() {
         </Card>
       </div>
 
-      {/* Vista de Impresión */}
-      <div className="print-only p-8 bg-white text-black">
-        <div className="flex justify-between items-end mb-6 border-b-2 border-black pb-4">
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tighter">LISTADO DE INVENTARIO</h1>
-            <p className="text-xs font-bold uppercase text-gray-600">Categoría: {selectedCategory === 'all' ? 'TODAS' : selectedCategory}</p>
-          </div>
-          <p className="text-xs font-bold">Fecha: {new Date().toLocaleDateString('es-AR')}</p>
-        </div>
-        <Table className="border-black">
-          <TableHeader>
-            <TableRow className="border-black bg-gray-100">
-              <TableHead className="text-black font-black uppercase text-[10px]">Cód.</TableHead>
-              <TableHead className="text-black font-black uppercase text-[10px]">Producto / Categoría</TableHead>
-              <TableHead className="text-black font-black uppercase text-[10px] text-right">Precio</TableHead>
-              <TableHead className="text-black font-black uppercase text-[10px] text-center">Stock</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(p => (
-              <TableRow key={p.id} className="border-black">
-                <TableCell className="font-mono text-xs font-bold">{p.code}</TableCell>
-                <TableCell>
-                  <div className="font-black text-sm uppercase">{p.name}</div>
-                  <div className="text-[9px] font-bold text-gray-500 uppercase">{p.category} - {p.subCategory}</div>
-                </TableCell>
-                <TableCell className="text-right font-black font-mono text-sm">${p.price.toFixed(2)}</TableCell>
-                <TableCell className="text-center font-black text-sm">{p.stock}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
       {/* Diálogos */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Modificación Masiva</DialogTitle>
-            <DialogDescription>Aplicar cambios a {selectedIds.length} productos seleccionados.</DialogDescription>
+            <DialogDescription>Cambios para {selectedIds.length} productos seleccionados.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label>Acción a Realizar</Label>
+              <Label>Acción</Label>
               <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="price_percent">Actualizar Precio (%)</SelectItem>
                   <SelectItem value="category">Cambiar Categoría</SelectItem>
-                  <SelectItem value="brand">Cambiar Marca/Subcat.</SelectItem>
+                  <SelectItem value="brand">Cambiar Marca</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Nuevo Valor / Porcentaje</Label>
+              <Label>Valor</Label>
               <Input 
                 value={bulkData.value} 
                 onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
-                placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15 para un 15% de aumento" : "Nuevo valor..."} 
+                placeholder="Nuevo valor o porcentaje..." 
               />
             </div>
           </div>
           <DialogFooter>
             <Button onClick={handleBulkUpdate} disabled={isSaving} className="w-full gap-2">
               {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} 
-              Aplicar Cambios Masivos
+              Aplicar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -540,14 +500,13 @@ export default function ProductsPage() {
                 <Input 
                   value={formProduct.code} 
                   maxLength={4} 
-                  placeholder="0000"
                   className="font-mono text-center"
                   onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} 
                 />
               </div>
               <div className="col-span-3 space-y-1">
-                <Label>Nombre del Equipo / Producto</Label>
-                <Input value={formProduct.name} placeholder="Ej: iPhone 15 Pro Max" onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
+                <Label>Nombre</Label>
+                <Input value={formProduct.name} onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -561,21 +520,21 @@ export default function ProductsPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Marca / Sub-categoría</Label>
-                <Input value={formProduct.subCategory} placeholder="Ej: Apple" onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
+                <Label>Marca</Label>
+                <Input value={formProduct.subCategory} onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
-                <Label>Precio ($)</Label>
+                <Label>Precio</Label>
                 <Input type="number" value={formProduct.price || ""} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
-                <Label>Stock Actual</Label>
+                <Label>Stock</Label>
                 <Input type="number" value={formProduct.stock || ""} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
-                <Label>Aviso Mínimo</Label>
+                <Label>Mínimo</Label>
                 <Input type="number" value={formProduct.minStock || ""} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
@@ -583,29 +542,9 @@ export default function ProductsPage() {
           <DialogFooter>
             <Button onClick={handleSaveProduct} disabled={isSaving} className="w-full gap-2">
               {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} 
-              {isEditing ? "Actualizar Equipo" : "Registrar Equipo"}
+              Guardar en mi Tienda
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Importar Inventario desde Excel</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg text-xs space-y-2">
-              <p className="font-bold text-primary uppercase flex items-center gap-2"><FileUp className="h-3 w-3" /> Instrucciones:</p>
-              <p>El sistema reconocerá automáticamente columnas llamadas <b>Nombre</b> (o Producto) y <b>Precio</b>.</p>
-              <p>Si incluyes una columna <b>Stock</b> o <b>Categoría</b>, también se cargarán.</p>
-            </div>
-            <Input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportExcel} disabled={isImporting} ref={fileInputRef} />
-            {isImporting && <div className="flex flex-col items-center gap-2 py-4">
-              <Loader2 className="animate-spin h-6 w-6 text-primary" />
-              <p className="text-xs text-muted-foreground animate-pulse">Procesando archivo...</p>
-            </div>}
-          </div>
         </DialogContent>
       </Dialog>
     </div>
