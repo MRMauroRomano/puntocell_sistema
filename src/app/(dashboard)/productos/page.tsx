@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid, Smartphone, Battery } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid, Smartphone, Battery, Info } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -142,7 +142,7 @@ export default function ProductsPage() {
       description: formProduct.description || "",
       isActive: true,
       id: productId,
-      // Battery and storage only make sense for Celulares, but we store them if present
+      condition: formProduct.condition || "Nuevo",
       batteryHealth: formProduct.category === 'Celulares' ? (formProduct.batteryHealth || "") : "",
       storage: formProduct.category === 'Celulares' ? (formProduct.storage || "") : ""
     }
@@ -252,7 +252,7 @@ export default function ProductsPage() {
               code: String(normalized.codigo || normalized.code || Math.floor(1000 + Math.random() * 9000)).slice(0, 4),
               category: String(normalized.categoria || normalized.category || "Otros"),
               subCategory: String(normalized.marca || normalized.brand || ""),
-              condition: 'Nuevo',
+              condition: String(normalized.condicion || normalized.condition || "Nuevo"),
               stock,
               minStock: Number(normalized.minimo || 5),
               isActive: true,
@@ -406,11 +406,16 @@ export default function ProductsPage() {
                         </TableCell>
                         <TableCell><Badge variant="outline" className="font-mono text-xs font-bold">{product.code || "----"}</Badge></TableCell>
                         <TableCell>
-                          <div className="font-bold text-sm">{product.name}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm">{product.name}</span>
+                            <Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[9px] h-4 font-black uppercase">
+                              {product.condition}
+                            </Badge>
+                          </div>
                           <div className="text-[10px] text-muted-foreground uppercase font-black">
                             {product.category} • {product.subCategory}
                             {product.category === 'Celulares' && product.storage && ` • ${product.storage}`}
-                            {product.category === 'Celulares' && product.batteryHealth && ` • Batería: ${product.batteryHealth}`}
+                            {product.category === 'Celulares' && product.batteryHealth && ` • Bat: ${product.batteryHealth}`}
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
@@ -465,51 +470,78 @@ export default function ProductsPage() {
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl">
-          <DialogHeader><DialogTitle>{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle></DialogHeader>
+        <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-headline flex items-center gap-2">
+              {isEditing ? <Edit2 className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+              {isEditing ? "Editar" : "Nuevo"} Producto
+            </DialogTitle>
+          </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 gap-4">
               <div className="col-span-1 space-y-1">
-                <Label>Código</Label>
-                <Input value={formProduct.code} maxLength={4} className="font-mono text-center" onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} />
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Código</Label>
+                <Input value={formProduct.code} maxLength={4} className="font-mono text-center font-bold" onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} />
               </div>
               <div className="col-span-3 space-y-1">
-                <Label>Nombre</Label>
-                <Input value={formProduct.name} onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Nombre del Producto</Label>
+                <Input value={formProduct.name} placeholder="Ej: iPhone 13 Pro Max" onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
               </div>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>Categoría</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Categoría</Label>
                 <Select value={formProduct.category} onValueChange={v => setFormProduct({...formProduct, category: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Marca / Subcategoría</Label>
-                <Input value={formProduct.subCategory} onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Marca / Modelo</Label>
+                <Input value={formProduct.subCategory} placeholder="Ej: Apple" onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
               </div>
             </div>
 
-            {/* Conditional fields for Celulares */}
+            {/* Conditional fields for Celulares - Now including Condition */}
             {formProduct.category === 'Celulares' && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
+              <div className="space-y-3 p-4 bg-primary/5 rounded-xl border-2 border-primary/10">
+                <div className="flex items-center gap-2 text-primary mb-2">
+                  <Smartphone className="h-4 w-4" />
+                  <span className="text-xs font-black uppercase tracking-wider">Especificaciones de Celular</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase flex items-center gap-1"><Info className="h-3 w-3" /> Estado / Subcat.</Label>
+                    <Select value={formProduct.condition} onValueChange={v => setFormProduct({...formProduct, condition: v as any})}>
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Nuevo">Celular Nuevo</SelectItem>
+                        <SelectItem value="Usado">Celular Usado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase flex items-center gap-1"><Smartphone className="h-3 w-3" /> Memoria (GB)</Label>
+                    <Input 
+                      placeholder="Ej: 128GB" 
+                      className="bg-white"
+                      value={formProduct.storage} 
+                      onChange={e => setFormProduct({...formProduct, storage: e.target.value})} 
+                    />
+                  </div>
+                </div>
+                
                 <div className="space-y-1">
-                  <Label className="flex items-center gap-2"><Battery className="h-3 w-3" /> Condición Batería (%)</Label>
+                  <Label className="text-[10px] font-black uppercase flex items-center gap-1"><Battery className="h-3 w-3" /> Salud de Batería (%)</Label>
                   <Input 
-                    placeholder="Ej: 100%" 
+                    placeholder="Ej: 100% o 85%" 
+                    className="bg-white"
                     value={formProduct.batteryHealth} 
                     onChange={e => setFormProduct({...formProduct, batteryHealth: e.target.value})} 
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="flex items-center gap-2"><Smartphone className="h-3 w-3" /> Almacenamiento (GB)</Label>
-                  <Input 
-                    placeholder="Ej: 128GB" 
-                    value={formProduct.storage} 
-                    onChange={e => setFormProduct({...formProduct, storage: e.target.value})} 
                   />
                 </div>
               </div>
@@ -517,33 +549,37 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
-                <Label>Precio</Label>
-                <Input type="number" value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Precio ($)</Label>
+                <Input type="number" className="font-bold text-primary" value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
-                <Label>Stock</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Stock Act.</Label>
                 <Input type="number" value={formProduct.stock} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
-                <Label>Mínimo</Label>
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Aviso Mín.</Label>
                 <Input type="number" value={formProduct.minStock} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
             
-            <div className="space-y-1">
-              <Label>Condición</Label>
-              <Select value={formProduct.condition} onValueChange={v => setFormProduct({...formProduct, condition: v as any})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Nuevo">Nuevo</SelectItem>
-                  <SelectItem value="Usado">Usado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {formProduct.category !== 'Celulares' && (
+              <div className="space-y-1">
+                <Label className="text-xs uppercase font-bold text-muted-foreground">Condición</Label>
+                <Select value={formProduct.condition} onValueChange={v => setFormProduct({...formProduct, condition: v as any})}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Nuevo">Nuevo</SelectItem>
+                    <SelectItem value="Usado">Usado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleSaveProduct} disabled={isSaving} className="w-full gap-2">
-              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Guardar Producto
+          <DialogFooter className="pt-4 border-t mt-2">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">Cancelar</Button>
+            <Button onClick={handleSaveProduct} disabled={isSaving} className="flex-1 gap-2 shadow-lg">
+              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} 
+              {isEditing ? "Actualizar" : "Guardar"} Producto
             </Button>
           </DialogFooter>
         </DialogContent>
