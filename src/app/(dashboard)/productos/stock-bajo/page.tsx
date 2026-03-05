@@ -7,13 +7,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2, AlertTriangle, PackageSearch } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase"
 import { collection } from "firebase/firestore"
 
 export default function LowStockPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
 
-  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const productsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'products') : null, 
+  [firestore, user])
   const { data: products, isLoading } = useCollection<Product>(productsRef)
 
   const lowStockProducts = useMemo(() => {

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { Calendar, Download, TrendingUp, DollarSign, Package, Users, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase"
 import { collection } from "firebase/firestore"
 import { Product, Sale } from "@/lib/types"
 
@@ -15,11 +15,16 @@ const COLORS = ['#A7D1AB', '#859F87', '#34D399', '#059669'];
 
 export default function ReportsPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
 
-  const productsRef = useMemoFirebase(() => collection(firestore, 'products'), [firestore])
+  const productsRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'products') : null, 
+  [firestore, user])
   const { data: products, isLoading: isProductsLoading } = useCollection<Product>(productsRef)
 
-  const salesRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore])
+  const salesRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'sales') : null, 
+  [firestore, user])
   const { data: sales, isLoading: isSalesLoading } = useCollection<Sale>(salesRef)
 
   const conditionData = useMemo(() => {

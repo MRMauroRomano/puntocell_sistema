@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Printer, RotateCcw, Eye, Loader2, Trash2, Calendar as CalendarIcon, FileText } from "lucide-react"
 import { Sale, Product } from "@/lib/types"
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, getDoc } from "firebase/firestore"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
@@ -20,13 +20,16 @@ import { cn } from "@/lib/utils"
 
 export default function SalesHistoryPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false)
   const [isReturning, setIsReturning] = useState(false)
 
-  const salesRef = useMemoFirebase(() => collection(firestore, 'sales'), [firestore])
+  const salesRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'sales') : null, 
+  [firestore, user])
   const { data: sales, isLoading } = useCollection<Sale>(salesRef)
 
   const filteredSales = useMemo(() => {
@@ -44,11 +47,11 @@ export default function SalesHistoryPage() {
   }
 
   const handleReturnSale = async (sale: Sale) => {
-    if (sale.status === 'returned') return
+    if (!user || sale.status === 'returned') return
     setIsReturning(true)
     try {
       for (const item of sale.items) {
-        const productRef = doc(firestore, 'products', item.productId)
+        const productRef = doc(firestore, 'users', user.uid, 'products', item.productId)
         const productSnap = await getDoc(productRef)
         if (productSnap.exists()) {
           const currentStock = productSnap.data().stock || 0
@@ -57,7 +60,7 @@ export default function SalesHistoryPage() {
       }
 
       if (sale.paymentMethod === 'credit_account' && sale.customerId && sale.customerId !== 'final') {
-        const customerRef = doc(firestore, 'customers', sale.customerId)
+        const customerRef = doc(firestore, 'users', user.uid, 'customers', sale.customerId)
         const customerSnap = await getDoc(customerRef)
         if (customerSnap.exists()) {
           const currentBalance = customerSnap.data().balance || 0
@@ -65,7 +68,7 @@ export default function SalesHistoryPage() {
         }
       }
 
-      const saleDocRef = doc(firestore, 'sales', sale.id)
+      const saleDocRef = doc(firestore, 'users', user.uid, 'sales', sale.id)
       updateDocumentNonBlocking(saleDocRef, { status: 'returned' })
 
       toast({

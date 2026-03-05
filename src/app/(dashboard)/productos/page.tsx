@@ -210,8 +210,10 @@ export default function ProductsPage() {
     if (!user) return
     const file = e.target.files?.[0]
     if (!file) return
+    
     setIsImporting(true)
     const reader = new FileReader()
+    
     reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target?.result as ArrayBuffer)
@@ -219,42 +221,65 @@ export default function ProductsPage() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const jsonData = XLSX.utils.sheet_to_json(sheet) as any[]
         
+        if (jsonData.length === 0) {
+          toast({ variant: "destructive", title: "Archivo vacío", description: "No se encontraron datos en el Excel." })
+          setIsImporting(false)
+          return
+        }
+
+        let importedCount = 0
         jsonData.forEach(row => {
+          // Normalizar nombres de columnas a minúsculas para mejor detección
           const normalized = Object.keys(row).reduce((acc: any, key) => {
             acc[key.toLowerCase().trim()] = row[key];
             return acc;
           }, {});
 
-          const name = normalized.nombre || normalized.name || normalized.producto || "";
-          const price = parseFloat(String(normalized.precio || normalized.price || "0").replace(/[^0-9.-]+/g, "")) || 0;
+          const name = normalized.nombre || normalized.name || normalized.producto || normalized.description || normalized.descripcion || "";
           
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
             const code = normalized.codigo || normalized.code || Math.floor(1000 + Math.random() * 9000).toString()
+            const price = parseFloat(String(normalized.precio || normalized.price || "0").replace(/[^0-9.-]+/g, "")) || 0;
+            const stock = Number(normalized.stock || normalized.cantidad || normalized.quantity) || 0;
+            const category = normalized.categoria || normalized.category || "Otros";
+            const subCategory = normalized.marca || normalized.brand || normalized.subcategoria || "";
+
             const pData: Product = {
               id,
               name: String(name),
               price,
               code: String(code).slice(0, 4),
-              category: normalized.categoria || normalized.category || "Otros",
-              subCategory: normalized.marca || normalized.brand || "",
+              category: String(category),
+              subCategory: String(subCategory),
               condition: 'Nuevo',
-              stock: Number(normalized.stock) || 0,
-              minStock: Number(normalized.minimo) || 5,
+              stock,
+              minStock: Number(normalized.minimo || normalized.min) || 5,
               isActive: true
             }
-            setDocumentNonBlocking(doc(firestore, 'users', user.uid, 'products', id), pData, { merge: true })
+            
+            const productRef = doc(firestore, 'users', user.uid, 'products', id)
+            setDocumentNonBlocking(productRef, pData, { merge: true })
+            importedCount++
           }
         })
-        toast({ title: "Importación finalizada" })
+        
+        toast({ title: "Importación finalizada", description: `Se cargaron ${importedCount} productos.` })
         setIsImportDialogOpen(false)
       } catch (err) {
-        toast({ variant: "destructive", title: "Error al importar" })
+        console.error("Error importando:", err)
+        toast({ variant: "destructive", title: "Error al importar", description: "Verifica el formato del archivo." })
       } finally {
         setIsImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
     }
+    
+    reader.onerror = () => {
+      toast({ variant: "destructive", title: "Error de lectura", description: "No se pudo leer el archivo." })
+      setIsImporting(false)
+    }
+    
     reader.readAsArrayBuffer(file)
   }
 
@@ -277,7 +302,18 @@ export default function ProductsPage() {
           </Button>
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrint}><Printer className="h-4 w-4" /> Imprimir</Button>
-          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => setIsImportDialogOpen(true)}><FileUp className="h-4 w-4" /> Importar</Button>
+          
+          <input 
+            type="file" 
+            accept=".xlsx, .xls" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+          />
+          <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => fileInputRef.current?.click()}>
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} 
+            Importar
+          </Button>
           
           <AlertDialog>
             <AlertDialogTrigger asChild>

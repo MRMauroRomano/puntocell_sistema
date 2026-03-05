@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save } from "lucide-react"
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   
@@ -28,7 +29,9 @@ export default function CurrentAccountPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
 
-  const customersRef = useMemoFirebase(() => collection(firestore, 'customers'), [firestore])
+  const customersRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'customers') : null, 
+  [firestore, user])
   const { data: customers, isLoading } = useCollection<Customer>(customersRef)
 
   const filtered = useMemo(() => {
@@ -59,10 +62,10 @@ export default function CurrentAccountPage() {
 
   const handleProcessPayment = () => {
     const amount = parseFloat(paymentAmount)
-    if (!selectedCustomer || isNaN(amount) || amount <= 0) {
+    if (!user || !selectedCustomer || isNaN(amount) || amount <= 0) {
       toast({
         variant: "destructive",
-        title: "Monto inválido",
+        title: "Operación no válida",
         description: "Por favor, ingresa un monto válido para cobrar."
       })
       return
@@ -70,7 +73,7 @@ export default function CurrentAccountPage() {
 
     setIsSaving(true)
     const newBalance = Math.max(0, (selectedCustomer.balance || 0) - amount)
-    const customerRef = doc(firestore, 'customers', selectedCustomer.id)
+    const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
 
     try {
       updateDocumentNonBlocking(customerRef, {

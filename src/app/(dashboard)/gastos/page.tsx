@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search, Trash2, Wallet, Calendar, Loader2, Save, AlertCircle } from "lucide-react"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { Expense } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
@@ -31,13 +31,16 @@ const EXPENSE_CATEGORIES = [
 
 export default function ExpensesPage() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const expensesRef = useMemoFirebase(() => collection(firestore, 'expenses'), [firestore])
+  const expensesRef = useMemoFirebase(() => 
+    user ? collection(firestore, 'users', user.uid, 'expenses') : null, 
+  [firestore, user])
   const { data: expenses, isLoading } = useCollection<Expense>(expensesRef)
 
   const [formExpense, setFormExpense] = useState<Partial<Expense>>({
@@ -71,7 +74,7 @@ export default function ExpensesPage() {
   }, [expenses])
 
   const handleSaveExpense = () => {
-    if (!formExpense.description || !formExpense.amount || formExpense.amount <= 0) {
+    if (!user || !formExpense.description || !formExpense.amount || formExpense.amount <= 0) {
       toast({
         variant: "destructive",
         title: "Campos incompletos",
@@ -82,7 +85,7 @@ export default function ExpensesPage() {
 
     setIsSaving(true)
     const expenseId = Math.random().toString(36).substr(2, 9)
-    const expenseDocRef = doc(firestore, 'expenses', expenseId)
+    const expenseDocRef = doc(firestore, 'users', user.uid, 'expenses', expenseId)
 
     const expenseData = {
       ...formExpense,
@@ -114,8 +117,9 @@ export default function ExpensesPage() {
   }
 
   const handleDeleteExpense = (id: string) => {
+    if (!user) return
     if (confirm("¿Estás seguro de eliminar este registro de gasto?")) {
-      const docRef = doc(firestore, 'expenses', id)
+      const docRef = doc(firestore, 'users', user.uid, 'expenses', id)
       deleteDocumentNonBlocking(docRef)
       toast({ title: "Gasto eliminado" })
     }
