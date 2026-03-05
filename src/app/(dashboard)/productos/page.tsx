@@ -30,7 +30,6 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -127,14 +126,18 @@ export default function ProductsPage() {
     const productId = isEditing && currentId ? currentId : Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'users', user.uid, 'products', productId)
     
+    // Evitar undefined en campos numéricos
     const productData = {
       ...formProduct,
       price: Number(formProduct.price) || 0,
       stock: Number(formProduct.stock) || 0,
       minStock: Number(formProduct.minStock) || 0,
+      code: formProduct.code || Math.floor(1000 + Math.random() * 9000).toString(),
+      subCategory: formProduct.subCategory || "",
+      description: formProduct.description || "",
       isActive: true,
       id: productId
-    } as Product
+    }
 
     try {
       if (isEditing) {
@@ -221,40 +224,29 @@ export default function ProductsPage() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const jsonData = XLSX.utils.sheet_to_json(sheet) as any[]
         
-        if (jsonData.length === 0) {
-          toast({ variant: "destructive", title: "Archivo vacío", description: "No se encontraron datos en el Excel." })
-          setIsImporting(false)
-          return
-        }
-
         let importedCount = 0
         jsonData.forEach(row => {
-          // Normalizar nombres de columnas a minúsculas para mejor detección
           const normalized = Object.keys(row).reduce((acc: any, key) => {
             acc[key.toLowerCase().trim()] = row[key];
             return acc;
           }, {});
 
-          const name = normalized.nombre || normalized.name || normalized.producto || normalized.description || normalized.descripcion || "";
-          
+          const name = normalized.nombre || normalized.name || normalized.producto || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            const code = normalized.codigo || normalized.code || Math.floor(1000 + Math.random() * 9000).toString()
-            const price = parseFloat(String(normalized.precio || normalized.price || "0").replace(/[^0-9.-]+/g, "")) || 0;
-            const stock = Number(normalized.stock || normalized.cantidad || normalized.quantity) || 0;
-            const category = normalized.categoria || normalized.category || "Otros";
-            const subCategory = normalized.marca || normalized.brand || normalized.subcategoria || "";
+            const price = parseFloat(String(normalized.precio || normalized.price || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const stock = Number(normalized.stock || normalized.cantidad || 0)
 
-            const pData: Product = {
+            const pData = {
               id,
               name: String(name),
               price,
-              code: String(code).slice(0, 4),
-              category: String(category),
-              subCategory: String(subCategory),
+              code: String(normalized.codigo || normalized.code || Math.floor(1000 + Math.random() * 9000)).slice(0, 4),
+              category: String(normalized.categoria || normalized.category || "Otros"),
+              subCategory: String(normalized.marca || normalized.brand || ""),
               condition: 'Nuevo',
               stock,
-              minStock: Number(normalized.minimo || normalized.min) || 5,
+              minStock: Number(normalized.minimo || 5),
               isActive: true
             }
             
@@ -265,21 +257,13 @@ export default function ProductsPage() {
         })
         
         toast({ title: "Importación finalizada", description: `Se cargaron ${importedCount} productos.` })
-        setIsImportDialogOpen(false)
       } catch (err) {
-        console.error("Error importando:", err)
-        toast({ variant: "destructive", title: "Error al importar", description: "Verifica el formato del archivo." })
+        toast({ variant: "destructive", title: "Error al importar" })
       } finally {
         setIsImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
     }
-    
-    reader.onerror = () => {
-      toast({ variant: "destructive", title: "Error de lectura", description: "No se pudo leer el archivo." })
-      setIsImporting(false)
-    }
-    
     reader.readAsArrayBuffer(file)
   }
 
@@ -288,7 +272,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold font-headline text-primary">Mi Inventario</h1>
-          <p className="text-sm text-muted-foreground">Gestión de stock de tu tienda.</p>
+          <p className="text-sm text-muted-foreground">Gestión de stock y precios.</p>
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
@@ -303,16 +287,9 @@ export default function ProductsPage() {
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrint}><Printer className="h-4 w-4" /> Imprimir</Button>
           
-          <input 
-            type="file" 
-            accept=".xlsx, .xls" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleImportExcel} 
-          />
+          <input type="file" className="hidden" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" />
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={() => fileInputRef.current?.click()}>
-            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} 
-            Importar
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} Importar
           </Button>
           
           <AlertDialog>
@@ -324,84 +301,63 @@ export default function ProductsPage() {
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>¿Borrar todo el inventario?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta acción eliminará permanentemente todos los productos registrados en TU TIENDA. No se puede revertir.
-                </AlertDialogDescription>
+                <AlertDialogDescription>Esta acción eliminará todos los productos registrados. No se puede deshacer.</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Confirmar Eliminación
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleDeleteAll} className="bg-destructive text-white hover:bg-destructive/90">Confirmar</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
 
-          <Button className="flex-1 sm:flex-none gap-2 shadow-sm" onClick={handleOpenAdd}><Plus className="h-4 w-4" /> Nuevo</Button>
+          <Button className="flex-1 sm:flex-none gap-2 shadow-md" onClick={handleOpenAdd}><Plus className="h-4 w-4" /> Nuevo</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Menú de Categorías Lateral */}
         <Card className="lg:col-span-3 border-primary/10 shadow-sm no-print sticky top-6">
           <CardHeader className="pb-3 border-b bg-muted/20">
-            <CardTitle className="text-sm font-black uppercase tracking-wider text-primary flex items-center gap-2">
-              <Tag className="h-4 w-4" /> Categorías
-            </CardTitle>
+            <CardTitle className="text-sm font-black uppercase tracking-wider text-primary flex items-center gap-2"><Tag className="h-4 w-4" /> Categorías</CardTitle>
           </CardHeader>
           <CardContent className="p-2">
             <nav className="flex flex-col gap-1">
               <Button 
                 variant={selectedCategory === 'all' ? 'secondary' : 'ghost'} 
-                className={cn(
-                  "justify-between font-bold h-10 px-3",
-                  selectedCategory === 'all' && "bg-primary/10 text-primary hover:bg-primary/20"
-                )}
+                className={cn("justify-between font-bold h-10 px-3", selectedCategory === 'all' && "bg-primary/10 text-primary")}
                 onClick={() => setSelectedCategory('all')}
               >
-                <div className="flex items-center gap-2">
-                  <LayoutGrid className="h-4 w-4" />
-                  <span>Todos</span>
-                </div>
-                <Badge variant="outline" className="h-5 min-w-5 justify-center font-mono">{categoryCounts.all || 0}</Badge>
+                <div className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" /><span>Todos</span></div>
+                <Badge variant="outline" className="h-5 min-w-5 justify-center bg-white">{categoryCounts.all || 0}</Badge>
               </Button>
-              <div className="h-px bg-muted my-1" />
               {CATEGORIES.map(cat => (
                 <Button 
                   key={cat}
                   variant={selectedCategory === cat ? 'secondary' : 'ghost'} 
-                  className={cn(
-                    "justify-between font-medium h-10 px-3",
-                    selectedCategory === cat && "bg-primary/10 text-primary hover:bg-primary/20"
-                  )}
+                  className={cn("justify-between font-medium h-10 px-3", selectedCategory === cat && "bg-primary/10 text-primary")}
                   onClick={() => setSelectedCategory(cat)}
                 >
-                  <div className="flex items-center gap-2">
-                    <ChevronRight className={cn("h-3 w-3 transition-transform", selectedCategory === cat ? "rotate-90 text-primary" : "text-muted-foreground")} />
-                    <span>{cat}</span>
-                  </div>
-                  <Badge variant="outline" className="h-5 min-w-5 justify-center font-mono bg-white">{categoryCounts[cat] || 0}</Badge>
+                  <div className="flex items-center gap-2"><ChevronRight className={cn("h-3 w-3 transition-transform", selectedCategory === cat && "rotate-90")} /><span>{cat}</span></div>
+                  <Badge variant="outline" className="h-5 min-w-5 justify-center bg-white">{categoryCounts[cat] || 0}</Badge>
                 </Button>
               ))}
             </nav>
           </CardContent>
         </Card>
 
-        {/* Tabla de Productos */}
-        <Card className="lg:col-span-9 shadow-sm border-primary/10 overflow-hidden no-print">
+        <Card className="lg:col-span-9 shadow-sm border-primary/10 overflow-hidden">
           <CardHeader className="pb-4 border-b bg-muted/10">
             <div className="flex flex-col md:flex-row gap-4 justify-between">
               <div className="relative w-full sm:max-w-md">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Buscar por código, nombre o marca..." 
-                  className="pl-9 bg-white border-primary/20 focus-visible:ring-primary" 
+                  placeholder="Buscar por código o nombre..." 
+                  className="pl-9 bg-white" 
                   value={searchTerm} 
                   onChange={(e) => setSearchTerm(e.target.value)} 
                 />
               </div>
-              <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold h-10" onClick={handleGenerateCodes}>
-                <Sparkles className="h-4 w-4" /> Códigos Automáticos
+              <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold no-print" onClick={handleGenerateCodes}>
+                <Sparkles className="h-4 w-4" /> Generar Códigos
               </Button>
             </div>
           </CardHeader>
@@ -409,14 +365,14 @@ export default function ProductsPage() {
             {isLoading ? (
               <div className="p-20 text-center flex flex-col items-center gap-2">
                 <Loader2 className="animate-spin h-8 w-8 text-primary" />
-                <p className="text-sm text-muted-foreground font-medium">Cargando inventario de tu tienda...</p>
+                <p className="text-sm text-muted-foreground">Cargando inventario...</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead className="w-12">
+                      <TableHead className="w-12 no-print">
                         <Checkbox 
                           checked={selectedIds.length === filtered.length && filtered.length > 0} 
                           onCheckedChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(p => p.id))} 
@@ -424,56 +380,37 @@ export default function ProductsPage() {
                       </TableHead>
                       <TableHead className="w-24">Cód.</TableHead>
                       <TableHead>Producto</TableHead>
-                      <TableHead>Estado</TableHead>
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead className="text-center">Stock</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
+                      <TableHead className="text-right no-print">Acción</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((product) => (
-                      <TableRow key={product.id} className={cn("hover:bg-primary/5 transition-colors", selectedIds.includes(product.id) && "bg-primary/5")}>
-                        <TableCell>
+                      <TableRow key={product.id} className={cn(selectedIds.includes(product.id) && "bg-primary/5")}>
+                        <TableCell className="no-print">
                           <Checkbox 
                             checked={selectedIds.includes(product.id)} 
                             onCheckedChange={() => setSelectedIds(prev => prev.includes(product.id) ? prev.filter(i => i !== product.id) : [...prev, product.id])} 
                           />
                         </TableCell>
-                        <TableCell><Badge variant="outline" className="font-mono text-xs font-bold border-primary/20">{product.code || "----"}</Badge></TableCell>
+                        <TableCell><Badge variant="outline" className="font-mono text-xs font-bold">{product.code || "----"}</Badge></TableCell>
                         <TableCell>
                           <div className="font-bold text-sm">{product.name}</div>
                           <div className="text-[10px] text-muted-foreground uppercase font-black">{product.category} • {product.subCategory}</div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={product.condition === 'Nuevo' ? 'default' : 'secondary'} className="text-[10px] uppercase font-black">
-                            {product.condition}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-black text-sm text-primary">
-                          ${product.price.toFixed(2)}
-                        </TableCell>
+                        <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          <Badge 
-                            variant={product.stock < product.minStock ? "destructive" : "outline"} 
-                            className={cn("font-bold min-w-[30px] justify-center", product.stock < product.minStock ? "animate-pulse" : "")}
-                          >
-                            {product.stock}
-                          </Badge>
+                          <Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="font-bold">{product.stock}</Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right no-print">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onSelect={() => handleOpenEdit(product)}>
-                                <Edit2 className="h-4 w-4 mr-2" /> Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => { if(confirm("¿Eliminar producto?")) deleteDocumentNonBlocking(doc(firestore, 'users', user?.uid!, 'products', product.id)) }} className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleOpenEdit(product)}><Edit2 className="h-4 w-4 mr-2" /> Editar</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => { if(confirm("¿Eliminar?")) deleteDocumentNonBlocking(doc(firestore, 'users', user?.uid!, 'products', product.id)) }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" /> Eliminar</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -487,13 +424,9 @@ export default function ProductsPage() {
         </Card>
       </div>
 
-      {/* Diálogos */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Modificación Masiva</DialogTitle>
-            <DialogDescription>Cambios para {selectedIds.length} productos seleccionados.</DialogDescription>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Modificación Masiva</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Acción</Label>
@@ -508,37 +441,23 @@ export default function ProductsPage() {
             </div>
             <div className="space-y-2">
               <Label>Valor</Label>
-              <Input 
-                value={bulkData.value} 
-                onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
-                placeholder="Nuevo valor o porcentaje..." 
-              />
+              <Input value={bulkData.value} onChange={(e) => setBulkData({...bulkData, value: e.target.value})} placeholder="Ej: 15" />
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleBulkUpdate} disabled={isSaving} className="w-full gap-2">
-              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />} 
-              Aplicar Cambios
-            </Button>
+            <Button onClick={handleBulkUpdate} disabled={isSaving} className="w-full">Aplicar a {selectedIds.length} productos</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[500px] rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-headline">{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 gap-4">
               <div className="col-span-1 space-y-1">
                 <Label>Código</Label>
-                <Input 
-                  value={formProduct.code} 
-                  maxLength={4} 
-                  className="font-mono text-center"
-                  onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} 
-                />
+                <Input value={formProduct.code} maxLength={4} className="font-mono text-center" onChange={e => setFormProduct({...formProduct, code: e.target.value.replace(/\D/g, '')})} />
               </div>
               <div className="col-span-3 space-y-1">
                 <Label>Nombre</Label>
@@ -550,9 +469,7 @@ export default function ProductsPage() {
                 <Label>Categoría</Label>
                 <Select value={formProduct.category} onValueChange={v => setFormProduct({...formProduct, category: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
+                  <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
@@ -563,22 +480,21 @@ export default function ProductsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Precio</Label>
-                <Input type="number" value={formProduct.price || ""} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
+                <Input type="number" value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
                 <Label>Stock</Label>
-                <Input type="number" value={formProduct.stock || ""} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
+                <Input type="number" value={formProduct.stock} onChange={e => setFormProduct({...formProduct, stock: Number(e.target.value)})} />
               </div>
               <div className="space-y-1">
                 <Label>Mínimo</Label>
-                <Input type="number" value={formProduct.minStock || ""} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
+                <Input type="number" value={formProduct.minStock} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
           </div>
           <DialogFooter>
             <Button onClick={handleSaveProduct} disabled={isSaving} className="w-full gap-2">
-              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} 
-              Guardar en mi Tienda
+              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Guardar Producto
             </Button>
           </DialogFooter>
         </DialogContent>
