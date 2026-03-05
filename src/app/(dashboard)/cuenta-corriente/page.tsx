@@ -6,15 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save } from "lucide-react"
+import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import { Customer } from "@/lib/types"
+import { Customer, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
@@ -27,6 +28,7 @@ export default function CurrentAccountPage() {
   const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState<string>("")
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSaving, setIsSaving] = useState(false)
 
   const customersRef = useMemoFirebase(() => 
@@ -52,6 +54,7 @@ export default function CurrentAccountPage() {
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
     setPaymentAmount("")
+    setPaymentMethod('cash')
     setIsPayDialogOpen(true)
   }
 
@@ -82,7 +85,7 @@ export default function CurrentAccountPage() {
       
       toast({
         title: "Pago registrado",
-        description: `Se cobraron $${amount.toFixed(2)} a ${selectedCustomer.name}.`
+        description: `Se cobraron $${amount.toFixed(2)} a ${selectedCustomer.name} vía ${paymentMethod}.`
       })
       setIsPayDialogOpen(false)
     } catch (error) {
@@ -210,13 +213,6 @@ export default function CurrentAccountPage() {
                           </TableCell>
                         </TableRow>
                       ))}
-                      {filtered.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic">
-                            No hay clientes con deuda para mostrar.
-                          </TableCell>
-                        </TableRow>
-                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -230,15 +226,34 @@ export default function CurrentAccountPage() {
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Registrar Cobro</DialogTitle>
+            <DialogTitle className="font-headline">Registrar Cobro de Deuda</DialogTitle>
             <DialogDescription>
-              Registra un pago realizado por {selectedCustomer?.name}. El monto se descontará de su saldo actual.
+              Registra cómo el cliente {selectedCustomer?.name} abona su deuda.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
                <span className="text-xs font-bold text-red-800 uppercase">Deuda Actual</span>
                <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toFixed(2)}</span>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="method">Medio de Pago</Label>
+              <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
+                <SelectTrigger id="method">
+                  <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" /> <SelectValue /></div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Efectivo</SelectItem>
+                  <SelectItem value="transfer">Transferencia</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="visa">Tarjeta Visa</SelectItem>
+                  <SelectItem value="mastercard">Mastercard</SelectItem>
+                  <SelectItem value="cabal">Cabal</SelectItem>
+                  <SelectItem value="premier">Premier</SelectItem>
+                  <SelectItem value="paselibre">Pase Libre</SelectItem>
+                  <SelectItem value="debit">Débito</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment">Monto a Cobrar ($)</Label>
@@ -266,9 +281,9 @@ export default function CurrentAccountPage() {
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="font-headline text-xl">Estado de Cuenta</DialogTitle>
+            <DialogTitle className="font-headline text-xl">Estado de Cuenta Detallado</DialogTitle>
             <DialogDescription>
-              Resumen detallado de la situación financiera del cliente.
+              Situación financiera actual del cliente en tu tienda.
             </DialogDescription>
           </DialogHeader>
           {selectedCustomer && (

@@ -31,7 +31,18 @@ export interface SaleItem {
   subtotal: number;
 }
 
-export type PaymentMethod = 'cash' | 'debit' | 'credit_card' | 'transfer' | 'credit_account';
+export type PaymentMethod = 
+  | 'cash' 
+  | 'debit' 
+  | 'transfer' 
+  | 'credit_account' 
+  | 'cheque' 
+  | 'visa' 
+  | 'mastercard' 
+  | 'cabal' 
+  | 'premier' 
+  | 'paselibre';
+
 export type InvoiceType = 'factura_a' | 'factura_b' | 'ticket';
 
 export interface Sale {
@@ -76,6 +87,7 @@ export interface AccountTransaction {
   amount: number;
   type: 'purchase' | 'payment';
   description: string;
+  paymentMethod?: PaymentMethod;
 }
 
 export interface BillingConfig {

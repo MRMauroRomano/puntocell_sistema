@@ -104,14 +104,13 @@ export default function SalesPage() {
     const saleRef = doc(firestore, 'users', user.uid, 'sales', saleId)
     const customer = customers?.find(c => c.id === selectedCustomerId)
     
-    // Evitar valores 'undefined' que rompen Firestore
     const saleData: Sale = {
       id: saleId,
       date: new Date().toISOString(),
       customerId: selectedCustomerId,
       customerName: selectedCustomerId === 'final' || !customer ? 'Consumidor Final' : customer.name,
       customerCuit: customer?.cuit || "Consumidor Final",
-      items: JSON.parse(JSON.stringify(cart)), // Deep copy para seguridad
+      items: JSON.parse(JSON.stringify(cart)),
       subtotal: Number(subtotalNet.toFixed(2)),
       tax: Number(tax.toFixed(2)),
       total: Number(total.toFixed(2)),
@@ -125,7 +124,6 @@ export default function SalesPage() {
     try {
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp() }, { merge: true })
       
-      // Actualizar stock de forma no bloqueante
       cart.forEach(item => {
         const p = products?.find(prod => prod.id === item.productId)
         if (p) {
@@ -134,7 +132,6 @@ export default function SalesPage() {
         }
       })
 
-      // Actualizar saldo de cliente si es cuenta corriente
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
         updateDocumentNonBlocking(customerRef, { balance: (customer.balance || 0) + total })
@@ -221,13 +218,6 @@ export default function SalesPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {filteredProducts.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                          No se encontraron productos.
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </TableBody>
                 </Table>
               )}
@@ -310,8 +300,14 @@ export default function SalesPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="cash">Efectivo</SelectItem>
-                          <SelectItem value="debit">Débito</SelectItem>
                           <SelectItem value="transfer">Transferencia</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                          <SelectItem value="visa">Tarjeta Visa</SelectItem>
+                          <SelectItem value="mastercard">Mastercard</SelectItem>
+                          <SelectItem value="cabal">Cabal</SelectItem>
+                          <SelectItem value="premier">Premier</SelectItem>
+                          <SelectItem value="paselibre">Pase Libre</SelectItem>
+                          <SelectItem value="debit">Débito</SelectItem>
                           <SelectItem value="credit_account" disabled={selectedCustomerId === 'final'}>Cta. Corriente</SelectItem>
                         </SelectContent>
                       </Select>

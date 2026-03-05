@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Search, Printer, RotateCcw, Eye, Loader2, Trash2, Calendar as CalendarIcon, FileText } from "lucide-react"
-import { Sale, Product } from "@/lib/types"
+import { Sale, Product, PaymentMethod } from "@/lib/types"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, getDoc } from "firebase/firestore"
 import { format } from "date-fns"
@@ -17,6 +17,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'EFECTIVO',
+  debit: 'DÉBITO',
+  transfer: 'TRANSFERENCIA',
+  cheque: 'CHEQUE',
+  visa: 'TARJETA VISA',
+  mastercard: 'MASTERCARD',
+  cabal: 'CABAL',
+  premier: 'PREMIER',
+  paselibre: 'PASE LIBRE',
+  credit_account: 'CUENTA CORRIENTE'
+};
 
 export default function SalesHistoryPage() {
   const firestore = useFirestore()
@@ -124,7 +137,7 @@ export default function SalesHistoryPage() {
                     <TableHead>Fecha</TableHead>
                     <TableHead>ID Venta</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Tipo</TableHead>
+                    <TableHead>Medio Pago</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -147,7 +160,7 @@ export default function SalesHistoryPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px] uppercase">
-                          {sale.invoiceType ? sale.invoiceType.replace('_', ' ') : 'TICKET'}
+                          {PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right font-black text-primary">
@@ -200,13 +213,6 @@ export default function SalesHistoryPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {filteredSales.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">
-                        No se encontraron registros de ventas.
-                      </TableCell>
-                    </TableRow>
-                  )}
                 </TableBody>
               </Table>
             </div>
@@ -298,8 +304,13 @@ export default function SalesHistoryPage() {
 
                 <div className="border-t-[2px] border-black p-6 flex justify-between items-end bg-gray-50">
                   <div className="text-[10px] font-bold space-y-2">
-                    <p className="uppercase text-gray-600">Observaciones: {selectedSale.status === 'returned' ? 'DEVOLUCIÓN DE MERCADERÍA' : (selectedSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO')}</p>
-                    <p className="italic">Comprobante generado desde CommerceManager Pro</p>
+                    <p className="uppercase text-gray-600">
+                      Medio de Pago: {PAYMENT_METHOD_LABELS[selectedSale.paymentMethod] || selectedSale.paymentMethod}
+                    </p>
+                    <p className="uppercase text-gray-600 italic">
+                      Observaciones: {selectedSale.status === 'returned' ? 'DEVOLUCIÓN DE MERCADERÍA' : (selectedSale.paymentMethod === 'credit_account' ? 'VENTA A CUENTA CORRIENTE' : 'VENTA CONTADO')}
+                    </p>
+                    <p className="italic">Comprobante generado desde TechStore Manager</p>
                   </div>
                   <div className="w-80 space-y-2">
                     <div className="flex justify-between border-b border-black/20 pb-1">
