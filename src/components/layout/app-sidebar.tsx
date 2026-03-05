@@ -10,7 +10,6 @@ import {
   ShoppingCart,
   Users,
   CreditCard,
-  BarChart3,
   Settings,
   ChevronRight,
   LogOut,
@@ -64,7 +63,6 @@ const navItems = [
   { title: "Clientes", icon: Users, href: "/clientes" },
   { title: "Gastos", icon: Wallet, href: "/gastos" },
   { title: "Cuenta Corriente", icon: CreditCard, href: "/cuenta-corriente" },
-  { title: "Reportes", icon: BarChart3, href: "/reportes" },
   { title: "Configuración", icon: Settings, href: "/configuracion" },
 ]
 
