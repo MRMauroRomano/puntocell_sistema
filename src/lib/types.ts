@@ -11,6 +11,8 @@ export interface Product {
   minStock: number;
   description?: string;
   isActive?: boolean;
+  batteryHealth?: string; // New field for battery health (e.g. 100%, 85%)
+  storage?: string; // New field for storage (e.g. 64GB, 128GB)
 }
 
 export interface Customer {

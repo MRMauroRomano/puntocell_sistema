@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid, Smartphone, Battery } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -52,7 +52,9 @@ export default function ProductsPage() {
     price: 0,
     stock: 0,
     minStock: 5,
-    description: ""
+    description: "",
+    batteryHealth: "",
+    storage: ""
   })
 
   const [bulkData, setBulkData] = useState({
@@ -94,7 +96,9 @@ export default function ProductsPage() {
       price: 0,
       stock: 0,
       minStock: 5,
-      description: ""
+      description: "",
+      batteryHealth: "",
+      storage: ""
     })
     setIsDialogOpen(true)
   }
@@ -111,7 +115,9 @@ export default function ProductsPage() {
       price: product.price,
       stock: product.stock,
       minStock: product.minStock,
-      description: product.description || ""
+      description: product.description || "",
+      batteryHealth: product.batteryHealth || "",
+      storage: product.storage || ""
     })
     setIsDialogOpen(true)
   }
@@ -126,7 +132,6 @@ export default function ProductsPage() {
     const productId = isEditing && currentId ? currentId : Math.random().toString(36).substr(2, 9)
     const productDocRef = doc(firestore, 'users', user.uid, 'products', productId)
     
-    // Evitar undefined en campos numéricos
     const productData = {
       ...formProduct,
       price: Number(formProduct.price) || 0,
@@ -136,7 +141,10 @@ export default function ProductsPage() {
       subCategory: formProduct.subCategory || "",
       description: formProduct.description || "",
       isActive: true,
-      id: productId
+      id: productId,
+      // Battery and storage only make sense for Celulares, but we store them if present
+      batteryHealth: formProduct.category === 'Celulares' ? (formProduct.batteryHealth || "") : "",
+      storage: formProduct.category === 'Celulares' ? (formProduct.storage || "") : ""
     }
 
     try {
@@ -247,7 +255,9 @@ export default function ProductsPage() {
               condition: 'Nuevo',
               stock,
               minStock: Number(normalized.minimo || 5),
-              isActive: true
+              isActive: true,
+              batteryHealth: normalized.bateria || normalized.battery || "",
+              storage: normalized.memoria || normalized.storage || normalized.gb || ""
             }
             
             const productRef = doc(firestore, 'users', user.uid, 'products', id)
@@ -397,7 +407,11 @@ export default function ProductsPage() {
                         <TableCell><Badge variant="outline" className="font-mono text-xs font-bold">{product.code || "----"}</Badge></TableCell>
                         <TableCell>
                           <div className="font-bold text-sm">{product.name}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase font-black">{product.category} • {product.subCategory}</div>
+                          <div className="text-[10px] text-muted-foreground uppercase font-black">
+                            {product.category} • {product.subCategory}
+                            {product.category === 'Celulares' && product.storage && ` • ${product.storage}`}
+                            {product.category === 'Celulares' && product.batteryHealth && ` • Batería: ${product.batteryHealth}`}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
@@ -451,7 +465,7 @@ export default function ProductsPage() {
       </Dialog>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] sm:max-w-[500px] rounded-xl">
+        <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl">
           <DialogHeader><DialogTitle>{isEditing ? "Editar" : "Nuevo"} Producto</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-4 gap-4">
@@ -464,6 +478,7 @@ export default function ProductsPage() {
                 <Input value={formProduct.name} onChange={e => setFormProduct({...formProduct, name: e.target.value})} />
               </div>
             </div>
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>Categoría</Label>
@@ -473,10 +488,33 @@ export default function ProductsPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Marca</Label>
+                <Label>Marca / Subcategoría</Label>
                 <Input value={formProduct.subCategory} onChange={e => setFormProduct({...formProduct, subCategory: e.target.value})} />
               </div>
             </div>
+
+            {/* Conditional fields for Celulares */}
+            {formProduct.category === 'Celulares' && (
+              <div className="grid grid-cols-2 gap-4 p-4 bg-primary/5 rounded-lg border border-primary/10">
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-2"><Battery className="h-3 w-3" /> Condición Batería (%)</Label>
+                  <Input 
+                    placeholder="Ej: 100%" 
+                    value={formProduct.batteryHealth} 
+                    onChange={e => setFormProduct({...formProduct, batteryHealth: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="flex items-center gap-2"><Smartphone className="h-3 w-3" /> Almacenamiento (GB)</Label>
+                  <Input 
+                    placeholder="Ej: 128GB" 
+                    value={formProduct.storage} 
+                    onChange={e => setFormProduct({...formProduct, storage: e.target.value})} 
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>Precio</Label>
@@ -490,6 +528,17 @@ export default function ProductsPage() {
                 <Label>Mínimo</Label>
                 <Input type="number" value={formProduct.minStock} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
+            </div>
+            
+            <div className="space-y-1">
+              <Label>Condición</Label>
+              <Select value={formProduct.condition} onValueChange={v => setFormProduct({...formProduct, condition: v as any})}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Nuevo">Nuevo</SelectItem>
+                  <SelectItem value="Usado">Usado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
