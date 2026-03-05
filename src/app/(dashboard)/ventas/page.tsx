@@ -16,7 +16,7 @@ import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
-const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
+const CATEGORIES = ["Celulares", "Fundas", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
 export default function SalesPage() {
   const firestore = useFirestore()
@@ -276,7 +276,7 @@ export default function SalesPage() {
           </Card>
         </div>
 
-        {/* Carrito de Compras (Fijo a la derecha) */}
+        {/* Carrito de Compras */}
         <div className="lg:col-span-4">
           <Card className="sticky top-6 border-primary/20 bg-white shadow-xl flex flex-col max-h-[calc(100vh-8rem)]">
             <CardHeader className="py-3 border-b bg-primary/5">

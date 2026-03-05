@@ -21,7 +21,7 @@ import * as XLSX from 'xlsx'
 import { cn } from "@/lib/utils"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
-const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
+const CATEGORIES = ["Celulares", "Fundas", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
 export default function ProductsPage() {
   const firestore = useFirestore()
