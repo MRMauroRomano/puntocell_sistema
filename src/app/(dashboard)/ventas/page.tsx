@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, FileText, CreditCard } from "lucide-react"
+import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, FileText, CreditCard, LayoutGrid, ChevronRight, Smartphone, Tag } from "lucide-react"
 import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -15,6 +15,8 @@ import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, u
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+
+const CATEGORIES = ["Celulares", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
 export default function SalesPage() {
   const firestore = useFirestore()
@@ -65,6 +67,15 @@ export default function SalesPage() {
       return matchesSearch && matchesCategory
     })
   }, [products, searchTerm, selectedCategory])
+
+  const categoryCounts = useMemo(() => {
+    if (!products) return {}
+    const counts: Record<string, number> = { all: products.length }
+    products.forEach(p => {
+      counts[p.category] = (counts[p.category] || 0) + 1
+    })
+    return counts
+  }, [products])
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -128,7 +139,6 @@ export default function SalesPage() {
         const p = products?.find(prod => prod.id === item.productId)
         if (p) {
           const productRef = doc(firestore, 'users', user.uid, 'products', item.productId)
-          // Actualización de stock: Permite valores negativos restando directamente la cantidad vendida
           updateDocumentNonBlocking(productRef, { stock: p.stock - item.quantity })
         }
       })
@@ -159,21 +169,58 @@ export default function SalesPage() {
   return (
     <div className="relative">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por código o nombre..." 
-                className="pl-9 bg-white" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
-              />
-            </div>
+        {/* Panel de Categorías Lateral */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card className="border-primary/10 shadow-sm overflow-hidden sticky top-6">
+            <CardHeader className="pb-3 border-b bg-muted/20">
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                <Tag className="h-4 w-4" /> Categorías
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-2">
+              <nav className="flex flex-col gap-1">
+                <Button 
+                  variant={selectedCategory === 'all' ? 'secondary' : 'ghost'} 
+                  className={cn("justify-between font-bold h-10 px-3 text-xs", selectedCategory === 'all' && "bg-primary/10 text-primary")}
+                  onClick={() => setSelectedCategory('all')}
+                >
+                  <div className="flex items-center gap-2"><LayoutGrid className="h-4 w-4" /><span>Todos</span></div>
+                  <Badge variant="outline" className="h-5 min-w-5 justify-center bg-white text-[10px]">{categoryCounts.all || 0}</Badge>
+                </Button>
+                {CATEGORIES.map(cat => (
+                  <Button 
+                    key={cat}
+                    variant={selectedCategory === cat ? 'secondary' : 'ghost'} 
+                    className={cn("justify-between font-medium h-10 px-3 text-xs", selectedCategory === cat && "bg-primary/10 text-primary")}
+                    onClick={() => setSelectedCategory(cat)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ChevronRight className={cn("h-3 w-3 transition-transform", selectedCategory === cat && "rotate-90")} />
+                      <span>{cat}</span>
+                    </div>
+                    <Badge variant="outline" className="h-5 min-w-5 justify-center bg-white text-[10px]">{categoryCounts[cat] || 0}</Badge>
+                  </Button>
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Listado de Productos */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por código o nombre..." 
+              className="pl-9 bg-white" 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+            />
           </div>
+          
           <Card className="shadow-sm border-primary/10 overflow-hidden">
             <CardHeader className="bg-muted/30 py-3">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-primary">Catálogo de Productos</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-primary">Catálogo</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {isProductsLoading ? (
@@ -185,24 +232,28 @@ export default function SalesPage() {
                 <Table>
                   <TableHeader className="bg-muted/10">
                     <TableRow>
-                      <TableHead className="w-20">Cód.</TableHead>
+                      <TableHead className="w-16">Cód.</TableHead>
                       <TableHead>Producto</TableHead>
                       <TableHead className="text-right">Precio</TableHead>
                       <TableHead className="text-center">Stock</TableHead>
-                      <TableHead className="text-right">Acción</TableHead>
+                      <TableHead className="text-right"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProducts.map(product => (
                       <TableRow key={product.id} className="hover:bg-primary/5">
-                        <TableCell className="font-mono text-xs font-bold">{product.code || "----"}</TableCell>
+                        <TableCell className="font-mono text-[10px] font-bold">{product.code || "----"}</TableCell>
                         <TableCell>
-                          <div className="font-bold text-sm">{product.name}</div>
-                          <div className="text-[10px] text-muted-foreground uppercase">{product.category}</div>
+                          <div className="font-bold text-sm leading-tight">{product.name}</div>
+                          <div className="text-[9px] text-muted-foreground uppercase flex items-center gap-1 mt-0.5">
+                            {product.category === 'Celulares' && <Smartphone className="h-2.5 w-2.5" />}
+                            {product.category} {product.subCategory && `• ${product.subCategory}`}
+                            {product.storage && `• ${product.storage}`}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-right font-black text-primary">${product.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-black text-primary text-sm">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          <Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="font-bold h-5 min-w-[30px] justify-center">
+                          <Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="font-bold h-4 text-[9px] min-w-[25px] justify-center">
                             {product.stock}
                           </Badge>
                         </TableCell>
@@ -210,11 +261,10 @@ export default function SalesPage() {
                           <Button 
                             size="sm" 
                             variant="secondary" 
-                            className="h-8 w-8 p-0" 
+                            className="h-7 w-7 p-0" 
                             onClick={() => addToCart(product)} 
-                            // Eliminado: disabled={product.stock <= 0} para permitir ventas sin stock previo
                           >
-                            <Plus className="h-4 w-4" />
+                            <Plus className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -226,14 +276,15 @@ export default function SalesPage() {
           </Card>
         </div>
 
+        {/* Carrito de Compras (Fijo a la derecha) */}
         <div className="lg:col-span-4">
           <Card className="sticky top-6 border-primary/20 bg-white shadow-xl flex flex-col max-h-[calc(100vh-8rem)]">
             <CardHeader className="py-3 border-b bg-primary/5">
-              <CardTitle className="text-base flex items-center gap-2 font-headline">
+              <CardTitle className="text-sm flex items-center gap-2 font-headline">
                 <ShoppingCart className="h-4 w-4 text-primary" /> Resumen de Venta
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 overflow-auto p-0 scrollbar-thin">
+            <CardContent className="flex-1 overflow-auto p-0">
               {cart.length === 0 ? (
                 <div className="p-12 text-center flex flex-col items-center gap-3">
                   <ShoppingCart className="h-8 w-8 text-muted-foreground opacity-20" />
@@ -244,16 +295,16 @@ export default function SalesPage() {
                   <TableBody>
                     {cart.map(item => (
                       <TableRow key={item.productId} className="hover:bg-transparent">
-                        <TableCell className="text-[11px] py-3">
-                          <div className="font-black uppercase tracking-tighter">{item.productName}</div>
-                          <div className="flex justify-between items-center mt-1">
-                            <span className="text-muted-foreground">${item.price.toFixed(2)} x{item.quantity}</span>
+                        <TableCell className="text-[10px] py-2">
+                          <div className="font-black uppercase tracking-tighter truncate max-w-[180px]">{item.productName}</div>
+                          <div className="flex justify-between items-center mt-0.5">
+                            <span className="text-muted-foreground font-medium">${item.price.toFixed(2)} x{item.quantity}</span>
                             <span className="font-bold text-primary">${item.subtotal.toFixed(2)}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-right py-3 w-10">
-                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-7 w-7 p-0 hover:bg-red-50">
-                            <Trash2 className="h-3.5 w-3.5" />
+                        <TableCell className="text-right py-2 w-8">
+                          <Button variant="ghost" size="sm" onClick={() => removeFromCart(item.productId)} className="text-destructive h-6 w-6 p-0 hover:bg-red-50">
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -274,7 +325,7 @@ export default function SalesPage() {
                 </div>
                 <div className="w-full flex justify-between items-center pt-1">
                   <span className="text-xs font-black uppercase">Total a Cobrar</span>
-                  <span className="text-3xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
+                  <span className="text-2xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
                 </div>
               </div>
               
@@ -327,7 +378,7 @@ export default function SalesPage() {
                  </div>
 
                 <Button 
-                  className="w-full h-12 text-base font-black uppercase tracking-wide shadow-lg" 
+                  className="w-full h-11 text-sm font-black uppercase tracking-wide shadow-lg" 
                   disabled={cart.length === 0 || isFinishing} 
                   onClick={handleFinishSale}
                 >
