@@ -24,6 +24,7 @@ export interface Customer {
   address?: string;
   balance: number; // Current debt
   accountType?: 'toti' | 'martin'; // New field for dividing accounts
+  notes?: string; // Observation notes for debt or deals
 }
 
 export interface SaleItem {

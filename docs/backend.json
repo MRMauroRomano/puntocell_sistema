@@ -89,6 +89,10 @@
           "type": "string",
           "description": "The identification document number of the customer (e.g., DNI, RUC)."
         },
+        "notes": {
+          "type": "string",
+          "description": "Observation notes for account deals."
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the customer record was created.",

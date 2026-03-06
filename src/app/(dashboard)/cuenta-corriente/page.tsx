@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter } from "lucide-react"
+import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -316,7 +316,7 @@ export default function CurrentAccountPage() {
 
       {/* Diálogo Estado de Cuenta */}
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-headline text-xl">Estado de Cuenta Detallado</DialogTitle>
             <DialogDescription>
@@ -343,6 +343,18 @@ export default function CurrentAccountPage() {
                     ${selectedCustomer.balance.toFixed(2)}
                  </p>
               </div>
+
+              {selectedCustomer.notes && (
+                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
+                  <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1">
+                    <Info className="h-3 w-3" /> Notas / Observaciones del Trato
+                  </p>
+                  <p className="text-sm mt-1 whitespace-pre-wrap text-amber-900 italic">
+                    "{selectedCustomer.notes}"
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <p className="text-xs font-bold uppercase text-muted-foreground">Información de Contacto</p>
                 <div className="text-sm space-y-1 bg-muted/20 p-3 rounded-lg">

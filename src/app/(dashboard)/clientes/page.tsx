@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function CustomersPage() {
   const firestore = useFirestore()
@@ -42,7 +43,8 @@ export default function CustomersPage() {
     phone: "",
     address: "",
     balance: 0,
-    accountType: "martin"
+    accountType: "martin",
+    notes: ""
   })
 
   const filtered = useMemo(() => {
@@ -65,7 +67,8 @@ export default function CustomersPage() {
       phone: "",
       address: "",
       balance: 0,
-      accountType: "martin"
+      accountType: "martin",
+      notes: ""
     })
     setIsDialogOpen(true)
   }
@@ -80,7 +83,8 @@ export default function CustomersPage() {
       phone: customer.phone,
       address: customer.address || "",
       balance: customer.balance,
-      accountType: customer.accountType || "martin"
+      accountType: customer.accountType || "martin",
+      notes: customer.notes || ""
     })
     setIsDialogOpen(true)
   }
@@ -103,7 +107,8 @@ export default function CustomersPage() {
       ...formCustomer,
       id: customerId,
       balance: Number(formCustomer.balance) || 0,
-      accountType: formCustomer.accountType || "martin"
+      accountType: formCustomer.accountType || "martin",
+      notes: formCustomer.notes || ""
     }
 
     try {
@@ -188,7 +193,7 @@ export default function CustomersPage() {
                 <UserPlus className="h-4 w-4" /> Nuevo Cliente
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-xl font-headline">
                   {isEditing ? "Editar Cliente" : "Registrar Cliente"}
@@ -252,6 +257,16 @@ export default function CustomersPage() {
                     type="email"
                     value={formCustomer.email}
                     onChange={(e) => setFormCustomer({...formCustomer, email: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notes">Notas / Observaciones de Deuda</Label>
+                  <Textarea 
+                    id="notes" 
+                    placeholder="Ej: Entregó iPhone 11 como parte de pago..." 
+                    className="min-h-[80px]"
+                    value={formCustomer.notes}
+                    onChange={(e) => setFormCustomer({...formCustomer, notes: e.target.value})}
                   />
                 </div>
               </div>
