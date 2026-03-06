@@ -175,7 +175,7 @@ export default function SalesPage() {
             <CardHeader className="pb-3 border-b bg-muted/20">
               <CardTitle className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-2">
                 <Tag className="h-4 w-4" /> Categorías
-              </CardTitle>
+              </Tag>
             </CardHeader>
             <CardContent className="p-2">
               <nav className="flex flex-col gap-1">
