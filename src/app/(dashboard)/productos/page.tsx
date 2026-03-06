@@ -164,7 +164,15 @@ export default function ProductsPage() {
   }
 
   const handleBulkUpdate = () => {
-    if (!user || selectedIds.length === 0 || !bulkData.value) return
+    if (!user || selectedIds.length === 0 || !bulkData.value) {
+      toast({
+        variant: "destructive",
+        title: "Faltan datos",
+        description: "Selecciona productos y define un valor para actualizar."
+      })
+      return
+    }
+
     setIsSaving(true)
     try {
       selectedIds.forEach(id => {
@@ -172,22 +180,29 @@ export default function ProductsPage() {
         if (!product) return
         const productRef = doc(firestore, 'users', user.uid, 'products', id)
         let update: any = {}
+        
         if (bulkData.actionType === 'price_percent') {
           const percent = parseFloat(bulkData.value)
           const newPrice = product.price * (1 + percent / 100)
           update = { price: Number(newPrice.toFixed(2)) }
+        } else if (bulkData.actionType === 'price_fixed') {
+          update = { price: Number(bulkData.value) }
         } else if (bulkData.actionType === 'category') {
           update = { category: bulkData.value }
-        } else if (bulkData.actionType === 'brand') {
-          update = { subCategory: bulkData.value }
         }
+        
         updateDocumentNonBlocking(productRef, update)
       })
-      toast({ title: "Actualización completada", description: `Se modificaron ${selectedIds.length} productos.` })
+      
+      toast({ 
+        title: "Actualización completada", 
+        description: `Se modificaron ${selectedIds.length} productos correctamente.` 
+      })
       setIsBulkDialogOpen(false)
       setSelectedIds([])
+      setBulkData({ actionType: 'price_percent', value: '' })
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar." })
+      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar masivamente." })
     } finally {
       setIsSaving(false)
     }
@@ -277,6 +292,14 @@ export default function ProductsPage() {
     reader.readAsArrayBuffer(file)
   }
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map(p => p.id))
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
@@ -287,12 +310,12 @@ export default function ProductsPage() {
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button 
-            variant="secondary" 
-            className={cn("flex-1 sm:flex-none gap-2 bg-amber-50 text-amber-700 hover:bg-amber-100", selectedIds.length === 0 && "opacity-50")} 
+            variant="default"
+            className={cn("flex-1 sm:flex-none gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-lg transition-all", selectedIds.length === 0 && "opacity-50 grayscale cursor-not-allowed")} 
             onClick={() => selectedIds.length > 0 && setIsBulkDialogOpen(true)}
             disabled={selectedIds.length === 0}
           >
-            <Layers className="h-4 w-4" /> Masivo ({selectedIds.length})
+            <Layers className="h-4 w-4" /> Modificación Masiva ({selectedIds.length})
           </Button>
 
           <Button variant="outline" className="flex-1 sm:flex-none gap-2" onClick={handlePrint}><Printer className="h-4 w-4" /> Imprimir</Button>
@@ -385,7 +408,7 @@ export default function ProductsPage() {
                       <TableHead className="w-12 no-print">
                         <Checkbox 
                           checked={selectedIds.length === filtered.length && filtered.length > 0} 
-                          onCheckedChange={() => setSelectedIds(selectedIds.length === filtered.length ? [] : filtered.map(p => p.id))} 
+                          onCheckedChange={toggleSelectAll} 
                         />
                       </TableHead>
                       <TableHead className="w-24">Cód.</TableHead>
@@ -443,32 +466,85 @@ export default function ProductsPage() {
         </Card>
       </div>
 
+      {/* Diálogo de Modificación Masiva */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader><DialogTitle>Modificación Masiva</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-600" />
+              Modificación Masiva
+            </DialogTitle>
+            <DialogDescription>
+              Estás modificando <strong>{selectedIds.length}</strong> productos seleccionados.
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label>Acción</Label>
+              <Label>¿Qué quieres cambiar?</Label>
               <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-muted/50">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="price_percent">Actualizar Precio (%)</SelectItem>
+                  <SelectItem value="price_percent">Aumentar Precio (%)</SelectItem>
+                  <SelectItem value="price_fixed">Asignar Precio Fijo ($)</SelectItem>
                   <SelectItem value="category">Cambiar Categoría</SelectItem>
-                  <SelectItem value="brand">Cambiar Marca</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            
             <div className="space-y-2">
-              <Label>Valor</Label>
-              <Input value={bulkData.value} onChange={(e) => setBulkData({...bulkData, value: e.target.value})} placeholder="Ej: 15" />
+              <Label>Nuevo Valor</Label>
+              {bulkData.actionType === 'category' ? (
+                <Select value={bulkData.value} onValueChange={(v) => setBulkData({...bulkData, value: v})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="relative">
+                  {bulkData.actionType === 'price_percent' ? (
+                    <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">%</span>
+                  ) : (
+                    <span className="absolute left-3 top-2.5 text-muted-foreground font-bold">$</span>
+                  )}
+                  <Input 
+                    type="number"
+                    className={cn(bulkData.actionType === 'price_percent' ? "pr-8" : "pl-8")}
+                    value={bulkData.value} 
+                    onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
+                    placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15" : "Ej: 1200.50"} 
+                  />
+                </div>
+              )}
             </div>
+            
+            {bulkData.actionType === 'price_percent' && (
+              <p className="text-[11px] text-muted-foreground italic">
+                * Usa valores negativos para descuentos (ej: -10).
+              </p>
+            )}
           </div>
-          <DialogFooter>
-            <Button onClick={handleBulkUpdate} disabled={isSaving} className="w-full">Aplicar a {selectedIds.length} productos</Button>
+          <DialogFooter className="flex flex-col gap-2">
+            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+            <Button 
+              onClick={handleBulkUpdate} 
+              disabled={isSaving || !bulkData.value} 
+              className="w-full bg-amber-600 hover:bg-amber-700"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+              Aplicar a {selectedIds.length} productos
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo de Producto Individual (Existente) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
@@ -503,7 +579,6 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Conditional fields for Celulares - Now including Condition */}
             {formProduct.category === 'Celulares' && (
               <div className="space-y-3 p-4 bg-primary/5 rounded-xl border-2 border-primary/10">
                 <div className="flex items-center gap-2 text-primary mb-2">
