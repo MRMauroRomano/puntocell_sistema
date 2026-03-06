@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, MapPin, Trash2, Edit2, FileText } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, MapPin, Trash2, Edit2, FileText, LayoutGrid } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function CustomersPage() {
   const firestore = useFirestore()
@@ -40,7 +41,8 @@ export default function CustomersPage() {
     email: "",
     phone: "",
     address: "",
-    balance: 0
+    balance: 0,
+    accountType: "martin"
   })
 
   const filtered = useMemo(() => {
@@ -62,7 +64,8 @@ export default function CustomersPage() {
       email: "",
       phone: "",
       address: "",
-      balance: 0
+      balance: 0,
+      accountType: "martin"
     })
     setIsDialogOpen(true)
   }
@@ -76,17 +79,18 @@ export default function CustomersPage() {
       email: customer.email,
       phone: customer.phone,
       address: customer.address || "",
-      balance: customer.balance
+      balance: customer.balance,
+      accountType: customer.accountType || "martin"
     })
     setIsDialogOpen(true)
   }
 
   const handleSaveCustomer = () => {
-    if (!user || !formCustomer.name || !formCustomer.cuit) {
+    if (!user || !formCustomer.name) {
       toast({
         variant: "destructive",
         title: "Campos obligatorios",
-        description: "El nombre y el CUIT son necesarios.",
+        description: "El nombre es necesario.",
       })
       return
     }
@@ -98,7 +102,8 @@ export default function CustomersPage() {
     const customerData = {
       ...formCustomer,
       id: customerId,
-      balance: Number(formCustomer.balance) || 0
+      balance: Number(formCustomer.balance) || 0,
+      accountType: formCustomer.accountType || "martin"
     }
 
     try {
@@ -199,7 +204,22 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cuit">CUIT / CUIL</Label>
+                  <Label htmlFor="accountType">Tipo de Cuenta</Label>
+                  <Select 
+                    value={formCustomer.accountType} 
+                    onValueChange={(v) => setFormCustomer({...formCustomer, accountType: v as any})}
+                  >
+                    <SelectTrigger id="accountType">
+                      <SelectValue placeholder="Seleccionar tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="martin">Fiados Martin</SelectItem>
+                      <SelectItem value="toti">Arreglos Toti</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cuit">CUIT / CUIL (Opcional)</Label>
                   <Input 
                     id="cuit" 
                     value={formCustomer.cuit}
@@ -274,8 +294,13 @@ export default function CustomersPage() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base truncate">{customer.name}</CardTitle>
-                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit}</p>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-base truncate">{customer.name}</CardTitle>
+                      <Badge variant="secondary" className="text-[9px] uppercase font-black">
+                        {customer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "---"}</p>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

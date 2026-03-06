@@ -23,6 +23,7 @@ export interface Customer {
   phone: string;
   address?: string;
   balance: number; // Current debt
+  accountType?: 'toti' | 'martin'; // New field for dividing accounts
 }
 
 export interface SaleItem {

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard } from "lucide-react"
+import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -16,12 +16,14 @@ import { useToast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
   const { user } = useUser()
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState<string>("martin")
   
   // Estados para diálogos
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -39,17 +41,23 @@ export default function CurrentAccountPage() {
   const filtered = useMemo(() => {
     if (!customers) return []
     return customers
-      .filter(c => 
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        c.id.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      .filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             c.id.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesType = (c.accountType || 'martin') === activeTab
+        return matchesSearch && matchesType
+      })
       .sort((a, b) => (b.balance || 0) - (a.balance || 0))
-  }, [customers, searchTerm])
+  }, [customers, searchTerm, activeTab])
 
-  const totalOutstanding = useMemo(() => {
-    if (!filtered) return 0
-    return filtered.reduce((acc, curr) => acc + (curr.balance || 0), 0)
-  }, [filtered])
+  const totalsByTab = useMemo(() => {
+    if (!customers) return { martin: 0, toti: 0 }
+    return customers.reduce((acc, curr) => {
+      const type = curr.accountType || 'martin'
+      acc[type] = (acc[type] || 0) + (curr.balance || 0)
+      return acc
+    }, { martin: 0, toti: 0 })
+  }, [customers])
 
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
@@ -108,7 +116,7 @@ export default function CurrentAccountPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
-          <p className="text-muted-foreground text-sm">Gestión de créditos, deudas y pagos parciales de clientes.</p>
+          <p className="text-muted-foreground text-sm">Gestión de créditos, deudas y pagos parciales.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={handlePrintList}>
@@ -119,19 +127,28 @@ export default function CurrentAccountPage() {
 
       <div className="grid gap-6 md:grid-cols-12">
         <div className="md:col-span-4 space-y-4 no-print">
-          <Card className="bg-primary/5 border-primary/20">
-             <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-bold uppercase text-primary/70">Deuda Total Cartera</CardTitle>
-             </CardHeader>
-             <CardContent>
-                <div className="text-3xl font-bold text-primary font-headline">${totalOutstanding.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground mt-1">Suma de todos los saldos pendientes</p>
-             </CardContent>
-          </Card>
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="bg-primary/5 border-primary/20">
+               <CardHeader className="pb-1 px-4 pt-4">
+                  <CardTitle className="text-[10px] font-black uppercase text-primary/70">Fiados Martin</CardTitle>
+               </CardHeader>
+               <CardContent className="px-4 pb-4">
+                  <div className="text-xl font-black text-primary font-headline">${totalsByTab.martin.toFixed(2)}</div>
+               </CardContent>
+            </Card>
+            <Card className="bg-amber-50 border-amber-200">
+               <CardHeader className="pb-1 px-4 pt-4">
+                  <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Arreglos Toti</CardTitle>
+               </CardHeader>
+               <CardContent className="px-4 pb-4">
+                  <div className="text-xl font-black text-amber-700 font-headline">${totalsByTab.toti.toFixed(2)}</div>
+               </CardContent>
+            </Card>
+          </div>
 
           <Card className="border-primary/10">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-headline">Filtros</CardTitle>
+              <CardTitle className="text-base font-headline">Buscador</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="relative">
@@ -148,77 +165,97 @@ export default function CurrentAccountPage() {
         </div>
 
         <div className="md:col-span-8">
-          <Card className="shadow-sm border-primary/10 overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10 py-4 px-6">
-               <div>
-                 <CardTitle className="text-lg font-headline">Saldos de Clientes</CardTitle>
-                 <CardDescription className="text-xs">Resumen de créditos vigentes</CardDescription>
-               </div>
-               {!isLoading && <Badge variant="secondary" className="font-bold">{filtered.length} Clientes</Badge>}
-            </CardHeader>
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-2">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-muted-foreground text-xs">Cargando cuentas...</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-muted/30">
-                      <TableRow>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead className="text-right">Saldo Pendiente</TableHead>
-                        <TableHead className="text-right no-print">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((customer) => (
-                        <TableRow key={customer.id} className="hover:bg-primary/5">
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                 <UserCircle className="h-5 w-5 text-primary" />
-                               </div>
-                               <div className="flex flex-col min-w-0">
-                                 <span className="font-bold text-sm truncate">{customer.name}</span>
-                                 <span className="text-[10px] text-muted-foreground font-mono">ID: {customer.id.slice(0, 8)}</span>
-                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                             <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
-                               ${(customer.balance || 0).toFixed(2)}
-                             </span>
-                          </TableCell>
-                          <TableCell className="text-right no-print">
-                             <div className="flex justify-end gap-1">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  className="h-8 px-2 gap-1 text-[11px]"
-                                  onClick={() => handleOpenStatus(customer)}
-                                >
-                                   <FileText className="h-3.5 w-3.5" /> Estado
-                                </Button>
-                                <Button 
-                                  variant="secondary" 
-                                  size="sm" 
-                                  className="h-8 px-2 gap-1 text-primary text-[11px] font-bold"
-                                  onClick={() => handleOpenPayment(customer)}
-                                >
-                                   <Wallet className="h-3.5 w-3.5" /> Cobrar
-                                </Button>
-                             </div>
-                          </TableCell>
+          <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50 p-1 no-print">
+              <TabsTrigger value="martin" className="font-black uppercase text-xs gap-2">
+                <Wallet className="h-3 w-3" /> Fiados Martin
+              </TabsTrigger>
+              <TabsTrigger value="toti" className="font-black uppercase text-xs gap-2">
+                <Filter className="h-3 w-3" /> Arreglos Toti
+              </TabsTrigger>
+            </TabsList>
+            
+            <Card className="shadow-sm border-primary/10 overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10 py-4 px-6">
+                 <div>
+                   <CardTitle className="text-lg font-headline">
+                     {activeTab === 'martin' ? 'Cartera de Fiados (Martin)' : 'Cartera de Arreglos (Toti)'}
+                   </CardTitle>
+                   <CardDescription className="text-xs">Saldos pendientes segmentados</CardDescription>
+                 </div>
+                 {!isLoading && <Badge variant="secondary" className="font-bold">{filtered.length} Clientes</Badge>}
+              </CardHeader>
+              <CardContent className="p-0">
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-2">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground text-xs">Cargando cuentas...</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader className="bg-muted/30">
+                        <TableRow>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead className="text-right">Saldo Pendiente</TableHead>
+                          <TableHead className="text-right no-print">Acciones</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {filtered.map((customer) => (
+                          <TableRow key={customer.id} className="hover:bg-primary/5">
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                   <UserCircle className="h-5 w-5 text-primary" />
+                                 </div>
+                                 <div className="flex flex-col min-w-0">
+                                   <span className="font-bold text-sm truncate">{customer.name}</span>
+                                   <span className="text-[10px] text-muted-foreground font-mono">ID: {customer.id.slice(0, 8)}</span>
+                                 </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                               <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
+                                 ${(customer.balance || 0).toFixed(2)}
+                               </span>
+                            </TableCell>
+                            <TableCell className="text-right no-print">
+                               <div className="flex justify-end gap-1">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 px-2 gap-1 text-[11px]"
+                                    onClick={() => handleOpenStatus(customer)}
+                                  >
+                                     <FileText className="h-3.5 w-3.5" /> Estado
+                                  </Button>
+                                  <Button 
+                                    variant="secondary" 
+                                    size="sm" 
+                                    className="h-8 px-2 gap-1 text-primary text-[11px] font-bold"
+                                    onClick={() => handleOpenPayment(customer)}
+                                  >
+                                     <Wallet className="h-3.5 w-3.5" /> Cobrar
+                                  </Button>
+                               </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        {filtered.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic text-xs">
+                              No hay clientes con saldos en esta sección.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </Tabs>
         </div>
       </div>
 
@@ -294,8 +331,10 @@ export default function CurrentAccountPage() {
                   <p className="font-bold text-sm">{selectedCustomer.name}</p>
                 </div>
                 <div className="p-4 rounded-xl border bg-muted/30">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">CUIT/CUIL</p>
-                  <p className="font-bold text-sm">{selectedCustomer.cuit || "---"}</p>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Tipo de Cuenta</p>
+                  <p className="font-bold text-sm uppercase text-primary">
+                    {selectedCustomer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
+                  </p>
                 </div>
               </div>
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
