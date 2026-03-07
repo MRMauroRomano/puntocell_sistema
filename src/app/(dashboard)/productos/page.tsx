@@ -523,12 +523,6 @@ export default function ProductsPage() {
                 </div>
               )}
             </div>
-            
-            {bulkData.actionType === 'price_percent' && (
-              <p className="text-[11px] text-muted-foreground italic">
-                * Usa valores negativos para descuentos (ej: -10).
-              </p>
-            )}
           </div>
           <DialogFooter className="flex flex-col gap-2">
             <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
@@ -544,7 +538,7 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de Producto Individual (Existente) */}
+      {/* Diálogo de Producto Individual */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
@@ -636,19 +630,6 @@ export default function ProductsPage() {
                 <Input type="number" value={formProduct.minStock} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
-            
-            {formProduct.category !== 'Celulares' && (
-              <div className="space-y-1">
-                <Label className="text-xs uppercase font-bold text-muted-foreground">Condición</Label>
-                <Select value={formProduct.condition} onValueChange={v => setFormProduct({...formProduct, condition: v as any})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Nuevo">Nuevo</SelectItem>
-                    <SelectItem value="Usado">Usado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
           <DialogFooter className="pt-4 border-t mt-2">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">Cancelar</Button>
