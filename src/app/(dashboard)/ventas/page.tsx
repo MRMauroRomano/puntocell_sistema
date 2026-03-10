@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -151,7 +152,6 @@ export default function SalesPage() {
       setIsSuccessDialogOpen(true)
       toast({ title: "Venta registrada" })
     } catch (error) {
-      console.error("Error al registrar venta:", error)
       toast({ variant: "destructive", title: "Error crítico", description: "No se pudo procesar la transacción." })
     } finally {
       setIsFinishing(false)
