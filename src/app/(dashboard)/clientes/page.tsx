@@ -1,11 +1,11 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar, FileUp } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -20,6 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import * as XLSX from 'xlsx'
 
 export default function CustomersPage() {
   const firestore = useFirestore()
@@ -28,8 +29,10 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const customersRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'customers') : null, 
@@ -157,6 +160,81 @@ export default function CustomersPage() {
     })
   }
 
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setIsImporting(true)
+    const reader = new FileReader()
+    
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const jsonData = XLSX.utils.sheet_to_json(sheet) as any[]
+        
+        let importedCount = 0
+        jsonData.forEach(row => {
+          const normalized = Object.keys(row).reduce((acc: any, key) => {
+            acc[key.toLowerCase().trim()] = row[key];
+            return acc;
+          }, {});
+
+          const name = normalized.nombre || normalized.name || normalized.cliente || "";
+          if (name) {
+            const id = Math.random().toString(36).substr(2, 9)
+            // Extraer deuda inicial y entrega
+            const totalDebt = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const rawDate = normalized.fecha || new Date().toLocaleDateString()
+            const product = String(normalized.producto || normalized.equipo || "")
+            const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
+            
+            // Calculamos el saldo final restando la entrega de la deuda
+            const finalBalance = Math.max(0, totalDebt - delivery)
+            
+            // Generamos historial en las notas
+            let historyNotes = ""
+            if (product) historyNotes += `Producto: ${product}\n`
+            if (delivery > 0) historyNotes += `[${rawDate}] Entrega: $${delivery.toFixed(2)}\n`
+            if (rawNotes) historyNotes += `Notas: ${rawNotes}`
+
+            const customerData = {
+              id,
+              name: String(name),
+              balance: finalBalance,
+              notes: historyNotes,
+              accountType: String(normalized.cartera || normalized.tipo || "martin").toLowerCase().includes('toti') ? 'toti' : 'martin',
+              accountYear: String(normalized.anio || normalized.year || "2025"),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              email: normalized.email || "",
+              phone: String(normalized.telefono || normalized.phone || ""),
+              cuit: String(normalized.cuit || "")
+            }
+            
+            const customerRef = doc(firestore, 'users', user.uid, 'customers', id)
+            setDocumentNonBlocking(customerRef, customerData, { merge: true })
+            importedCount++
+          }
+        })
+        
+        toast({ 
+          title: "Importación completa", 
+          description: `Se procesaron ${importedCount} clientes con su historial de entregas.` 
+        })
+      } catch (err) {
+        toast({ variant: "destructive", title: "Error al importar Excel" })
+      } finally {
+        setIsImporting(false)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -166,6 +244,23 @@ export default function CustomersPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <input 
+            type="file" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={handleImportExcel} 
+            accept=".xlsx, .xls" 
+          />
+          <Button 
+            variant="outline" 
+            className="gap-2 flex-1 sm:flex-none" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+            Importar Clientes
+          </Button>
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button 
@@ -264,7 +359,7 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="balance">Saldo Inicial</Label>
+                    <Label htmlFor="balance">Saldo Actual</Label>
                     <Input 
                       id="balance" 
                       type="number"
@@ -283,11 +378,11 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notas / Lo que entregó (Entrega Inicial)</Label>
+                  <Label htmlFor="notes">Lo que entregó / Historial de Entregas</Label>
                   <Textarea 
                     id="notes" 
-                    placeholder="Ej: Entregó iPhone 11 como parte de pago..." 
-                    className="min-h-[80px]"
+                    placeholder="Ej: [01/03/2025] Entregó Samsung J7 como parte de pago..." 
+                    className="min-h-[120px]"
                     value={formCustomer.notes}
                     onChange={(e) => setFormCustomer({...formCustomer, notes: e.target.value})}
                   />
