@@ -1,13 +1,13 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, Calendar } from "lucide-react"
-import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, Trash2 } from "lucide-react"
+import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import * as XLSX from 'xlsx'
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
@@ -26,6 +27,7 @@ export default function CurrentAccountPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<string>("martin")
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Estados para diálogos
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -34,6 +36,7 @@ export default function CurrentAccountPage() {
   const [paymentAmount, setPaymentAmount] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [isSaving, setIsSaving] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
 
   const customersRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'customers') : null, 
@@ -50,7 +53,6 @@ export default function CurrentAccountPage() {
         return matchesSearch && matchesType
       })
       .sort((a, b) => {
-        // Ordenar por fecha de actualización (más reciente primero)
         const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
         const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
         return dateB - dateA
@@ -115,6 +117,71 @@ export default function CurrentAccountPage() {
     }
   }
 
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setIsImporting(true)
+    const reader = new FileReader()
+    
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const jsonData = XLSX.utils.sheet_to_json(sheet) as any[]
+        
+        let importedCount = 0
+        jsonData.forEach(row => {
+          // Normalizar nombres de columnas (ignorando mayúsculas/minúsculas y espacios)
+          const normalized = Object.keys(row).reduce((acc: any, key) => {
+            acc[key.toLowerCase().trim()] = row[key];
+            return acc;
+          }, {});
+
+          const name = normalized.nombre || normalized.name || normalized.cliente || "";
+          if (name) {
+            const id = Math.random().toString(36).substr(2, 9)
+            // Intentar obtener el saldo de varias columnas posibles
+            const balance = parseFloat(String(normalized.total || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const notes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
+            const rawType = String(normalized.tipo || normalized.cartera || normalized.cuenta || "martin").toLowerCase()
+            const accountType = rawType.includes('toti') ? 'toti' : 'martin'
+
+            const customerData = {
+              id,
+              name: String(name),
+              balance,
+              notes,
+              accountType,
+              cuit: String(normalized.cuit || ""),
+              email: String(normalized.email || ""),
+              phone: String(normalized.telefono || normalized.tel || ""),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+            
+            const customerRef = doc(firestore, 'users', user.uid, 'customers', id)
+            setDocumentNonBlocking(customerRef, customerData, { merge: true })
+            importedCount++
+          }
+        })
+        
+        toast({ 
+          title: "Importación exitosa", 
+          description: `Se cargaron ${importedCount} clientes a tus cuentas corrientes.` 
+        })
+      } catch (err) {
+        toast({ variant: "destructive", title: "Error al importar", description: "Verifica el formato del archivo Excel." })
+      } finally {
+        setIsImporting(false)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
   const handlePrintList = () => {
     if (typeof window !== 'undefined') window.print()
   }
@@ -126,7 +193,12 @@ export default function CurrentAccountPage() {
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
           <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas.</p>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+           <input type="file" className="hidden" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" />
+           <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
+             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} 
+             Importar Excel
+           </Button>
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={handlePrintList}>
              <Printer className="h-4 w-4" /> Imprimir Listado
            </Button>
@@ -330,7 +402,7 @@ export default function CurrentAccountPage() {
                 <div className="p-4 rounded-xl border bg-muted/30">
                   <p className="text-[10px] font-black uppercase text-muted-foreground">Fecha Últ. Movimiento</p>
                   <p className="font-bold text-sm">
-                    {selectedCustomer.updatedAt ? format(new Date(selectedCustomer.updatedAt), "dd/MM/yyyy HH:mm", { locale: es }) : "Sin movimientos"}
+                    {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy HH:mm", { locale: es }) : "Sin movimientos"}
                   </p>
                 </div>
                 <div className="p-4 rounded-xl border bg-muted/30">
