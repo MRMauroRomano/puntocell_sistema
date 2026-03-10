@@ -15,7 +15,8 @@ import {
   LogOut,
   Store,
   Wallet,
-  ChevronDown
+  ChevronDown,
+  Wrench
 } from "lucide-react"
 
 import {
@@ -48,6 +49,7 @@ const navItems = [
     href: "/ventas",
     items: [
       { title: "Nueva Venta", href: "/ventas" },
+      { title: "Arreglos / Servicios", href: "/ventas/arreglos" },
       { title: "Historial", href: "/ventas/historial" },
     ]
   },
