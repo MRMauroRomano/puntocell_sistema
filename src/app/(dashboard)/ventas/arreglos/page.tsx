@@ -51,8 +51,6 @@ export default function ArreglosPage() {
   }, [billingConfigs, selectedBillingCuitId])
 
   const total = Number(price) || 0
-  const subtotalNet = total / 1.21
-  const tax = total - subtotalNet
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishRepair = () => {
@@ -85,8 +83,8 @@ export default function ArreglosPage() {
           subtotal: total
         }
       ],
-      subtotal: Number(subtotalNet.toFixed(2)),
-      tax: Number(tax.toFixed(2)),
+      subtotal: Number(total.toFixed(2)),
+      tax: 0,
       total: Number(total.toFixed(2)),
       paymentMethod: paymentMethod,
       invoiceType: invoiceType,
@@ -256,14 +254,6 @@ export default function ArreglosPage() {
               </div>
 
               <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase">
-                  <span>Subtotal Neto</span>
-                  <span>${subtotalNet.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-xs font-bold text-muted-foreground uppercase">
-                  <span>IVA (21%)</span>
-                  <span>${tax.toFixed(2)}</span>
-                </div>
                 <div className="flex justify-between items-center pt-2 border-t">
                   <span className="text-sm font-black uppercase">Total a Pagar</span>
                   <span className="text-3xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>

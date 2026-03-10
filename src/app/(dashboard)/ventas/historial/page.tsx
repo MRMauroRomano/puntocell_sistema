@@ -234,9 +234,9 @@ export default function SalesHistoryPage() {
                 <div className="border-[2px] border-black relative">
                   <div className="absolute left-1/2 top-0 -translate-x-1/2 bg-white border-b-[2px] border-x-[2px] border-black w-16 h-16 flex flex-col items-center justify-center z-10">
                     <span className="text-5xl font-black leading-none mt-1">
-                      {selectedSale.invoiceType === 'factura_a' ? 'A' : selectedSale.invoiceType === 'factura_b' ? 'B' : 'C'}
+                      {selectedSale.invoiceType === 'factura_a' ? 'A' : selectedSale.invoiceType === 'factura_b' ? 'B' : 'X'}
                     </span>
-                    <span className="text-[9px] font-bold uppercase mb-1">cod. 01</span>
+                    <span className="text-[9px] font-bold uppercase mb-1">NO VALID.</span>
                   </div>
 
                   <div className="grid grid-cols-2 h-36">
@@ -244,24 +244,15 @@ export default function SalesHistoryPage() {
                       <h1 className="text-3xl font-black uppercase leading-tight tracking-tight">{selectedSale.billingName || "COMERCIO PRO"}</h1>
                       <p className="text-[11px] font-black mt-2">RAZÓN SOCIAL TITULAR</p>
                       <p className="text-[11px]">Dirección Comercial: Av. Principal 1234</p>
-                      <p className="text-[11px]">Condición frente al IVA: Responsable Inscripto</p>
                     </div>
 
                     <div className="p-4 flex flex-col justify-center pl-14">
                       <h2 className="text-3xl font-black tracking-tighter mb-1">
-                        {selectedSale.status === 'returned' ? 'NOTA DE CRÉDITO' : 'FACTURA'}
+                        {selectedSale.status === 'returned' ? 'NOTA DE CRÉDITO' : 'COMPROBANTE'}
                       </h2>
                       <p className="font-black text-base">Punto de Venta: 0001</p>
                       <p className="font-black text-base">Comp. Nro: 000{selectedSale.id.slice(-5)}</p>
                       <p className="font-black text-base">Fecha de Emisión: {new Date(selectedSale.date).toLocaleDateString('es-AR')}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t-[2px] border-black grid grid-cols-2 px-6 py-1 text-[11px] font-bold bg-gray-50">
-                    <div>CUIT: {selectedSale.billingCuit || "30-00000000-0"}</div>
-                    <div className="flex justify-between">
-                      <span>Ingresos Brutos: {selectedSale.billingCuit || "30-00000000-0"}</span>
-                      <span>Inicio de Actividades: 01/01/2024</span>
                     </div>
                   </div>
                 </div>
@@ -270,12 +261,10 @@ export default function SalesHistoryPage() {
                   <div className="p-4 border-r-[2px] border-black">
                     <p className="text-[10px] uppercase font-black text-gray-500 mb-1">DATOS DEL CLIENTE</p>
                     <p className="font-black text-base">{selectedSale.customerName}</p>
-                    <p className="text-sm font-medium">Domicilio no registrado</p>
                   </div>
                   <div className="p-4">
                     <p className="text-[10px] uppercase font-black text-gray-500 mb-1">CONDICIÓN / IDENTIFICACIÓN</p>
                     <p className="font-black text-base font-mono">CUIT: {selectedSale.customerCuit}</p>
-                    <p className="text-sm uppercase font-black">IVA: {selectedSale.customerId === 'final' ? 'Consumidor Final' : 'RESP. INSCRIPTO'}</p>
                   </div>
                 </div>
 
@@ -313,14 +302,6 @@ export default function SalesHistoryPage() {
                     <p className="italic">Comprobante generado desde TechStore Manager</p>
                   </div>
                   <div className="w-80 space-y-2">
-                    <div className="flex justify-between border-b border-black/20 pb-1">
-                      <span className="text-[13px] font-bold">Subtotal:</span>
-                      <span className="text-[13px] font-black font-mono">${selectedSale.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-black/20 pb-1">
-                      <span className="text-[13px] font-bold">IVA (21%):</span>
-                      <span className="text-[13px] font-black font-mono">${selectedSale.tax.toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between pt-2">
                       <span className="text-2xl font-black uppercase tracking-tighter">TOTAL:</span>
                       <span className="text-3xl font-black font-mono tracking-tight">${selectedSale.total.toFixed(2)}</span>

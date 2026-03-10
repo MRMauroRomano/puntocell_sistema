@@ -28,7 +28,7 @@ export default function SalesPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("final")
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
-  const [invoiceType, setInvoiceType] = useState<InvoiceType>('factura_b')
+  const [invoiceType, setInvoiceType] = useState<InvoiceType>('ticket')
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false)
   const [isFinishing, setIsFinishing] = useState(false)
   const [lastSale, setLastSale] = useState<(Sale & { customerAddress?: string }) | null>(null)
@@ -103,8 +103,6 @@ export default function SalesPage() {
   }
 
   const total = cart.reduce((acc, curr) => acc + curr.subtotal, 0)
-  const subtotalNet = total / 1.21
-  const tax = total - subtotalNet
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishSale = () => {
@@ -122,8 +120,8 @@ export default function SalesPage() {
       customerName: selectedCustomerId === 'final' || !customer ? 'Consumidor Final' : customer.name,
       customerCuit: customer?.cuit || "Consumidor Final",
       items: JSON.parse(JSON.stringify(cart)),
-      subtotal: Number(subtotalNet.toFixed(2)),
-      tax: Number(tax.toFixed(2)),
+      subtotal: Number(total.toFixed(2)),
+      tax: 0,
       total: Number(total.toFixed(2)),
       paymentMethod: paymentMethod,
       invoiceType: invoiceType,
@@ -314,14 +312,6 @@ export default function SalesPage() {
             </CardContent>
             <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-4">
               <div className="w-full space-y-1">
-                <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
-                  <span>Subtotal</span>
-                  <span>${subtotalNet.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground uppercase">
-                  <span>IVA (21%)</span>
-                  <span>${tax.toFixed(2)}</span>
-                </div>
                 <div className="w-full flex justify-between items-center pt-1">
                   <span className="text-xs font-black uppercase">Total a Cobrar</span>
                   <span className="text-2xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
@@ -337,9 +327,9 @@ export default function SalesPage() {
                           <div className="flex items-center gap-1"><FileText className="h-3 w-3" /> <SelectValue /></div>
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="ticket">Ticket</SelectItem>
                           <SelectItem value="factura_b">Factura B</SelectItem>
                           <SelectItem value="factura_a">Factura A</SelectItem>
-                          <SelectItem value="ticket">Ticket</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
