@@ -207,6 +207,14 @@ export default function CustomersPage() {
     })
   }
 
+  const parseMoney = (val: any) => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    // Limpieza agresiva de formatos de pesos/dólares: quita $, quita puntos de miles, cambia comas por puntos.
+    const clean = String(val).replace(/[^0-9,.-]+/g, "");
+    return parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user) return
     const file = e.target.files?.[0]
@@ -224,7 +232,7 @@ export default function CustomersPage() {
         
         let importedCount = 0
         jsonData.forEach(row => {
-          // Normalizar nombres de columnas a minúsculas y sin espacios
+          // Normalizar nombres de columnas
           const normalized = Object.keys(row).reduce((acc: any, key) => {
             acc[key.toLowerCase().trim()] = row[key];
             return acc;
@@ -234,16 +242,13 @@ export default function CustomersPage() {
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
             
-            // 1. Obtener Deuda en Pesos
-            const finalBalance = parseFloat(String(normalized["deuda ars"] || normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 1. Deuda en Pesos
+            const finalBalance = parseMoney(normalized["deuda ars ($)"] || normalized["deuda ars"] || normalized.deuda || normalized.saldo)
             
-            // 2. Obtener Valor en Dólares
-            const finalBalanceUSD = parseFloat(String(normalized["deudas usd"] || normalized["deuda usd"] || normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 2. Deuda en Dólares
+            const finalBalanceUSD = parseMoney(normalized["deuda usd (u$s)"] || normalized["deudas usd"] || normalized["deuda usd"] || normalized.usd)
             
-            // 3. Obtener entrega informativa
-            const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
-            
-            // 4. Procesar Fecha
+            // 3. Procesar Fecha
             let importedDate = new Date().toISOString()
             const rawDateVal = normalized.fecha || normalized.fechas || normalized.date || normalized.dia
             
@@ -259,10 +264,7 @@ export default function CustomersPage() {
                   const month = parseInt(parts[1], 10) - 1
                   let yearPart = parts[2].trim()
                   let year = parseInt(yearPart, 10)
-                  // Manejar formato dd/mm/aa (ej: 26 -> 2026)
-                  if (yearPart.length === 2) {
-                    year = year < 50 ? 2000 + year : 1900 + year
-                  }
+                  if (yearPart.length === 2) year = year < 50 ? 2000 + year : 1900 + year
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -273,17 +275,14 @@ export default function CustomersPage() {
             }
 
             const product = String(normalized.producto || normalized.equipo || "")
-            const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || normalized.entrego || "")
+            const entrega = String(normalized.entrega || normalized.pago || "")
+            const rawNotes = String(normalized.notas || normalized.observaciones || "")
             const formattedDateStr = new Date(importedDate).toLocaleDateString('es-AR')
 
             let historyNotes = ""
-            if (product && product !== "undefined" && product !== "") historyNotes += `Producto: ${product}\n`
-            if (delivery > 0) historyNotes += `[${formattedDateStr}] Entrega previa: $${delivery.toFixed(2)}\n`
-            if (rawNotes && rawNotes !== "undefined" && rawNotes !== "") historyNotes += `Nota: ${rawNotes}`
-
-            const rawType = String(normalized.cartera || normalized.tipo || normalized.cuenta || "martin").toLowerCase()
-            const accountType = rawType.includes('toti') ? 'toti' : 'martin'
-            const accountYear = String(normalized.anio || normalized.year || normalized.periodo || "2025")
+            if (product && product !== "undefined" && product !== "") historyNotes += `Equipo: ${product}\n`
+            if (entrega && entrega !== "undefined" && entrega !== "") historyNotes += `Entrega: ${entrega} (Fecha: ${formattedDateStr})\n`
+            if (rawNotes && rawNotes !== "undefined" && rawNotes !== "") historyNotes += `Notas: ${rawNotes}`
 
             const customerData = {
               id,
@@ -291,8 +290,8 @@ export default function CustomersPage() {
               balance: finalBalance,
               balanceUSD: finalBalanceUSD,
               notes: historyNotes,
-              accountType,
-              accountYear,
+              accountType: bulkData.accountType,
+              accountYear: bulkData.accountYear,
               createdAt: importedDate,
               updatedAt: importedDate,
               email: normalized.email || "",
@@ -308,7 +307,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes.` 
+          description: `Se procesaron ${importedCount} clientes desde tu planilla.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
@@ -481,7 +480,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Lo que entregó / Historial de Entregas</Label>
+                  <Label htmlFor="notes">Historial de Entregas / Notas</Label>
                   <Textarea 
                     id="notes" 
                     placeholder="Ej: [10/03/2026] Entregó Samsung J7 como parte de pago..." 
@@ -593,14 +592,14 @@ export default function CustomersPage() {
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] uppercase font-bold text-muted-foreground">Deuda Total</span>
+                      <span className="text-[9px] uppercase font-bold text-muted-foreground">Lo que le queda</span>
                       <div className="flex flex-col">
                         <span className={cn("text-base font-black leading-tight", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
-                          ${(customer.balance || 0).toFixed(2)}
+                          ${(customer.balance || 0).toLocaleString('es-AR')}
                         </span>
                         {customer.balanceUSD && customer.balanceUSD > 0 ? (
                           <span className="text-[10px] font-bold text-amber-600">
-                            USD {customer.balanceUSD.toFixed(2)}
+                            USD {customer.balanceUSD.toLocaleString('en-US')}
                           </span>
                         ) : null}
                       </div>

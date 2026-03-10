@@ -164,6 +164,13 @@ export default function CurrentAccountPage() {
     }
   }
 
+  const parseMoney = (val: any) => {
+    if (!val) return 0;
+    if (typeof val === 'number') return val;
+    const clean = String(val).replace(/[^0-9,.-]+/g, "");
+    return parseFloat(clean.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+
   const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user) return
     const file = e.target.files?.[0]
@@ -190,21 +197,15 @@ export default function CurrentAccountPage() {
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
             
-            // 1. Saldo en Pesos
-            const balance = parseFloat(String(normalized["deuda ars"] || normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 1. Saldo en Pesos - Columnas flexibles
+            const balance = parseMoney(normalized["deuda ars ($)"] || normalized["deuda ars"] || normalized.deuda || normalized.saldo)
             
-            // 2. Saldo en USD
-            const balanceUSD = parseFloat(String(normalized["deudas usd"] || normalized["deuda usd"] || normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 2. Saldo en USD - Columnas flexibles
+            const balanceUSD = parseMoney(normalized["deuda usd (u$s)"] || normalized["deudas usd"] || normalized["deuda usd"] || normalized.usd)
             
-            const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
-            
+            const entrega = String(normalized.entrega || normalized.pago || "")
             const product = String(normalized.producto || normalized.equipo || "")
-            const rawNotes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
-            
-            const rawType = String(normalized.tipo || normalized.cartera || normalized.cuenta || "martin").toLowerCase()
-            const accountType = rawType.includes('toti') ? 'toti' : 'martin'
-            const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
-            const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
+            const rawNotes = String(normalized.notas || normalized.observaciones || "")
             
             let importedDate = new Date().toISOString()
             const rawDateVal = normalized.fecha || normalized.fechas || normalized.dia || normalized.date
@@ -221,9 +222,7 @@ export default function CurrentAccountPage() {
                   const month = parseInt(parts[1], 10) - 1
                   let yearPart = parts[2].trim()
                   let year = parseInt(yearPart, 10)
-                  if (yearPart.length === 2) {
-                    year = year < 50 ? 2000 + year : 1900 + year
-                  }
+                  if (yearPart.length === 2) year = year < 50 ? 2000 + year : 1900 + year
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -236,7 +235,7 @@ export default function CurrentAccountPage() {
             const formattedExcelDate = new Date(importedDate).toLocaleDateString('es-AR')
             let finalNotes = ""
             if (product && product !== "undefined" && product !== "") finalNotes += `Equipo: ${product}\n`
-            if (delivery > 0) finalNotes += `Entrega previa registrada: $${delivery.toFixed(2)} (Fecha: ${formattedExcelDate})\n`
+            if (entrega && entrega !== "undefined" && entrega !== "") finalNotes += `Entrega registrada: ${entrega} (Fecha: ${formattedExcelDate})\n`
             if (rawNotes && rawNotes !== "undefined" && rawNotes !== "") finalNotes += `Notas: ${rawNotes}`
 
             const customerData = {
@@ -245,8 +244,8 @@ export default function CurrentAccountPage() {
               balance,
               balanceUSD,
               notes: finalNotes,
-              accountType,
-              accountYear,
+              accountType: activeTab as any,
+              accountYear: activeYear,
               createdAt: importedDate,
               updatedAt: importedDate
             }
@@ -257,7 +256,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros exactamente como tu planilla.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -434,7 +433,7 @@ export default function CurrentAccountPage() {
                               {(customer.balanceUSD && customer.balanceUSD > 0) && <Badge variant="secondary" className="ml-1 text-[8px] px-1 h-3">FIJO</Badge>}
                             </TableCell>
                             <TableCell>
-                              <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px]">
+                              <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px] whitespace-pre-wrap">
                                 {customer.notes || "Sin anotaciones."}
                               </p>
                             </TableCell>
