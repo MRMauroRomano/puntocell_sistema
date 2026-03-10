@@ -117,7 +117,7 @@ export default function CurrentAccountPage() {
       })
       setIsPayDialogOpen(false)
     } catch (error) {
-      // Error handled by global emitter
+      // Handled centrally
     } finally {
       setIsSaving(false)
     }
@@ -156,7 +156,7 @@ export default function CurrentAccountPage() {
       setChargeAmount("")
       setChargeNotes("")
     } catch (error) {
-      // Error handled by global emitter
+      // Handled centrally
     } finally {
       setIsSaving(false)
     }
@@ -187,14 +187,17 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            const balance = parseFloat(String(normalized.total || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
-            const notes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
+            // LA DEUDA ES EL SALDO QUE LE QUEDA SEGUN EL EXCEL
+            const balance = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const product = String(normalized.producto || normalized.equipo || "")
+            const rawNotes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
+            
             const rawType = String(normalized.tipo || normalized.cartera || normalized.cuenta || "martin").toLowerCase()
             const accountType = rawType.includes('toti') ? 'toti' : 'martin'
             const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
             
-            // Intentar detectar fecha del excel
             let importedDate = new Date().toISOString()
             const rawDate = normalized.fecha || normalized.date
             if (rawDate) {
@@ -202,11 +205,16 @@ export default function CurrentAccountPage() {
               if (!isNaN(d.getTime())) importedDate = d.toISOString()
             }
 
+            let finalNotes = ""
+            if (product) finalNotes += `Equipo: ${product}\n`
+            if (delivery > 0) finalNotes += `Entrega previa: $${delivery.toFixed(2)}\n`
+            if (rawNotes) finalNotes += `Notas: ${rawNotes}`
+
             const customerData = {
               id,
               name: String(name),
               balance,
-              notes,
+              notes: finalNotes,
               accountType,
               accountYear,
               createdAt: importedDate,
@@ -219,7 +227,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} clientes.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros. Deuda tomada como saldo actual.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {

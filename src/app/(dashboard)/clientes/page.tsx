@@ -232,18 +232,17 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            const totalDebt = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // LA DEUDA ES EL RESTO QUE LE QUEDA SEGUN EL EXCEL
+            const finalBalance = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || normalized.debe || "0").replace(/[^0-9.-]+/g, "")) || 0
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             const rawDate = normalized.fecha || new Date().toLocaleDateString()
             const product = String(normalized.producto || normalized.equipo || "")
             const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
             
-            const finalBalance = Math.max(0, totalDebt - delivery)
-            
             let historyNotes = ""
             if (product) historyNotes += `Producto: ${product}\n`
-            if (delivery > 0) historyNotes += `[${rawDate}] Entrega: $${delivery.toFixed(2)}\n`
-            if (rawNotes) historyNotes += `Notas: ${rawNotes}`
+            if (delivery > 0) historyNotes += `[${rawDate}] Entrega histórica: $${delivery.toFixed(2)}\n`
+            if (rawNotes) historyNotes += `Notas del trato: ${rawNotes}`
 
             const customerData = {
               id,
@@ -267,7 +266,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes con su historial de entregas.` 
+          description: `Se procesaron ${importedCount} clientes. La deuda es el saldo neto importado.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
