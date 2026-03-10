@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from "react"
@@ -186,7 +185,7 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
             const product = String(normalized.producto || normalized.equipo || "")
@@ -197,9 +196,9 @@ export default function CurrentAccountPage() {
             const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
             
-            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE: fecha, fechas, día, date)
+            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE: fechas, fecha, día, date)
             let importedDate = new Date().toISOString()
-            const rawDateVal = normalized.fecha || normalized.fechas || normalized.dia || normalized.date
+            const rawDateVal = normalized.fechas || normalized.fecha || normalized.dia || normalized.date
             
             if (rawDateVal) {
               if (typeof rawDateVal === 'number') {
@@ -211,7 +210,13 @@ export default function CurrentAccountPage() {
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
-                  const year = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10)
+                  let year = parseInt(parts[2], 10)
+                  
+                  // Manejar formato AA (aa) convirtiéndolo a AAAA
+                  if (parts[2].length === 2) {
+                    year = 2000 + year
+                  }
+                  
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
