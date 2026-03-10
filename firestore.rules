@@ -1,21 +1,43 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Función auxiliar para verificar si el usuario está autenticado
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Permite acceso total a un usuario solo sobre sus propios documentos
+    // Reglas para datos segmentados por usuario (Multi-tenancy)
+    // Permite que cada dueño de tienda gestione sus propios productos, clientes, ventas y gastos.
+    // El sistema utiliza rutas como /users/{userId}/customers/{customerId}
     match /users/{userId}/{allSubcollections=**} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     
-    // Mantenemos compatibilidad con roles si fuera necesario, 
-    // pero la prioridad es la segmentación por usuario.
+    // Reglas para roles de personal (segmentadas por UID)
     match /staff_roles/{staffId} {
       allow read, write: if isSignedIn() && request.auth.uid == staffId;
     }
+
+    // Reglas de respaldo para colecciones raíz (basadas en backend.json)
+    // Estas reglas aseguran que las operaciones no fallen si se accede a nivel de raíz,
+    // siempre que el usuario esté autenticado.
+    match /products/{productId} {
+      allow read, write: if isSignedIn();
+    }
+    match /customers/{customerId} {
+      allow read, write: if isSignedIn();
+    }
+    match /sales/{saleId} {
+      allow read, write: if isSignedIn();
+    }
+    match /settings/{settingId} {
+      allow read, write: if isSignedIn();
+    }
+    match /expenses/{expenseId} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // Comentario para disparar el despliegue automático de reglas: 2026-03-10
   }
 }

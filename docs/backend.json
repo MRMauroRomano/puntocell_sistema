@@ -1,278 +1,91 @@
-
 {
   "entities": {
     "Product": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
       "type": "object",
-      "description": "Represents a single product available for sale in the store, including its details and current stock level.",
+      "description": "Representa un producto o equipo en inventario.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Product entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the product."
-        },
-        "description": {
-          "type": "string",
-          "description": "A detailed description of the product."
-        },
-        "price": {
-          "type": "number",
-          "description": "The unit selling price of the product."
-        },
-        "stockQuantity": {
-          "type": "number",
-          "description": "The current quantity of the product available in stock."
-        },
-        "minStockQuantity": {
-          "type": "number",
-          "description": "The minimum stock level threshold for this product, used to trigger low stock alerts."
-        },
-        "sku": {
-          "type": "string",
-          "description": "Stock Keeping Unit (SKU) for the product, a unique code for internal tracking."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the product record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the product record was last updated.",
-          "format": "date-time"
-        }
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "minStock": { "type": "number" }
       },
-      "required": [
-        "id",
-        "name",
-        "price",
-        "stockQuantity",
-        "minStockQuantity"
-      ]
+      "required": ["id", "name", "price", "stock"]
     },
     "Customer": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Customer",
       "type": "object",
-      "description": "Represents a customer of the store, storing their personal and contact information.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Customer entity."
-        },
-        "firstName": {
-          "type": "string",
-          "description": "The first name of the customer."
-        },
-        "lastName": {
-          "type": "string",
-          "description": "The last name of the customer."
-        },
-        "email": {
-          "type": "string",
-          "description": "The email address of the customer.",
-          "format": "email"
-        },
-        "phone": {
-          "type": "string",
-          "description": "The phone number of the customer."
-        },
-        "address": {
-          "type": "string",
-          "description": "The physical address of the customer."
-        },
-        "documentNumber": {
-          "type": "string",
-          "description": "The identification document number of the customer (e.g., DNI, RUC)."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Observation notes for account deals."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the customer record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the customer record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "firstName",
-        "lastName"
-      ]
-    },
-    "Sale": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Sale",
-      "type": "object",
-      "description": "Represents a single sales transaction, including its financial summary and payment details.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Sale entity (e.g., invoice number)."
-        },
-        "saleDate": {
-          "type": "string",
-          "description": "The date and time when the sale was finalized.",
-          "format": "date-time"
-        },
-        "customerId": {
-          "type": "string",
-          "description": "Reference to Customer. Nullable if the sale is to an anonymous customer (cash sale). (Relationship: Customer 1:N Sale)"
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount of the sale, including all taxes."
-        },
-        "subtotalAmount": {
-          "type": "number",
-          "description": "The subtotal amount of the sale, before any taxes are applied."
-        },
-        "taxAmount": {
-          "type": "number",
-          "description": "The total amount of taxes applied to the sale."
-        },
-        "paymentType": {
-          "type": "string",
-          "description": "The method of payment for the sale ('cash' or 'credit_account').",
-          "format": "enum"
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the sale ('completed', 'pending_payment', or 'cancelled').",
-          "format": "enum"
-        },
-        "notes": {
-          "type": "string",
-          "description": "Additional notes or comments related to the sale."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the sale record was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp when the sale record was last updated.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "saleDate",
-        "totalAmount",
-        "subtotalAmount",
-        "taxAmount",
-        "paymentType",
-        "status"
-      ]
-    },
-    "BillingConfig": {
-      "title": "BillingConfig",
-      "type": "object",
+      "description": "Representa un cliente y su saldo en cuenta corriente.",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "cuit": { "type": "string" },
+        "balance": { "type": "number" },
+        "accountType": { "type": "string", "enum": ["martin", "toti"] },
+        "accountYear": { "type": "string" }
+      },
+      "required": ["id", "name", "balance"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "total": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Expense": {
+      "title": "Expense",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
         "description": { "type": "string" }
       }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}/products/{productId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Product" },
+          "description": "Productos del inventario de la tienda del usuario."
+        }
+      },
+      {
+        "path": "/users/{userId}/customers/{customerId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Customer" },
+          "description": "Clientes y saldos de la tienda del usuario."
+        }
+      },
+      {
+        "path": "/users/{userId}/sales/{saleId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Sale" },
+          "description": "Historial de ventas de la tienda del usuario."
+        }
+      },
+      {
+        "path": "/users/{userId}/expenses/{expenseId}",
+        "definition": {
+          "schema": { "$ref": "#/backend/entities/Expense" },
+          "description": "Gastos registrados por el usuario."
+        }
+      },
+      {
         "path": "/staff_roles/{staffId}",
         "definition": {
-          "entityName": "staff_role",
-          "schema": {
-            "$ref": "#/backend/entities/UserRole"
-          },
-          "description": "Dedicated collection for managing staff roles.",
-          "params": [
-            {
-              "name": "staffId",
-              "description": "The unique identifier (UID) of the authenticated user who is a staff member."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/settings/{settingId}",
-        "definition": {
-          "entityName": "BillingConfig",
-          "schema": {
-            "$ref": "#/backend/entities/BillingConfig"
-          },
-          "description": "General settings for the store.",
-          "params": [
-            {
-              "name": "settingId",
-              "description": "Unique setting ID."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/products/{productId}",
-        "definition": {
-          "entityName": "Product",
-          "schema": {
-            "$ref": "#/backend/entities/Product"
-          },
-          "description": "Collection for managing all products.",
-          "params": [
-            {
-              "name": "productId",
-              "description": "The unique identifier for a product."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/customers/{customerId}",
-        "definition": {
-          "entityName": "Customer",
-          "schema": {
-            "$ref": "#/backend/entities/Customer"
-          },
-          "description": "Collection for storing customer records.",
-          "params": [
-            {
-              "name": "customerId",
-              "description": "The unique identifier for a customer."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/sales/{saleId}",
-        "definition": {
-          "entityName": "Sale",
-          "schema": {
-            "$ref": "#/backend/entities/Sale"
-          },
-          "description": "Collection for recording sales transactions.",
-          "params": [
-            {
-              "name": "saleId",
-              "description": "The unique identifier for a sales transaction."
-            }
-          ]
+          "description": "Roles y permisos del personal."
         }
       }
     ]
