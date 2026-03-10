@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, Trash2 } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import * as XLSX from 'xlsx'
@@ -33,8 +34,15 @@ export default function CurrentAccountPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
+  const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
+  
   const [paymentAmount, setPaymentAmount] = useState<string>("")
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+  
+  const [chargeAmount, setChargeAmount] = useState<string>("")
+  const [chargeNotes, setChargeNotes] = useState<string>("")
+  const [chargeCustomerId, setChargeCustomerId] = useState<string>("")
+  
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
 
@@ -103,15 +111,50 @@ export default function CurrentAccountPage() {
       
       toast({
         title: "Pago registrado",
-        description: `Se cobraron $${amount.toFixed(2)} a ${selectedCustomer.name} vía ${paymentMethod}.`
+        description: `Se cobraron $${amount.toFixed(2)} a ${selectedCustomer.name}.`
       })
       setIsPayDialogOpen(false)
     } catch (error) {
+      toast({ variant: "destructive", title: "Error" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleProcessCharge = () => {
+    const amount = parseFloat(chargeAmount)
+    if (!user || !chargeCustomerId || isNaN(amount) || amount <= 0) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "No se pudo registrar el pago."
+        title: "Operación no válida",
+        description: "Selecciona un cliente e ingresa un monto válido."
       })
+      return
+    }
+
+    setIsSaving(true)
+    const customer = customers?.find(c => c.id === chargeCustomerId)
+    if (!customer) return
+
+    const newBalance = (customer.balance || 0) + amount
+    const customerRef = doc(firestore, 'users', user.uid, 'customers', customer.id)
+
+    try {
+      updateDocumentNonBlocking(customerRef, {
+        balance: newBalance,
+        notes: chargeNotes || customer.notes || "",
+        updatedAt: new Date().toISOString()
+      })
+      
+      toast({
+        title: "Cargo registrado",
+        description: `Se cargaron $${amount.toFixed(2)} a la cuenta de ${customer.name}.`
+      })
+      setIsChargeDialogOpen(false)
+      setChargeAmount("")
+      setChargeNotes("")
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error" })
     } finally {
       setIsSaving(false)
     }
@@ -134,7 +177,6 @@ export default function CurrentAccountPage() {
         
         let importedCount = 0
         jsonData.forEach(row => {
-          // Normalizar nombres de columnas (ignorando mayúsculas/minúsculas y espacios)
           const normalized = Object.keys(row).reduce((acc: any, key) => {
             acc[key.toLowerCase().trim()] = row[key];
             return acc;
@@ -143,7 +185,6 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // Intentar obtener el saldo de varias columnas posibles
             const balance = parseFloat(String(normalized.total || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
             const notes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
             const rawType = String(normalized.tipo || normalized.cartera || normalized.cuenta || "martin").toLowerCase()
@@ -155,9 +196,6 @@ export default function CurrentAccountPage() {
               balance,
               notes,
               accountType,
-              cuit: String(normalized.cuit || ""),
-              email: String(normalized.email || ""),
-              phone: String(normalized.telefono || normalized.tel || ""),
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             }
@@ -168,22 +206,15 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ 
-          title: "Importación exitosa", 
-          description: `Se cargaron ${importedCount} clientes a tus cuentas corrientes.` 
-        })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} clientes.` })
       } catch (err) {
-        toast({ variant: "destructive", title: "Error al importar", description: "Verifica el formato del archivo Excel." })
+        toast({ variant: "destructive", title: "Error al importar" })
       } finally {
         setIsImporting(false)
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
     }
     reader.readAsArrayBuffer(file)
-  }
-
-  const handlePrintList = () => {
-    if (typeof window !== 'undefined') window.print()
   }
 
   return (
@@ -194,19 +225,22 @@ export default function CurrentAccountPage() {
           <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+           <Button className="gap-2 flex-1 sm:flex-none" onClick={() => setIsChargeDialogOpen(true)}>
+             <PlusCircle className="h-4 w-4" /> Nuevo Cargo
+           </Button>
            <input type="file" className="hidden" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" />
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
              {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} 
              Importar Excel
            </Button>
-           <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={handlePrintList}>
-             <Printer className="h-4 w-4" /> Imprimir Listado
+           <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => window.print()}>
+             <Printer className="h-4 w-4" /> Imprimir
            </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-12">
-        <div className="md:col-span-12 space-y-4 no-print">
+      <div className="grid gap-6">
+        <div className="no-print space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-primary/5 border-primary/20">
                <CardHeader className="pb-1 px-4 pt-4">
@@ -229,7 +263,7 @@ export default function CurrentAccountPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
                   placeholder="Buscar por nombre de cliente..." 
-                  className="pl-9 h-full bg-white border-primary/20"
+                  className="pl-9 h-full bg-white"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -238,7 +272,7 @@ export default function CurrentAccountPage() {
           </div>
         </div>
 
-        <div className="md:col-span-12">
+        <div>
           <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full sm:w-[400px] grid-cols-2 mb-4 bg-muted/50 p-1 no-print">
               <TabsTrigger value="martin" className="font-black uppercase text-xs gap-2">
@@ -262,7 +296,7 @@ export default function CurrentAccountPage() {
                       <TableHeader className="bg-primary/5">
                         <TableRow className="hover:bg-transparent">
                           <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
-                          <TableHead className="font-black uppercase text-[10px]">Nombre del Cliente</TableHead>
+                          <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
                           <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
                           <TableHead className="font-black uppercase text-[10px] min-w-[200px]">Lo que entregó / Notas</TableHead>
                           <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
@@ -272,7 +306,7 @@ export default function CurrentAccountPage() {
                         {filtered.map((customer) => (
                           <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
                             <TableCell className="text-[11px] font-medium text-muted-foreground">
-                              {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : (customer.createdAt ? format(new Date(customer.createdAt), "dd/MM/yyyy", { locale: es }) : "---")}
+                              {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : "---"}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -289,7 +323,7 @@ export default function CurrentAccountPage() {
                             </TableCell>
                             <TableCell>
                               <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[300px]">
-                                {customer.notes || "Sin observaciones registradas."}
+                                {customer.notes || "Sin notas registradas."}
                               </p>
                             </TableCell>
                             <TableCell className="text-right no-print">
@@ -299,7 +333,6 @@ export default function CurrentAccountPage() {
                                     size="sm" 
                                     className="h-8 w-8 p-0"
                                     onClick={() => handleOpenStatus(customer)}
-                                    title="Ver Estado Detallado"
                                   >
                                      <FileText className="h-4 w-4 text-primary/60" />
                                   </Button>
@@ -315,13 +348,6 @@ export default function CurrentAccountPage() {
                             </TableCell>
                           </TableRow>
                         ))}
-                        {filtered.length === 0 && (
-                          <TableRow>
-                            <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic text-xs">
-                              No hay registros en esta sección.
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -332,38 +358,71 @@ export default function CurrentAccountPage() {
         </div>
       </div>
 
+      {/* Diálogo Registrar Cargo Manual */}
+      <Dialog open={isChargeDialogOpen} onOpenChange={setIsChargeDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="font-headline">Registrar Nuevo Cargo</DialogTitle>
+            <DialogDescription>
+              Aumentar la deuda de un cliente manualmente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer">Seleccionar Cliente</Label>
+              <Select onValueChange={setChargeCustomerId} value={chargeCustomerId}>
+                <SelectTrigger id="customer">
+                  <SelectValue placeholder="Buscar cliente..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers?.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} ({c.accountType === 'toti' ? 'Toti' : 'Martin'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="amount">Monto de Deuda ($)</Label>
+              <Input 
+                id="amount" 
+                type="number" 
+                placeholder="0.00" 
+                value={chargeAmount}
+                onChange={(e) => setChargeAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Lo que entregó / Notas del trato</Label>
+              <Textarea 
+                id="notes" 
+                placeholder="Ej: Se llevó cargador, entregó funda vieja..." 
+                value={chargeNotes}
+                onChange={(e) => setChargeNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChargeDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+            <Button onClick={handleProcessCharge} disabled={isSaving || !chargeCustomerId}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+              Confirmar Cargo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Diálogo Cobrar */}
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="font-headline">Registrar Cobro</DialogTitle>
-            <DialogDescription>
-              Abono de deuda para {selectedCustomer?.name}.
-            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
                <span className="text-xs font-bold text-red-800 uppercase">Deuda Actual</span>
                <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toFixed(2)}</span>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="method">Medio de Pago</Label>
-              <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
-                <SelectTrigger id="method">
-                  <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" /> <SelectValue /></div>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Efectivo</SelectItem>
-                  <SelectItem value="transfer">Transferencia</SelectItem>
-                  <SelectItem value="cheque">Cheque</SelectItem>
-                  <SelectItem value="visa">Tarjeta Visa</SelectItem>
-                  <SelectItem value="mastercard">Mastercard</SelectItem>
-                  <SelectItem value="cabal">Cabal</SelectItem>
-                  <SelectItem value="premier">Premier</SelectItem>
-                  <SelectItem value="paselibre">Pase Libre</SelectItem>
-                  <SelectItem value="debit">Débito</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment">Monto que paga ($)</Label>
@@ -389,61 +448,34 @@ export default function CurrentAccountPage() {
 
       {/* Diálogo Estado de Cuenta */}
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="font-headline text-xl">Estado Detallado</DialogTitle>
-            <DialogDescription>
-              Resumen de situación y observaciones.
-            </DialogDescription>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border bg-muted/30">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Fecha Últ. Movimiento</p>
-                  <p className="font-bold text-sm">
-                    {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy HH:mm", { locale: es }) : "Sin movimientos"}
-                  </p>
-                </div>
-                <div className="p-4 rounded-xl border bg-muted/30">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Cartera</p>
-                  <p className="font-bold text-sm uppercase text-primary">
-                    {selectedCustomer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
-                  </p>
-                </div>
-              </div>
-
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
                  <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda</p>
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
                     ${selectedCustomer.balance.toFixed(2)}
                  </p>
               </div>
-
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
                 <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1 mb-2">
-                  <Info className="h-3 w-3" /> Lo que entregó / Notas del trato
+                  <Info className="h-3 w-3" /> Lo que entregó / Notas
                 </p>
-                <div className="text-sm bg-white/50 p-3 rounded border border-amber-100 min-h-[60px] italic text-amber-900">
-                  {selectedCustomer.notes || "No hay notas registradas para este cliente."}
+                <div className="text-sm italic text-amber-900">
+                  {selectedCustomer.notes || "No hay notas registradas."}
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-bold uppercase text-muted-foreground">Información del Cliente</p>
-                <div className="text-xs grid grid-cols-2 gap-2 bg-muted/20 p-3 rounded-lg">
-                   <div><span className="font-bold text-muted-foreground">Nombre:</span> {selectedCustomer.name}</div>
-                   <div><span className="font-bold text-muted-foreground">CUIT:</span> {selectedCustomer.cuit || "---"}</div>
-                   <div><span className="font-bold text-muted-foreground">Teléfono:</span> {selectedCustomer.phone || "---"}</div>
-                   <div className="col-span-2"><span className="font-bold text-muted-foreground">Email:</span> {selectedCustomer.email || "---"}</div>
-                </div>
+              <div className="text-xs bg-muted/20 p-3 rounded-lg grid grid-cols-2 gap-2">
+                 <div><span className="font-bold">Cliente:</span> {selectedCustomer.name}</div>
+                 <div><span className="font-bold">Cartera:</span> {selectedCustomer.accountType?.toUpperCase() || 'MARTIN'}</div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button className="w-full gap-2" variant="outline" onClick={handlePrintList}>
-               <Printer className="h-4 w-4" /> Imprimir Estado
-            </Button>
+            <Button className="w-full" variant="outline" onClick={() => window.print()}>Imprimir Ficha</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
