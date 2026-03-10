@@ -8,20 +8,17 @@ service cloud.firestore {
     }
 
     // Reglas para datos segmentados por usuario (Multi-tenancy)
-    // Permite que cada dueño de tienda gestione sus propios productos, clientes, ventas y gastos.
-    // El sistema utiliza rutas como /users/{userId}/customers/{customerId}
-    match /users/{userId}/{allSubcollections=**} {
+    // Permite acceso total al usuario sobre sus propios documentos en cualquier subcolección
+    match /users/{userId}/{document=**} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     
-    // Reglas para roles de personal (segmentadas por UID)
+    // Reglas para roles de personal
     match /staff_roles/{staffId} {
       allow read, write: if isSignedIn() && request.auth.uid == staffId;
     }
 
-    // Reglas de respaldo para colecciones raíz (basadas en backend.json)
-    // Estas reglas aseguran que las operaciones no fallen si se accede a nivel de raíz,
-    // siempre que el usuario esté autenticado.
+    // Reglas de respaldo para colecciones raíz (compatibilidad y compartido)
     match /products/{productId} {
       allow read, write: if isSignedIn();
     }
@@ -38,6 +35,6 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
     
-    // Comentario para disparar el despliegue automático de reglas: 2026-03-10
+    // Comentario para disparar el despliegue automático de reglas corregidas: 2026-03-10_v2
   }
 }

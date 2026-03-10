@@ -1,34 +1,39 @@
-
 {
   "entities": {
     "Product": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Product",
-      "type": "object",
       "description": "Representa un producto o equipo en inventario.",
+      "type": "object",
       "properties": {
         "id": { "type": "string" },
         "code": { "type": "string" },
         "name": { "type": "string" },
         "category": { "type": "string" },
+        "subCategory": { "type": "string" },
         "price": { "type": "number" },
         "stock": { "type": "number" },
-        "minStock": { "type": "number" }
+        "minStock": { "type": "number" },
+        "condition": { "type": "string", "enum": ["Nuevo", "Usado"] },
+        "batteryHealth": { "type": "string" },
+        "storage": { "type": "string" }
       },
       "required": ["id", "name", "price", "stock"]
     },
     "Customer": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Customer",
-      "type": "object",
       "description": "Representa un cliente y su saldo en cuenta corriente.",
+      "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "balance": { "type": "number" },
         "balanceUSD": { "type": "number" },
         "accountType": { "type": "string", "enum": ["martin", "toti"] },
-        "accountYear": { "type": "string" }
+        "accountYear": { "type": "string" },
+        "notes": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "cuit": { "type": "string" }
       },
       "required": ["id", "name", "balance"]
     },
@@ -38,7 +43,8 @@
       "properties": {
         "id": { "type": "string" },
         "total": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" }
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["completed", "returned"] }
       }
     },
     "Expense": {
@@ -47,7 +53,8 @@
       "properties": {
         "id": { "type": "string" },
         "amount": { "type": "number" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -55,41 +62,25 @@
     "providers": ["password"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}/products/{productId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Product" },
-          "description": "Productos del inventario de la tienda del usuario."
-        }
-      },
-      {
-        "path": "/users/{userId}/customers/{customerId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Customer" },
-          "description": "Clientes y saldos de la tienda del usuario."
-        }
-      },
-      {
-        "path": "/users/{userId}/sales/{saleId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Sale" },
-          "description": "Historial de ventas de la tienda del usuario."
-        }
-      },
-      {
-        "path": "/users/{userId}/expenses/{expenseId}",
-        "definition": {
-          "schema": { "$ref": "#/backend/entities/Expense" },
-          "description": "Gastos registrados por el usuario."
-        }
-      },
-      {
-        "path": "/staff_roles/{staffId}",
-        "definition": {
-          "description": "Roles y permisos del personal."
-        }
-      }
-    ]
+    "/users/{userId}/products/{productId}": {
+      "schema": { "$ref": "#/backend/entities/Product" },
+      "description": "Productos del inventario de la tienda del usuario."
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": { "$ref": "#/backend/entities/Customer" },
+      "description": "Clientes y saldos de la tienda del usuario."
+    },
+    "/users/{userId}/sales/{saleId}": {
+      "schema": { "$ref": "#/backend/entities/Sale" },
+      "description": "Historial de ventas de la tienda del usuario."
+    },
+    "/users/{userId}/expenses/{expenseId}": {
+      "schema": { "$ref": "#/backend/entities/Expense" },
+      "description": "Gastos registrados por el usuario."
+    },
+    "/users/{userId}/settings/{settingId}": {
+      "schema": { "type": "object" },
+      "description": "Configuraciones de la tienda del usuario."
+    }
   }
 }
