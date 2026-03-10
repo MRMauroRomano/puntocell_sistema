@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from "react"
@@ -53,6 +54,7 @@ export default function CustomersPage() {
     phone: "",
     address: "",
     balance: 0,
+    balanceUSD: 0,
     accountType: "martin",
     accountYear: "2025",
     notes: ""
@@ -78,6 +80,7 @@ export default function CustomersPage() {
       phone: "",
       address: "",
       balance: 0,
+      balanceUSD: 0,
       accountType: "martin",
       accountYear: new Date().getFullYear().toString(),
       notes: ""
@@ -95,6 +98,7 @@ export default function CustomersPage() {
       phone: customer.phone,
       address: customer.address || "",
       balance: customer.balance,
+      balanceUSD: customer.balanceUSD || 0,
       accountType: customer.accountType || "martin",
       accountYear: customer.accountYear || "2025",
       notes: customer.notes || ""
@@ -120,6 +124,7 @@ export default function CustomersPage() {
       ...formCustomer,
       id: customerId,
       balance: Number(formCustomer.balance) || 0,
+      balanceUSD: Number(formCustomer.balanceUSD) || 0,
       accountType: formCustomer.accountType || "martin",
       accountYear: formCustomer.accountYear || "2025",
       notes: formCustomer.notes || "",
@@ -227,10 +232,13 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
+            // Agarra los datos de Pesos de la columna Deuda
             const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // Agarra los datos de Dolares de la columna Valor en Dolares (USD)
+            const finalBalanceUSD = parseFloat(String(normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
+            
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
-            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE INCLUYENDO "FECHAS")
             let importedDate = new Date().toISOString()
             const rawDateVal = normalized.fechas || normalized.fecha || normalized.date || normalized.dia
             
@@ -240,17 +248,12 @@ export default function CustomersPage() {
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
                 const dateStr = String(rawDateVal).trim()
-                const parts = dateStr.split(/[/.-]/) // Soporta /, . o -
+                const parts = dateStr.split(/[/.-]/)
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
                   let year = parseInt(parts[2], 10)
-                  
-                  // Manejar formato AA (aa) convirtiéndolo a AAAA
-                  if (parts[2].length === 2) {
-                    year = 2000 + year
-                  }
-                  
+                  if (parts[2].length === 2) year = 2000 + year
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -277,6 +280,7 @@ export default function CustomersPage() {
               id,
               name: String(name),
               balance: finalBalance,
+              balanceUSD: finalBalanceUSD,
               notes: historyNotes,
               accountType,
               accountYear,
@@ -295,7 +299,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes respetando sus fechas originales.` 
+          description: `Se procesaron ${importedCount} clientes con datos en Pesos y USD.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
@@ -439,7 +443,7 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="balance">Saldo Actual ($)</Label>
+                    <Label htmlFor="balance">Saldo Pesos ($)</Label>
                     <Input 
                       id="balance" 
                       type="number"
@@ -447,6 +451,16 @@ export default function CustomersPage() {
                       onChange={(e) => setFormCustomer({...formCustomer, balance: Number(e.target.value)})}
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="balanceUSD">Saldo Dólares (USD)</Label>
+                  <Input 
+                    id="balanceUSD" 
+                    type="number"
+                    value={formCustomer.balanceUSD}
+                    onChange={(e) => setFormCustomer({...formCustomer, balanceUSD: Number(e.target.value)})}
+                    placeholder="Opcional"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Correo</Label>
@@ -570,10 +584,17 @@ export default function CustomersPage() {
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[9px] uppercase font-bold text-muted-foreground">Deuda</span>
-                      <span className={cn("text-base font-black", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
-                        ${customer.balance.toFixed(2)}
-                      </span>
+                      <span className="text-[9px] uppercase font-bold text-muted-foreground">Deuda Total</span>
+                      <div className="flex flex-col">
+                        <span className={cn("text-base font-black leading-tight", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
+                          ${customer.balance.toFixed(2)}
+                        </span>
+                        {customer.balanceUSD && customer.balanceUSD > 0 ? (
+                          <span className="text-[10px] font-bold text-amber-600">
+                            USD {customer.balanceUSD.toFixed(2)}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <Button variant="outline" size="sm" className="h-8 text-xs font-bold gap-1" onClick={() => handleOpenEdit(customer)}>
                       <History className="h-3.5 w-3.5" /> Ficha

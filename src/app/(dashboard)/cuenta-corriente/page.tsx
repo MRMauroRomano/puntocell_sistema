@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef } from "react"
@@ -68,14 +69,16 @@ export default function CurrentAccountPage() {
   }, [customers, searchTerm, activeTab, activeYear])
 
   const totalsByTab = useMemo(() => {
-    if (!customers) return { martin: 0, toti: 0 }
+    if (!customers) return { martin: 0, toti: 0, martinUSD: 0, totiUSD: 0 }
     return customers.reduce((acc, curr) => {
       if ((curr.accountYear || "2025") === activeYear) {
         const type = curr.accountType || 'martin'
         acc[type] = (acc[type] || 0) + (curr.balance || 0)
+        const usdVal = type === 'martin' ? 'martinUSD' : 'totiUSD'
+        acc[usdVal] = (acc[usdVal] || 0) + (curr.balanceUSD || 0)
       }
       return acc
-    }, { martin: 0, toti: 0 })
+    }, { martin: 0, toti: 0, martinUSD: 0, totiUSD: 0 })
   }, [customers, activeYear])
 
   const handleOpenPayment = (customer: Customer) => {
@@ -186,7 +189,11 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
+            // Agarra datos de la columna Deuda para Pesos
             const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // Agarra datos de la columna Valor en Dolares (USD) para USD
+            const balanceUSD = parseFloat(String(normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
+            
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
             const product = String(normalized.producto || normalized.equipo || "")
@@ -231,6 +238,7 @@ export default function CurrentAccountPage() {
               id,
               name: String(name),
               balance,
+              balanceUSD,
               notes: finalNotes,
               accountType,
               accountYear,
@@ -244,7 +252,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros con deudas en Pesos y USD.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -255,8 +263,9 @@ export default function CurrentAccountPage() {
     reader.readAsArrayBuffer(file)
   }
 
-  const martinUSD = totalsByTab.martin / (parseFloat(usdRate) || 1)
-  const totiUSD = totalsByTab.toti / (parseFloat(usdRate) || 1)
+  // Si no hay USD en el excel, usamos la cotización para calcular. Si hay USD, sumamos el fijo.
+  const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
+  const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
 
   return (
     <div className="space-y-6">
@@ -289,7 +298,7 @@ export default function CurrentAccountPage() {
                </CardHeader>
                <CardContent className="px-4 pb-4">
                   <div className="text-2xl font-black text-primary font-headline">${totalsByTab.martin.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
-                  <div className="text-[10px] font-bold text-primary/60">USD {martinUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
+                  <div className="text-[10px] font-bold text-primary/60">USD {martinUSDTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
                </CardContent>
             </Card>
             <Card className="bg-amber-50 border-amber-200">
@@ -298,7 +307,7 @@ export default function CurrentAccountPage() {
                </CardHeader>
                <CardContent className="px-4 pb-4">
                   <div className="text-2xl font-black text-amber-700 font-headline">${totalsByTab.toti.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
-                  <div className="text-[10px] font-bold text-amber-700/60">USD {totiUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
+                  <div className="text-[10px] font-bold text-amber-700/60">USD {totiUSDTotal.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
                </CardContent>
             </Card>
             
@@ -320,7 +329,7 @@ export default function CurrentAccountPage() {
                   />
                 </div>
                 <div className="text-[9px] text-muted-foreground leading-tight italic">
-                  Usamos este valor para calcular los totales en dólares.
+                  Usamos este valor para calcular los totales en dólares si no hay saldo fijo USD.
                 </div>
               </CardContent>
             </Card>
@@ -388,61 +397,67 @@ export default function CurrentAccountPage() {
                         <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
                         <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
                         <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
-                        <TableHead className="text-right font-black uppercase text-[10px]">USD (Aprox)</TableHead>
+                        <TableHead className="text-right font-black uppercase text-[10px]">USD (Aprox / Fijo)</TableHead>
                         <TableHead className="font-black uppercase text-[10px] min-w-[250px]">Lo que entregó / Notas</TableHead>
                         <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filtered.map((customer) => (
-                        <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
-                          <TableCell className="text-[11px] font-medium text-muted-foreground">
-                            {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : "---"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                 <UserCircle className="h-4 w-4 text-primary" />
+                      {filtered.map((customer) => {
+                        const calculatedUSD = (customer.balance || 0) / (parseFloat(usdRate) || 1);
+                        const displayUSD = (customer.balanceUSD && customer.balanceUSD > 0) ? customer.balanceUSD : calculatedUSD;
+                        
+                        return (
+                          <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
+                            <TableCell className="text-[11px] font-medium text-muted-foreground">
+                              {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : "---"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                 <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                   <UserCircle className="h-4 w-4 text-primary" />
+                                 </div>
+                                 <span className="font-bold text-sm">{customer.name}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                               <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
+                                 ${(customer.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                               </span>
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-bold text-muted-foreground">
+                              USD {displayUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              {(customer.balanceUSD && customer.balanceUSD > 0) && <Badge variant="secondary" className="ml-1 text-[8px] px-1 h-3">FIJO</Badge>}
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px]">
+                                {customer.notes || "Sin anotaciones."}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right no-print">
+                               <div className="flex justify-end gap-1">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleOpenStatus(customer)}
+                                    title="Ver Estado"
+                                  >
+                                     <FileText className="h-4 w-4 text-primary/60" />
+                                  </Button>
+                                  <Button 
+                                    variant="secondary" 
+                                    size="sm" 
+                                    className="h-8 px-3 gap-1 text-primary text-[11px] font-bold"
+                                    onClick={() => handleOpenPayment(customer)}
+                                  >
+                                     <Wallet className="h-3.5 w-3.5" /> Cobrar
+                                  </Button>
                                </div>
-                               <span className="font-bold text-sm">{customer.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                             <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
-                               ${(customer.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                             </span>
-                          </TableCell>
-                          <TableCell className="text-right text-xs font-bold text-muted-foreground">
-                            USD {((customer.balance || 0) / (parseFloat(usdRate) || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px]">
-                              {customer.notes || "Sin anotaciones."}
-                            </p>
-                          </TableCell>
-                          <TableCell className="text-right no-print">
-                             <div className="flex justify-end gap-1">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => handleOpenStatus(customer)}
-                                  title="Ver Estado"
-                                >
-                                   <FileText className="h-4 w-4 text-primary/60" />
-                                </Button>
-                                <Button 
-                                  variant="secondary" 
-                                  size="sm" 
-                                  className="h-8 px-3 gap-1 text-primary text-[11px] font-bold"
-                                  onClick={() => handleOpenPayment(customer)}
-                                >
-                                   <Wallet className="h-3.5 w-3.5" /> Cobrar
-                                </Button>
-                             </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
                       {filtered.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-20 text-muted-foreground text-sm italic">
@@ -558,7 +573,7 @@ export default function CurrentAccountPage() {
                     ${selectedCustomer.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                  </p>
                  <p className="text-xs font-bold text-muted-foreground mt-2">
-                   Equivale a aprox. USD {(selectedCustomer.balance / (parseFloat(usdRate) || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                   Equivale a aprox. USD {((selectedCustomer.balanceUSD && selectedCustomer.balanceUSD > 0) ? selectedCustomer.balanceUSD : (selectedCustomer.balance / (parseFloat(usdRate) || 1))).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                  </p>
               </div>
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">

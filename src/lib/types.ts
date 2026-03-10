@@ -22,7 +22,8 @@ export interface Customer {
   email: string;
   phone: string;
   address?: string;
-  balance: number; // Current debt
+  balance: number; // Current debt in Pesos
+  balanceUSD?: number; // Current debt in Dollars (Fixed from Excel)
   accountType?: 'toti' | 'martin'; // New field for dividing accounts
   accountYear?: string; // Year of the account (e.g., "2025", "2026")
   notes?: string; // Observation notes for debt or deals
