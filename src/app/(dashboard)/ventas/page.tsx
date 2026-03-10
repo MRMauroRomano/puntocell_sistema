@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -108,7 +107,7 @@ export default function SalesPage() {
     if (!user || cart.length === 0) return
     setIsFinishing(true)
     
-    const saleId = Math.random().toString(36).substr(2, 9)
+    const saleId = Math.random().toString(36).substr(2, 9).toUpperCase()
     const saleRef = doc(firestore, 'users', user.uid, 'sales', saleId)
     const customer = customers?.find(c => c.id === selectedCustomerId)
     
@@ -142,14 +141,17 @@ export default function SalesPage() {
 
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
-        updateDocumentNonBlocking(customerRef, { balance: (customer.balance || 0) + total })
+        updateDocumentNonBlocking(customerRef, { 
+          balance: (customer.balance || 0) + total,
+          updatedAt: new Date().toISOString()
+        })
       }
 
       setLastSale({ ...saleData, customerAddress: customer?.address || "" })
       setIsSuccessDialogOpen(true)
       toast({ title: "Venta registrada" })
     } catch (error) {
-      toast({ variant: "destructive", title: "Error" })
+      toast({ variant: "destructive", title: "Error al finalizar venta" })
     } finally {
       setIsFinishing(false)
     }
@@ -212,7 +214,10 @@ export default function SalesPage() {
           <Card className="shadow-sm border-primary/10 overflow-hidden">
             <CardContent className="p-0">
               {isProductsLoading ? (
-                <div className="p-12 text-center"><Loader2 className="animate-spin inline" /></div>
+                <div className="p-12 text-center flex flex-col items-center gap-2">
+                  <Loader2 className="animate-spin h-6 w-6 text-primary" />
+                  <p className="text-xs text-muted-foreground">Sincronizando inventario...</p>
+                </div>
               ) : (
                 <Table>
                   <TableHeader className="bg-muted/10">
@@ -233,7 +238,7 @@ export default function SalesPage() {
                         </TableCell>
                         <TableCell className="text-right font-black text-primary">${product.price.toFixed(2)}</TableCell>
                         <TableCell className="text-right">
-                          <Button size="sm" variant="secondary" className="h-7 w-7 p-0" onClick={() => addToCart(product)}>
+                          <Button size="sm" variant="secondary" className="h-7 w-7 p-0" onClick={() => addToCart(product)} disabled={product.stock <= 0}>
                             <Plus className="h-3.5 w-3.5" />
                           </Button>
                         </TableCell>
@@ -281,16 +286,16 @@ export default function SalesPage() {
             </CardContent>
             <CardFooter className="flex-col border-t bg-muted/20 p-4 space-y-4">
               <div className="w-full flex justify-between items-center">
-                <span className="text-xs font-black uppercase">Total</span>
-                <span className="text-2xl font-black text-primary">${total.toFixed(2)}</span>
+                <span className="text-xs font-black uppercase">Total Neto</span>
+                <span className="text-2xl font-black text-primary font-headline">${total.toFixed(2)}</span>
               </div>
               
               <div className="w-full space-y-2">
                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-muted-foreground">Cliente</label>
+                    <label className="text-[9px] font-black uppercase text-muted-foreground">Seleccionar Cliente</label>
                     <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
                       <SelectTrigger className="h-9 text-[10px] font-bold bg-white">
-                        <SelectValue />
+                        <SelectValue placeholder="Consumidor Final" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="final">Consumidor Final</SelectItem>
@@ -321,7 +326,7 @@ export default function SalesPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ticket">Ticket</SelectItem>
+                        <SelectItem value="ticket">Ticket X</SelectItem>
                         <SelectItem value="factura_b">Factura B</SelectItem>
                         <SelectItem value="factura_a">Factura A</SelectItem>
                       </SelectContent>
@@ -333,7 +338,8 @@ export default function SalesPage() {
                   disabled={cart.length === 0 || isFinishing} 
                   onClick={handleFinishSale}
                 >
-                  {isFinishing ? <Loader2 className="animate-spin h-5 w-5" /> : "Confirmar Venta"}
+                  {isFinishing ? <Loader2 className="animate-spin h-5 w-5 mr-2" /> : <CheckCircle2 className="h-5 w-5 mr-2" />}
+                  Finalizar Cobro
                 </Button>
               </div>
             </CardFooter>
@@ -343,12 +349,16 @@ export default function SalesPage() {
 
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
         <DialogContent className="max-w-[400px] text-center p-8">
-          <CheckCircle2 className="h-12 w-12 text-green-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-black font-headline text-primary mb-2 uppercase">¡Venta Exitosa!</h2>
-          <p className="text-muted-foreground text-sm mb-6">El cobro se ha registrado correctamente.</p>
+          <div className="mb-4 flex justify-center">
+            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center border-4 border-green-50 shadow-sm">
+              <CheckCircle2 className="h-10 w-10 text-green-600" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-black font-headline text-primary mb-2 uppercase tracking-tight">¡Venta Exitosa!</h2>
+          <p className="text-muted-foreground text-sm mb-6">La transacción ha sido registrada y el stock actualizado.</p>
           <div className="grid grid-cols-2 gap-3">
-             <Button variant="outline" className="font-bold" onClick={() => window.print()}>Imprimir</Button>
-             <Button className="font-bold" onClick={resetSale}>Nueva Venta</Button>
+             <Button variant="outline" className="font-bold border-2" onClick={() => window.print()}>Imprimir Ticket</Button>
+             <Button className="font-bold shadow-md" onClick={resetSale}>Nueva Venta</Button>
           </div>
         </DialogContent>
       </Dialog>
