@@ -168,7 +168,9 @@ export default function SalesPage() {
         <div className="lg:col-span-2 space-y-4">
           <Card className="border-primary/10 shadow-sm sticky top-6">
             <CardHeader className="pb-3 border-b bg-muted/20">
-              <CardTitle className="text-xs font-black uppercase tracking-wider text-primary">Categorías</CardTitle>
+              <CardTitle className="text-xs font-black uppercase tracking-wider text-primary flex items-center gap-2">
+                <Tag className="h-4 w-4" /> Categorías
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
               <nav className="flex flex-col gap-1">
