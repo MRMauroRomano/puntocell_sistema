@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar, DollarSign } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar, DollarSign, ArrowRightLeft } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -197,10 +197,7 @@ export default function CurrentAccountPage() {
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
             
-            // 1. Saldo en Pesos - Columnas flexibles
             const balance = parseMoney(normalized["deuda ars ($)"] || normalized["deuda ars"] || normalized.deuda || normalized.saldo)
-            
-            // 2. Saldo en USD - Columnas flexibles
             const balanceUSD = parseMoney(normalized["deuda usd (u$s)"] || normalized["deudas usd"] || normalized["deuda usd"] || normalized.usd)
             
             const entrega = String(normalized.entrega || normalized.pago || "")
@@ -269,6 +266,14 @@ export default function CurrentAccountPage() {
 
   const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
   const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
+
+  // Cálculo de conversión para el diálogo de pago
+  const paymentInUSD = useMemo(() => {
+    const amount = parseFloat(paymentAmount)
+    const rate = parseFloat(usdRate) || 1
+    if (isNaN(amount) || amount <= 0) return 0
+    return amount / rate
+  }, [paymentAmount, usdRate])
 
   return (
     <div className="space-y-6">
@@ -538,19 +543,37 @@ export default function CurrentAccountPage() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
-               <span className="text-xs font-bold text-red-800 uppercase">Deuda Actual</span>
-               <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+               <div className="flex justify-between items-center">
+                 <span className="text-xs font-bold text-red-800 uppercase">Deuda Actual</span>
+                 <span className="text-[10px] font-bold text-red-600 uppercase">Cotización: ${usdRate}</span>
+               </div>
+               <div className="flex flex-col">
+                 <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
+                 <span className="text-xs font-bold text-red-700/70">
+                   ≈ USD {((selectedCustomer?.balance || 0) / (parseFloat(usdRate) || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                 </span>
+               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment">Monto que paga ($)</Label>
-              <Input 
-                id="payment" 
-                type="number" 
-                placeholder="0.00" 
-                autoFocus
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-muted-foreground font-bold">$</span>
+                <Input 
+                  id="payment" 
+                  type="number" 
+                  placeholder="0.00" 
+                  autoFocus
+                  className="pl-7 h-11 text-lg font-bold"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                />
+              </div>
+              {paymentInUSD > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-primary/5 rounded border border-primary/10 text-primary">
+                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                  <span className="text-xs font-bold">Equivale a: <span className="text-sm font-black">USD {paymentInUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></span>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -575,9 +598,14 @@ export default function CurrentAccountPage() {
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
                     ${selectedCustomer.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                  </p>
-                 <p className="text-xs font-bold text-muted-foreground mt-2">
-                   Equivale a aprox. USD {((selectedCustomer.balanceUSD && selectedCustomer.balanceUSD > 0) ? selectedCustomer.balanceUSD : (selectedCustomer.balance / (parseFloat(usdRate) || 1))).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                 </p>
+                 <div className="flex flex-col items-center mt-2">
+                    <p className="text-xs font-bold text-muted-foreground flex items-center gap-1">
+                      <ArrowRightLeft className="h-3 w-3" /> Valor al dólar de hoy (${usdRate}):
+                    </p>
+                    <p className="text-lg font-black text-primary">
+                      USD {((selectedCustomer.balanceUSD && selectedCustomer.balanceUSD > 0) ? selectedCustomer.balanceUSD : (selectedCustomer.balance / (parseFloat(usdRate) || 1))).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    </p>
+                 </div>
               </div>
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
                 <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1 mb-2">
