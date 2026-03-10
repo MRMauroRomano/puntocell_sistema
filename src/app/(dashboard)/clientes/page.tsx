@@ -5,7 +5,7 @@ import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar, FileUp, Layers, CheckCircle2 } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, FileUp, Layers, CheckCircle2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -137,11 +137,7 @@ export default function CustomersPage() {
       }
       setIsDialogOpen(false)
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo guardar el cliente.",
-      })
+      // Handled centrally
     } finally {
       setIsSaving(false)
     }
@@ -166,7 +162,7 @@ export default function CustomersPage() {
       setIsBulkDialogOpen(false)
       setSelectedIds([])
     } catch (error) {
-      toast({ variant: "destructive", title: "Error al actualizar" })
+      // Handled centrally
     } finally {
       setIsSaving(false)
     }
@@ -232,25 +228,35 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // LA DEUDA ES EL RESTO QUE LE QUEDA SEGUN EL EXCEL
-            const finalBalance = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || normalized.debe || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // DEUDA ES EL SALDO ACTUAL (LO QUE LE QUEDA)
+            const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || "0").replace(/[^0-9.-]+/g, "")) || 0
+            
+            // ENTREGA ES HISTORIAL
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
-            const rawDate = normalized.fecha || new Date().toLocaleDateString()
+            
+            // PROCESAR FECHA (FORMATO DD/MM/YYYY)
+            let rawDate = String(normalized.fecha || normalized.date || new Date().toLocaleDateString('es-AR'))
+            
             const product = String(normalized.producto || normalized.equipo || "")
             const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
             
             let historyNotes = ""
-            if (product) historyNotes += `Producto: ${product}\n`
-            if (delivery > 0) historyNotes += `[${rawDate}] Entrega histórica: $${delivery.toFixed(2)}\n`
-            if (rawNotes) historyNotes += `Notas del trato: ${rawNotes}`
+            if (product && product !== "undefined") historyNotes += `Producto: ${product}\n`
+            if (delivery > 0) historyNotes += `[${rawDate}] Entrega histórica registrada: $${delivery.toFixed(2)}\n`
+            if (rawNotes && rawNotes !== "undefined") historyNotes += `Nota del trato: ${rawNotes}`
+
+            // Determinar año y cartera por defecto o desde Excel
+            const rawType = String(normalized.cartera || normalized.tipo || normalized.cuenta || "martin").toLowerCase()
+            const accountType = rawType.includes('toti') ? 'toti' : 'martin'
+            const accountYear = String(normalized.anio || normalized.year || "2025")
 
             const customerData = {
               id,
               name: String(name),
               balance: finalBalance,
               notes: historyNotes,
-              accountType: String(normalized.cartera || normalized.tipo || "martin").toLowerCase().includes('toti') ? 'toti' : 'martin',
-              accountYear: String(normalized.anio || normalized.year || "2025"),
+              accountType,
+              accountYear,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString(),
               email: normalized.email || "",
@@ -266,7 +272,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes. La deuda es el saldo neto importado.` 
+          description: `Se procesaron ${importedCount} clientes. Se respetó la deuda como saldo neto.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
@@ -410,7 +416,7 @@ export default function CustomersPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="balance">Saldo Actual</Label>
+                    <Label htmlFor="balance">Saldo Actual ($)</Label>
                     <Input 
                       id="balance" 
                       type="number"
@@ -432,7 +438,7 @@ export default function CustomersPage() {
                   <Label htmlFor="notes">Lo que entregó / Historial de Entregas</Label>
                   <Textarea 
                     id="notes" 
-                    placeholder="Ej: [01/03/2025] Entregó Samsung J7 como parte de pago..." 
+                    placeholder="Ej: [10/03/2026] Entregó Samsung J7 como parte de pago..." 
                     className="min-h-[120px]"
                     value={formCustomer.notes}
                     onChange={(e) => setFormCustomer({...formCustomer, notes: e.target.value})}
