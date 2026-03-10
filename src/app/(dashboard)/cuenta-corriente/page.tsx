@@ -31,7 +31,6 @@ export default function CurrentAccountPage() {
   const [activeYear, setActiveYear] = useState<string>("2025")
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Estados para diálogos
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
@@ -187,10 +186,7 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // DEUDA ES EL SALDO QUE LE QUEDA SEGUN EL EXCEL
             const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
-            
-            // ENTREGA ES HISTORIAL
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
             const product = String(normalized.producto || normalized.equipo || "")
@@ -203,15 +199,13 @@ export default function CurrentAccountPage() {
             
             // PROCESAR FECHA DEL EXCEL (RESPETANDO DD/MM/YYYY)
             let importedDate = new Date().toISOString()
-            const rawDate = normalized.fecha || normalized.date
-            if (rawDate) {
-              if (typeof rawDate === 'number') {
-                // Excel serial number date
-                const d = new Date((rawDate - 25569) * 86400 * 1000)
+            const rawDateVal = normalized.fecha || normalized.date
+            if (rawDateVal) {
+              if (typeof rawDateVal === 'number') {
+                const d = new Date((rawDateVal - 25569) * 86400 * 1000)
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
-                // String date - handle DD/MM/YYYY
-                const parts = String(rawDate).split('/')
+                const parts = String(rawDateVal).split('/')
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
@@ -219,15 +213,16 @@ export default function CurrentAccountPage() {
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
-                  const d = new Date(rawDate)
+                  const d = new Date(rawDateVal)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 }
               }
             }
 
+            const formattedExcelDate = new Date(importedDate).toLocaleDateString('es-AR')
             let finalNotes = ""
             if (product && product !== "undefined") finalNotes += `Equipo: ${product}\n`
-            if (delivery > 0) finalNotes += `Entrega previa registrada: $${delivery.toFixed(2)} (Fecha Excel: ${rawDate})\n`
+            if (delivery > 0) finalNotes += `Entrega previa registrada: $${delivery.toFixed(2)} (Fecha Excel: ${formattedExcelDate})\n`
             if (rawNotes && rawNotes !== "undefined") finalNotes += `Notas: ${rawNotes}`
 
             const customerData = {
@@ -247,7 +242,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros. La deuda se tomó como saldo neto actual.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros con sus fechas originales.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -429,7 +424,6 @@ export default function CurrentAccountPage() {
         </div>
       </div>
 
-      {/* Diálogo Registrar Cargo Manual */}
       <Dialog open={isChargeDialogOpen} onOpenChange={setIsChargeDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
@@ -484,7 +478,6 @@ export default function CurrentAccountPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo Cobrar */}
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -517,7 +510,6 @@ export default function CurrentAccountPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo Estado de Cuenta */}
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>

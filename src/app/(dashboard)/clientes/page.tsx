@@ -228,24 +228,40 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // DEUDA ES EL SALDO ACTUAL (LO QUE LE QUEDA)
             const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || "0").replace(/[^0-9.-]+/g, "")) || 0
-            
-            // ENTREGA ES HISTORIAL
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
-            // PROCESAR FECHA (FORMATO DD/MM/YYYY)
-            let rawDate = String(normalized.fecha || normalized.date || new Date().toLocaleDateString('es-AR'))
-            
+            // PROCESAR FECHA DEL EXCEL (RESPETANDO DD/MM/YYYY)
+            let importedDate = new Date().toISOString()
+            const rawDateVal = normalized.fecha || normalized.date
+            if (rawDateVal) {
+              if (typeof rawDateVal === 'number') {
+                const d = new Date((rawDateVal - 25569) * 86400 * 1000)
+                if (!isNaN(d.getTime())) importedDate = d.toISOString()
+              } else {
+                const parts = String(rawDateVal).split('/')
+                if (parts.length === 3) {
+                  const day = parseInt(parts[0], 10)
+                  const month = parseInt(parts[1], 10) - 1
+                  const year = parseInt(parts[2], 10)
+                  const d = new Date(year, month, day)
+                  if (!isNaN(d.getTime())) importedDate = d.toISOString()
+                } else {
+                  const d = new Date(rawDateVal)
+                  if (!isNaN(d.getTime())) importedDate = d.toISOString()
+                }
+              }
+            }
+
             const product = String(normalized.producto || normalized.equipo || "")
             const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
-            
+            const formattedDateStr = new Date(importedDate).toLocaleDateString('es-AR')
+
             let historyNotes = ""
             if (product && product !== "undefined") historyNotes += `Producto: ${product}\n`
-            if (delivery > 0) historyNotes += `[${rawDate}] Entrega histórica registrada: $${delivery.toFixed(2)}\n`
-            if (rawNotes && rawNotes !== "undefined") historyNotes += `Nota del trato: ${rawNotes}`
+            if (delivery > 0) historyNotes += `[${formattedDateStr}] Entrega registrada: $${delivery.toFixed(2)}\n`
+            if (rawNotes && rawNotes !== "undefined") historyNotes += `Nota: ${rawNotes}`
 
-            // Determinar año y cartera por defecto o desde Excel
             const rawType = String(normalized.cartera || normalized.tipo || normalized.cuenta || "martin").toLowerCase()
             const accountType = rawType.includes('toti') ? 'toti' : 'martin'
             const accountYear = String(normalized.anio || normalized.year || "2025")
@@ -257,8 +273,8 @@ export default function CustomersPage() {
               notes: historyNotes,
               accountType,
               accountYear,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
+              createdAt: importedDate,
+              updatedAt: importedDate,
               email: normalized.email || "",
               phone: String(normalized.telefono || normalized.phone || ""),
               cuit: String(normalized.cuit || "")
@@ -272,7 +288,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes. Se respetó la deuda como saldo neto.` 
+          description: `Se procesaron ${importedCount} clientes con fechas de origen.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
@@ -563,7 +579,6 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Diálogo Modificación Masiva */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
