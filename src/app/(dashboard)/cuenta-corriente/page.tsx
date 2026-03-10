@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar, DollarSign } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -28,6 +28,7 @@ export default function CurrentAccountPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<string>("martin")
   const [activeYear, setActiveYear] = useState<string>("2025")
+  const [usdRate, setUsdRate] = useState<string>("1200") // Valor por defecto
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -196,7 +197,6 @@ export default function CurrentAccountPage() {
             const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
             
-            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE: fechas, fecha, día, date)
             let importedDate = new Date().toISOString()
             const rawDateVal = normalized.fechas || normalized.fecha || normalized.dia || normalized.date
             
@@ -206,17 +206,12 @@ export default function CurrentAccountPage() {
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
                 const dateStr = String(rawDateVal).trim()
-                const parts = dateStr.split(/[/.-]/) // Divide por /, . o -
+                const parts = dateStr.split(/[/.-]/)
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
                   let year = parseInt(parts[2], 10)
-                  
-                  // Manejar formato AA (aa) convirtiéndolo a AAAA
-                  if (parts[2].length === 2) {
-                    year = 2000 + year
-                  }
-                  
+                  if (parts[2].length === 2) year = 2000 + year
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -249,7 +244,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros respetando las fechas del Excel.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -259,6 +254,9 @@ export default function CurrentAccountPage() {
     }
     reader.readAsArrayBuffer(file)
   }
+
+  const martinUSD = totalsByTab.martin / (parseFloat(usdRate) || 1)
+  const totiUSD = totalsByTab.toti / (parseFloat(usdRate) || 1)
 
   return (
     <div className="space-y-6">
@@ -290,7 +288,8 @@ export default function CurrentAccountPage() {
                   <CardTitle className="text-[10px] font-black uppercase text-primary/70">Total Martin ({activeYear})</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
-                  <div className="text-2xl font-black text-primary font-headline">${totalsByTab.martin.toFixed(2)}</div>
+                  <div className="text-2xl font-black text-primary font-headline">${totalsByTab.martin.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                  <div className="text-[10px] font-bold text-primary/60">USD {martinUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
                </CardContent>
             </Card>
             <Card className="bg-amber-50 border-amber-200">
@@ -298,20 +297,33 @@ export default function CurrentAccountPage() {
                   <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Total Toti ({activeYear})</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
-                  <div className="text-2xl font-black text-amber-700 font-headline">${totalsByTab.toti.toFixed(2)}</div>
+                  <div className="text-2xl font-black text-amber-700 font-headline">${totalsByTab.toti.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</div>
+                  <div className="text-[10px] font-bold text-amber-700/60">USD {totiUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</div>
                </CardContent>
             </Card>
-            <div className="lg:col-span-2">
-              <div className="relative h-full flex items-center">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar por nombre de cliente..." 
-                  className="pl-9 h-full bg-white"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
+            
+            <Card className="bg-white border-muted col-span-1 lg:col-span-2">
+              <CardHeader className="pb-1 px-4 pt-3">
+                 <CardTitle className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1">
+                   <DollarSign className="h-3 w-3" /> Cotización USD Hoy
+                 </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-3 flex items-center gap-2">
+                <div className="relative w-full">
+                  <span className="absolute left-3 top-2.5 text-xs font-bold text-muted-foreground">$</span>
+                  <Input 
+                    type="number" 
+                    value={usdRate}
+                    onChange={(e) => setUsdRate(e.target.value)}
+                    className="h-9 pl-6 font-bold text-sm bg-muted/20 border-none"
+                    placeholder="Ej: 1250"
+                  />
+                </div>
+                <div className="text-[9px] text-muted-foreground leading-tight italic">
+                  Usamos este valor para calcular los totales en dólares.
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -342,6 +354,18 @@ export default function CurrentAccountPage() {
                  </Button>
                ))}
             </div>
+
+            <div className="flex-1"></div>
+
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar cliente..." 
+                className="pl-9 bg-white"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
             
           <Card className="shadow-lg border-primary/10 overflow-hidden">
@@ -364,6 +388,7 @@ export default function CurrentAccountPage() {
                         <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
                         <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
                         <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
+                        <TableHead className="text-right font-black uppercase text-[10px]">USD (Aprox)</TableHead>
                         <TableHead className="font-black uppercase text-[10px] min-w-[250px]">Lo que entregó / Notas</TableHead>
                         <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
                       </TableRow>
@@ -384,8 +409,11 @@ export default function CurrentAccountPage() {
                           </TableCell>
                           <TableCell className="text-right">
                              <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
-                               ${(customer.balance || 0).toFixed(2)}
+                               ${(customer.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                              </span>
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-bold text-muted-foreground">
+                            USD {((customer.balance || 0) / (parseFloat(usdRate) || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>
                             <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px]">
@@ -417,7 +445,7 @@ export default function CurrentAccountPage() {
                       ))}
                       {filtered.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-20 text-muted-foreground text-sm italic">
+                          <TableCell colSpan={6} className="text-center py-20 text-muted-foreground text-sm italic">
                             No hay registros para {activeTab.toUpperCase()} en el año {activeYear}.
                           </TableCell>
                         </TableRow>
@@ -493,7 +521,7 @@ export default function CurrentAccountPage() {
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
                <span className="text-xs font-bold text-red-800 uppercase">Deuda Actual</span>
-               <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toFixed(2)}</span>
+               <span className="text-2xl font-black text-red-900">${(selectedCustomer?.balance || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="space-y-2">
               <Label htmlFor="payment">Monto que paga ($)</Label>
@@ -527,7 +555,10 @@ export default function CurrentAccountPage() {
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
                  <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda ({selectedCustomer.accountYear || "2025"})</p>
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
-                    ${selectedCustomer.balance.toFixed(2)}
+                    ${selectedCustomer.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                 </p>
+                 <p className="text-xs font-bold text-muted-foreground mt-2">
+                   Equivale a aprox. USD {(selectedCustomer.balance / (parseFloat(usdRate) || 1)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                  </p>
               </div>
               <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
