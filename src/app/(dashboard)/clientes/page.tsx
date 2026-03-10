@@ -108,7 +108,8 @@ export default function CustomersPage() {
       id: customerId,
       balance: Number(formCustomer.balance) || 0,
       accountType: formCustomer.accountType || "martin",
-      notes: formCustomer.notes || ""
+      notes: formCustomer.notes || "",
+      updatedAt: new Date().toISOString()
     }
 
     try {
@@ -116,7 +117,7 @@ export default function CustomersPage() {
         updateDocumentNonBlocking(customerDocRef, customerData)
         toast({ title: "Cliente actualizado" })
       } else {
-        setDocumentNonBlocking(customerDocRef, customerData, { merge: true })
+        setDocumentNonBlocking(customerDocRef, { ...customerData, createdAt: new Date().toISOString() }, { merge: true })
         toast({ title: "Cliente registrado" })
       }
       setIsDialogOpen(false)
@@ -260,7 +261,7 @@ export default function CustomersPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notas / Observaciones de Deuda</Label>
+                  <Label htmlFor="notes">Notas / Lo que entregó (Entrega Inicial)</Label>
                   <Textarea 
                     id="notes" 
                     placeholder="Ej: Entregó iPhone 11 como parte de pago..." 
@@ -352,8 +353,8 @@ export default function CustomersPage() {
                         ${customer.balance.toFixed(2)}
                       </span>
                     </div>
-                    <Button variant="secondary" size="sm" className="gap-1">
-                      <History className="h-4 w-4" /> Historial
+                    <Button variant="secondary" size="sm" className="gap-1" onClick={() => handleOpenEdit(customer)}>
+                      <History className="h-4 w-4" /> Ver Ficha
                     </Button>
                   </div>
                 </CardContent>

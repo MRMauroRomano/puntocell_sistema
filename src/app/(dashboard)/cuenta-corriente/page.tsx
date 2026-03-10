@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, DollarSign, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, Calendar } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
@@ -47,7 +49,12 @@ export default function CurrentAccountPage() {
         const matchesType = (c.accountType || 'martin') === activeTab
         return matchesSearch && matchesType
       })
-      .sort((a, b) => (b.balance || 0) - (a.balance || 0))
+      .sort((a, b) => {
+        // Ordenar por fecha de actualización (más reciente primero)
+        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+        return dateB - dateA
+      })
   }, [customers, searchTerm, activeTab])
 
   const totalsByTab = useMemo(() => {
@@ -88,7 +95,8 @@ export default function CurrentAccountPage() {
 
     try {
       updateDocumentNonBlocking(customerRef, {
-        balance: newBalance
+        balance: newBalance,
+        updatedAt: new Date().toISOString()
       })
       
       toast({
@@ -116,57 +124,51 @@ export default function CurrentAccountPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
-          <p className="text-muted-foreground text-sm">Gestión de créditos, deudas y pagos parciales.</p>
+          <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas.</p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={handlePrintList}>
-             <Printer className="h-4 w-4" /> Imprimir
+             <Printer className="h-4 w-4" /> Imprimir Listado
            </Button>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-12">
-        <div className="md:col-span-4 space-y-4 no-print">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="md:col-span-12 space-y-4 no-print">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-primary/5 border-primary/20">
                <CardHeader className="pb-1 px-4 pt-4">
-                  <CardTitle className="text-[10px] font-black uppercase text-primary/70">Fiados Martin</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase text-primary/70">Total Fiados Martin</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
-                  <div className="text-xl font-black text-primary font-headline">${totalsByTab.martin.toFixed(2)}</div>
+                  <div className="text-2xl font-black text-primary font-headline">${totalsByTab.martin.toFixed(2)}</div>
                </CardContent>
             </Card>
             <Card className="bg-amber-50 border-amber-200">
                <CardHeader className="pb-1 px-4 pt-4">
-                  <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Arreglos Toti</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Total Arreglos Toti</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
-                  <div className="text-xl font-black text-amber-700 font-headline">${totalsByTab.toti.toFixed(2)}</div>
+                  <div className="text-2xl font-black text-amber-700 font-headline">${totalsByTab.toti.toFixed(2)}</div>
                </CardContent>
             </Card>
-          </div>
-
-          <Card className="border-primary/10">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-headline">Buscador</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="lg:col-span-2">
+              <div className="relative h-full flex items-center">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Nombre o ID..." 
-                  className="pl-9 bg-muted/30 border-none"
+                  placeholder="Buscar por nombre de cliente..." 
+                  className="pl-9 h-full bg-white border-primary/20"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        <div className="md:col-span-8">
+        <div className="md:col-span-12">
           <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4 bg-muted/50 p-1 no-print">
+            <TabsList className="grid w-full sm:w-[400px] grid-cols-2 mb-4 bg-muted/50 p-1 no-print">
               <TabsTrigger value="martin" className="font-black uppercase text-xs gap-2">
                 <Wallet className="h-3 w-3" /> Fiados Martin
               </TabsTrigger>
@@ -175,44 +177,37 @@ export default function CurrentAccountPage() {
               </TabsTrigger>
             </TabsList>
             
-            <Card className="shadow-sm border-primary/10 overflow-hidden">
-              <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/10 py-4 px-6">
-                 <div>
-                   <CardTitle className="text-lg font-headline">
-                     {activeTab === 'martin' ? 'Cartera de Fiados (Martin)' : 'Cartera de Arreglos (Toti)'}
-                   </CardTitle>
-                   <CardDescription className="text-xs">Saldos pendientes segmentados</CardDescription>
-                 </div>
-                 {!isLoading && <Badge variant="secondary" className="font-bold">{filtered.length} Clientes</Badge>}
-              </CardHeader>
+            <Card className="shadow-lg border-primary/10 overflow-hidden">
               <CardContent className="p-0">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-20 gap-2">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground text-xs">Cargando cuentas...</p>
+                    <p className="text-muted-foreground text-xs">Cargando datos...</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow>
-                          <TableHead>Cliente</TableHead>
-                          <TableHead className="text-right">Saldo Pendiente</TableHead>
-                          <TableHead className="text-right no-print">Acciones</TableHead>
+                      <TableHeader className="bg-primary/5">
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
+                          <TableHead className="font-black uppercase text-[10px]">Nombre del Cliente</TableHead>
+                          <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
+                          <TableHead className="font-black uppercase text-[10px] min-w-[200px]">Lo que entregó / Notas</TableHead>
+                          <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filtered.map((customer) => (
-                          <TableRow key={customer.id} className="hover:bg-primary/5">
+                          <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
+                            <TableCell className="text-[11px] font-medium text-muted-foreground">
+                              {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : (customer.createdAt ? format(new Date(customer.createdAt), "dd/MM/yyyy", { locale: es }) : "---")}
+                            </TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-3">
-                                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                   <UserCircle className="h-5 w-5 text-primary" />
+                              <div className="flex items-center gap-2">
+                                 <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                   <UserCircle className="h-4 w-4 text-primary" />
                                  </div>
-                                 <div className="flex flex-col min-w-0">
-                                   <span className="font-bold text-sm truncate">{customer.name}</span>
-                                   <span className="text-[10px] text-muted-foreground font-mono">ID: {customer.id.slice(0, 8)}</span>
-                                 </div>
+                                 <span className="font-bold text-sm">{customer.name}</span>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -220,20 +215,26 @@ export default function CurrentAccountPage() {
                                  ${(customer.balance || 0).toFixed(2)}
                                </span>
                             </TableCell>
+                            <TableCell>
+                              <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[300px]">
+                                {customer.notes || "Sin observaciones registradas."}
+                              </p>
+                            </TableCell>
                             <TableCell className="text-right no-print">
                                <div className="flex justify-end gap-1">
                                   <Button 
-                                    variant="outline" 
+                                    variant="ghost" 
                                     size="sm" 
-                                    className="h-8 px-2 gap-1 text-[11px]"
+                                    className="h-8 w-8 p-0"
                                     onClick={() => handleOpenStatus(customer)}
+                                    title="Ver Estado Detallado"
                                   >
-                                     <FileText className="h-3.5 w-3.5" /> Estado
+                                     <FileText className="h-4 w-4 text-primary/60" />
                                   </Button>
                                   <Button 
                                     variant="secondary" 
                                     size="sm" 
-                                    className="h-8 px-2 gap-1 text-primary text-[11px] font-bold"
+                                    className="h-8 px-3 gap-1 text-primary text-[11px] font-bold"
                                     onClick={() => handleOpenPayment(customer)}
                                   >
                                      <Wallet className="h-3.5 w-3.5" /> Cobrar
@@ -244,8 +245,8 @@ export default function CurrentAccountPage() {
                         ))}
                         {filtered.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={3} className="text-center py-20 text-muted-foreground italic text-xs">
-                              No hay clientes con saldos en esta sección.
+                            <TableCell colSpan={5} className="text-center py-20 text-muted-foreground italic text-xs">
+                              No hay registros en esta sección.
                             </TableCell>
                           </TableRow>
                         )}
@@ -263,9 +264,9 @@ export default function CurrentAccountPage() {
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Registrar Cobro de Deuda</DialogTitle>
+            <DialogTitle className="font-headline">Registrar Cobro</DialogTitle>
             <DialogDescription>
-              Registra cómo el cliente {selectedCustomer?.name} abona su deuda.
+              Abono de deuda para {selectedCustomer?.name}.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -293,7 +294,7 @@ export default function CurrentAccountPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment">Monto a Cobrar ($)</Label>
+              <Label htmlFor="payment">Monto que paga ($)</Label>
               <Input 
                 id="payment" 
                 type="number" 
@@ -318,49 +319,51 @@ export default function CurrentAccountPage() {
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline text-xl">Estado de Cuenta Detallado</DialogTitle>
+            <DialogTitle className="font-headline text-xl">Estado Detallado</DialogTitle>
             <DialogDescription>
-              Situación financiera actual del cliente en tu tienda.
+              Resumen de situación y observaciones.
             </DialogDescription>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 rounded-xl border bg-muted/30">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Nombre</p>
-                  <p className="font-bold text-sm">{selectedCustomer.name}</p>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Fecha Últ. Movimiento</p>
+                  <p className="font-bold text-sm">
+                    {selectedCustomer.updatedAt ? format(new Date(selectedCustomer.updatedAt), "dd/MM/yyyy HH:mm", { locale: es }) : "Sin movimientos"}
+                  </p>
                 </div>
                 <div className="p-4 rounded-xl border bg-muted/30">
-                  <p className="text-[10px] font-black uppercase text-muted-foreground">Tipo de Cuenta</p>
+                  <p className="text-[10px] font-black uppercase text-muted-foreground">Cartera</p>
                   <p className="font-bold text-sm uppercase text-primary">
                     {selectedCustomer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
                   </p>
                 </div>
               </div>
+
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
-                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Saldo Final Pendiente</p>
+                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda</p>
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
                     ${selectedCustomer.balance.toFixed(2)}
                  </p>
               </div>
 
-              {selectedCustomer.notes && (
-                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
-                  <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1">
-                    <Info className="h-3 w-3" /> Notas / Observaciones del Trato
-                  </p>
-                  <p className="text-sm mt-1 whitespace-pre-wrap text-amber-900 italic">
-                    "{selectedCustomer.notes}"
-                  </p>
+              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
+                <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1 mb-2">
+                  <Info className="h-3 w-3" /> Lo que entregó / Notas del trato
+                </p>
+                <div className="text-sm bg-white/50 p-3 rounded border border-amber-100 min-h-[60px] italic text-amber-900">
+                  {selectedCustomer.notes || "No hay notas registradas para este cliente."}
                 </div>
-              )}
+              </div>
 
               <div className="space-y-2">
-                <p className="text-xs font-bold uppercase text-muted-foreground">Información de Contacto</p>
-                <div className="text-sm space-y-1 bg-muted/20 p-3 rounded-lg">
-                   <p><span className="font-medium">Email:</span> {selectedCustomer.email || "No registrado"}</p>
-                   <p><span className="font-medium">Teléfono:</span> {selectedCustomer.phone || "No registrado"}</p>
-                   <p><span className="font-medium">Dirección:</span> {selectedCustomer.address || "No registrada"}</p>
+                <p className="text-xs font-bold uppercase text-muted-foreground">Información del Cliente</p>
+                <div className="text-xs grid grid-cols-2 gap-2 bg-muted/20 p-3 rounded-lg">
+                   <div><span className="font-bold text-muted-foreground">Nombre:</span> {selectedCustomer.name}</div>
+                   <div><span className="font-bold text-muted-foreground">CUIT:</span> {selectedCustomer.cuit || "---"}</div>
+                   <div><span className="font-bold text-muted-foreground">Teléfono:</span> {selectedCustomer.phone || "---"}</div>
+                   <div className="col-span-2"><span className="font-bold text-muted-foreground">Email:</span> {selectedCustomer.email || "---"}</div>
                 </div>
               </div>
             </div>
