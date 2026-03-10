@@ -228,22 +228,24 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || "0").replace(/[^0-9.-]+/g, "")) || 0
+            const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
-            // PROCESAR FECHA DEL EXCEL (RESPETANDO DD/MM/YYYY)
+            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE)
             let importedDate = new Date().toISOString()
-            const rawDateVal = normalized.fecha || normalized.date
+            const rawDateVal = normalized.fecha || normalized.fechas || normalized.date || normalized.dia
+            
             if (rawDateVal) {
               if (typeof rawDateVal === 'number') {
                 const d = new Date((rawDateVal - 25569) * 86400 * 1000)
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
-                const parts = String(rawDateVal).split('/')
+                const dateStr = String(rawDateVal).trim()
+                const parts = dateStr.split(/[/.-]/) // Soporta /, . o -
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
-                  const year = parseInt(parts[2], 10)
+                  const year = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10)
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -254,17 +256,17 @@ export default function CustomersPage() {
             }
 
             const product = String(normalized.producto || normalized.equipo || "")
-            const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
+            const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || normalized.entrego || "")
             const formattedDateStr = new Date(importedDate).toLocaleDateString('es-AR')
 
             let historyNotes = ""
-            if (product && product !== "undefined") historyNotes += `Producto: ${product}\n`
-            if (delivery > 0) historyNotes += `[${formattedDateStr}] Entrega registrada: $${delivery.toFixed(2)}\n`
-            if (rawNotes && rawNotes !== "undefined") historyNotes += `Nota: ${rawNotes}`
+            if (product && product !== "undefined" && product !== "") historyNotes += `Producto: ${product}\n`
+            if (delivery > 0) historyNotes += `[${formattedDateStr}] Entrega previa: $${delivery.toFixed(2)}\n`
+            if (rawNotes && rawNotes !== "undefined" && rawNotes !== "") historyNotes += `Nota: ${rawNotes}`
 
             const rawType = String(normalized.cartera || normalized.tipo || normalized.cuenta || "martin").toLowerCase()
             const accountType = rawType.includes('toti') ? 'toti' : 'martin'
-            const accountYear = String(normalized.anio || normalized.year || "2025")
+            const accountYear = String(normalized.anio || normalized.year || normalized.periodo || "2025")
 
             const customerData = {
               id,
@@ -288,7 +290,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes con fechas de origen.` 
+          description: `Se procesaron ${importedCount} clientes respetando sus fechas originales.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })

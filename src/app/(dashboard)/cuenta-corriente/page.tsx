@@ -197,19 +197,21 @@ export default function CurrentAccountPage() {
             const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
             
-            // PROCESAR FECHA DEL EXCEL (RESPETANDO DD/MM/YYYY)
+            // PROCESAR FECHA DEL EXCEL (DETECCIÓN FLEXIBLE: fecha, fechas, día, date)
             let importedDate = new Date().toISOString()
-            const rawDateVal = normalized.fecha || normalized.date
+            const rawDateVal = normalized.fecha || normalized.fechas || normalized.dia || normalized.date
+            
             if (rawDateVal) {
               if (typeof rawDateVal === 'number') {
                 const d = new Date((rawDateVal - 25569) * 86400 * 1000)
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
-                const parts = String(rawDateVal).split('/')
+                const dateStr = String(rawDateVal).trim()
+                const parts = dateStr.split(/[/.-]/) // Divide por /, . o -
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
-                  const year = parseInt(parts[2], 10)
+                  const year = parts[2].length === 2 ? 2000 + parseInt(parts[2], 10) : parseInt(parts[2], 10)
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -221,9 +223,9 @@ export default function CurrentAccountPage() {
 
             const formattedExcelDate = new Date(importedDate).toLocaleDateString('es-AR')
             let finalNotes = ""
-            if (product && product !== "undefined") finalNotes += `Equipo: ${product}\n`
-            if (delivery > 0) finalNotes += `Entrega previa registrada: $${delivery.toFixed(2)} (Fecha Excel: ${formattedExcelDate})\n`
-            if (rawNotes && rawNotes !== "undefined") finalNotes += `Notas: ${rawNotes}`
+            if (product && product !== "undefined" && product !== "") finalNotes += `Equipo: ${product}\n`
+            if (delivery > 0) finalNotes += `Entrega previa registrada: $${delivery.toFixed(2)} (Fecha: ${formattedExcelDate})\n`
+            if (rawNotes && rawNotes !== "undefined" && rawNotes !== "") finalNotes += `Notas: ${rawNotes}`
 
             const customerData = {
               id,
@@ -242,7 +244,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros con sus fechas originales.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros respetando las fechas del Excel.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -347,7 +349,7 @@ export default function CurrentAccountPage() {
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-2">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-muted-foreground text-xs">Cargando planilla...</p>
+                  <p className="text-muted-foreground text-sm">Cargando planilla...</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
