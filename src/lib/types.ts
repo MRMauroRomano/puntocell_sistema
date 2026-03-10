@@ -24,6 +24,7 @@ export interface Customer {
   address?: string;
   balance: number; // Current debt
   accountType?: 'toti' | 'martin'; // New field for dividing accounts
+  accountYear?: string; // Year of the account (e.g., "2025", "2026")
   notes?: string; // Observation notes for debt or deals
 }
 

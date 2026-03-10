@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, MapPin, Trash2, Edit2, FileText, LayoutGrid } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -44,6 +44,7 @@ export default function CustomersPage() {
     address: "",
     balance: 0,
     accountType: "martin",
+    accountYear: "2025",
     notes: ""
   })
 
@@ -68,6 +69,7 @@ export default function CustomersPage() {
       address: "",
       balance: 0,
       accountType: "martin",
+      accountYear: new Date().getFullYear().toString(),
       notes: ""
     })
     setIsDialogOpen(true)
@@ -84,6 +86,7 @@ export default function CustomersPage() {
       address: customer.address || "",
       balance: customer.balance,
       accountType: customer.accountType || "martin",
+      accountYear: customer.accountYear || "2025",
       notes: customer.notes || ""
     })
     setIsDialogOpen(true)
@@ -108,6 +111,7 @@ export default function CustomersPage() {
       id: customerId,
       balance: Number(formCustomer.balance) || 0,
       accountType: formCustomer.accountType || "martin",
+      accountYear: formCustomer.accountYear || "2025",
       notes: formCustomer.notes || "",
       updatedAt: new Date().toISOString()
     }
@@ -209,20 +213,38 @@ export default function CustomersPage() {
                     onChange={(e) => setFormCustomer({...formCustomer, name: e.target.value})}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accountType">Tipo de Cuenta</Label>
-                  <Select 
-                    value={formCustomer.accountType} 
-                    onValueChange={(v) => setFormCustomer({...formCustomer, accountType: v as any})}
-                  >
-                    <SelectTrigger id="accountType">
-                      <SelectValue placeholder="Seleccionar tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="martin">Fiados Martin</SelectItem>
-                      <SelectItem value="toti">Arreglos Toti</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="accountType">Tipo de Cuenta</Label>
+                    <Select 
+                      value={formCustomer.accountType} 
+                      onValueChange={(v) => setFormCustomer({...formCustomer, accountType: v as any})}
+                    >
+                      <SelectTrigger id="accountType">
+                        <SelectValue placeholder="Seleccionar tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="martin">Fiados Martin</SelectItem>
+                        <SelectItem value="toti">Arreglos Toti</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="accountYear">Año de Cuenta</Label>
+                    <Select 
+                      value={formCustomer.accountYear} 
+                      onValueChange={(v) => setFormCustomer({...formCustomer, accountYear: v})}
+                    >
+                      <SelectTrigger id="accountYear">
+                        <SelectValue placeholder="Seleccionar año" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="2024">2024</SelectItem>
+                        <SelectItem value="2025">2025</SelectItem>
+                        <SelectItem value="2026">2026</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cuit">CUIT / CUIL (Opcional)</Label>
@@ -316,7 +338,10 @@ export default function CustomersPage() {
                         {customer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "---"}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "---"}</p>
+                      <Badge variant="outline" className="text-[9px] px-1 h-4">{customer.accountYear || "2025"}</Badge>
+                    </div>
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

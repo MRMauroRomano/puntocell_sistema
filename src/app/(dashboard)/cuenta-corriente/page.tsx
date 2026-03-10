@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -28,6 +28,7 @@ export default function CurrentAccountPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<string>("martin")
+  const [activeYear, setActiveYear] = useState<string>("2025")
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Estados para diálogos
@@ -58,23 +59,26 @@ export default function CurrentAccountPage() {
         const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                              c.id.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesType = (c.accountType || 'martin') === activeTab
-        return matchesSearch && matchesType
+        const matchesYear = (c.accountYear || "2025") === activeYear
+        return matchesSearch && matchesType && matchesYear
       })
       .sort((a, b) => {
         const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
         const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
         return dateB - dateA
       })
-  }, [customers, searchTerm, activeTab])
+  }, [customers, searchTerm, activeTab, activeYear])
 
   const totalsByTab = useMemo(() => {
     if (!customers) return { martin: 0, toti: 0 }
     return customers.reduce((acc, curr) => {
-      const type = curr.accountType || 'martin'
-      acc[type] = (acc[type] || 0) + (curr.balance || 0)
+      if ((curr.accountYear || "2025") === activeYear) {
+        const type = curr.accountType || 'martin'
+        acc[type] = (acc[type] || 0) + (curr.balance || 0)
+      }
       return acc
     }, { martin: 0, toti: 0 })
-  }, [customers])
+  }, [customers, activeYear])
 
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
@@ -189,6 +193,8 @@ export default function CurrentAccountPage() {
             const notes = String(normalized.entrego || normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
             const rawType = String(normalized.tipo || normalized.cartera || normalized.cuenta || "martin").toLowerCase()
             const accountType = rawType.includes('toti') ? 'toti' : 'martin'
+            const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
+            const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
 
             const customerData = {
               id,
@@ -196,6 +202,7 @@ export default function CurrentAccountPage() {
               balance,
               notes,
               accountType,
+              accountYear,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             }
@@ -222,7 +229,7 @@ export default function CurrentAccountPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
-          <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas.</p>
+          <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas por año.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
            <Button className="gap-2 flex-1 sm:flex-none" onClick={() => setIsChargeDialogOpen(true)}>
@@ -244,7 +251,7 @@ export default function CurrentAccountPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-primary/5 border-primary/20">
                <CardHeader className="pb-1 px-4 pt-4">
-                  <CardTitle className="text-[10px] font-black uppercase text-primary/70">Total Fiados Martin</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase text-primary/70">Total Martin ({activeYear})</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
                   <div className="text-2xl font-black text-primary font-headline">${totalsByTab.martin.toFixed(2)}</div>
@@ -252,7 +259,7 @@ export default function CurrentAccountPage() {
             </Card>
             <Card className="bg-amber-50 border-amber-200">
                <CardHeader className="pb-1 px-4 pt-4">
-                  <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Total Arreglos Toti</CardTitle>
+                  <CardTitle className="text-[10px] font-black uppercase text-amber-700/70">Total Toti ({activeYear})</CardTitle>
                </CardHeader>
                <CardContent className="px-4 pb-4">
                   <div className="text-2xl font-black text-amber-700 font-headline">${totalsByTab.toti.toFixed(2)}</div>
@@ -273,88 +280,117 @@ export default function CurrentAccountPage() {
         </div>
 
         <div>
-          <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full sm:w-[400px] grid-cols-2 mb-4 bg-muted/50 p-1 no-print">
-              <TabsTrigger value="martin" className="font-black uppercase text-xs gap-2">
-                <Wallet className="h-3 w-3" /> Fiados Martin
-              </TabsTrigger>
-              <TabsTrigger value="toti" className="font-black uppercase text-xs gap-2">
-                <Filter className="h-3 w-3" /> Arreglos Toti
-              </TabsTrigger>
-            </TabsList>
+          <div className="flex flex-col sm:flex-row gap-4 mb-4 items-end sm:items-center no-print">
+            <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full sm:w-auto">
+              <TabsList className="grid w-full sm:w-[320px] grid-cols-2 bg-muted/50 p-1">
+                <TabsTrigger value="martin" className="font-black uppercase text-[10px] gap-2">
+                  <Wallet className="h-3 w-3" /> Martin
+                </TabsTrigger>
+                <TabsTrigger value="toti" className="font-black uppercase text-[10px] gap-2">
+                  <Filter className="h-3 w-3" /> Toti
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             
-            <Card className="shadow-lg border-primary/10 overflow-hidden">
-              <CardContent className="p-0">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-2">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="text-muted-foreground text-xs">Cargando datos...</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-primary/5">
-                        <TableRow className="hover:bg-transparent">
-                          <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
-                          <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
-                          <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
-                          <TableHead className="font-black uppercase text-[10px] min-w-[200px]">Lo que entregó / Notas</TableHead>
-                          <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filtered.map((customer) => (
-                          <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
-                            <TableCell className="text-[11px] font-medium text-muted-foreground">
-                              {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : "---"}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                 <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                   <UserCircle className="h-4 w-4 text-primary" />
-                                 </div>
-                                 <span className="font-bold text-sm">{customer.name}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right">
-                               <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
-                                 ${(customer.balance || 0).toFixed(2)}
-                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[300px]">
-                                {customer.notes || "Sin notas registradas."}
-                              </p>
-                            </TableCell>
-                            <TableCell className="text-right no-print">
-                               <div className="flex justify-end gap-1">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleOpenStatus(customer)}
-                                  >
-                                     <FileText className="h-4 w-4 text-primary/60" />
-                                  </Button>
-                                  <Button 
-                                    variant="secondary" 
-                                    size="sm" 
-                                    className="h-8 px-3 gap-1 text-primary text-[11px] font-bold"
-                                    onClick={() => handleOpenPayment(customer)}
-                                  >
-                                     <Wallet className="h-3.5 w-3.5" /> Cobrar
-                                  </Button>
+            <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-md border w-full sm:w-auto">
+               <span className="text-[10px] font-black uppercase px-2 text-muted-foreground">Año:</span>
+               {[ "2024", "2025", "2026" ].map((year) => (
+                 <Button 
+                   key={year}
+                   variant={activeYear === year ? "default" : "ghost"}
+                   size="sm"
+                   className={cn("h-7 px-4 text-xs font-bold", activeYear === year && "shadow-sm")}
+                   onClick={() => setActiveYear(year)}
+                 >
+                   {year}
+                 </Button>
+               ))}
+            </div>
+          </div>
+            
+          <Card className="shadow-lg border-primary/10 overflow-hidden">
+            <CardHeader className="bg-primary/5 py-3 border-b">
+               <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                 <Calendar className="h-4 w-4" /> FIADOS {activeYear} - {activeTab.toUpperCase()}
+               </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-muted-foreground text-xs">Cargando datos...</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-muted/10">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
+                        <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
+                        <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
+                        <TableHead className="font-black uppercase text-[10px] min-w-[200px]">Lo que entregó / Notas</TableHead>
+                        <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((customer) => (
+                        <TableRow key={customer.id} className="hover:bg-primary/5 transition-colors border-b">
+                          <TableCell className="text-[11px] font-medium text-muted-foreground">
+                            {customer.updatedAt ? format(new Date(customer.updatedAt), "dd/MM/yyyy", { locale: es }) : "---"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                               <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                 <UserCircle className="h-4 w-4 text-primary" />
                                </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </Tabs>
+                               <span className="font-bold text-sm">{customer.name}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                             <span className={cn("font-black text-base", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
+                               ${(customer.balance || 0).toFixed(2)}
+                             </span>
+                          </TableCell>
+                          <TableCell>
+                            <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[300px]">
+                              {customer.notes || "Sin notas registradas."}
+                            </p>
+                          </TableCell>
+                          <TableCell className="text-right no-print">
+                             <div className="flex justify-end gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="h-8 w-8 p-0"
+                                  onClick={() => handleOpenStatus(customer)}
+                                >
+                                   <FileText className="h-4 w-4 text-primary/60" />
+                                </Button>
+                                <Button 
+                                  variant="secondary" 
+                                  size="sm" 
+                                  className="h-8 px-3 gap-1 text-primary text-[11px] font-bold"
+                                  onClick={() => handleOpenPayment(customer)}
+                                >
+                                   <Wallet className="h-3.5 w-3.5" /> Cobrar
+                                </Button>
+                             </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filtered.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center py-20 text-muted-foreground text-sm italic">
+                            No hay deudores registrados en {activeTab.toUpperCase()} para el año {activeYear}.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -377,7 +413,7 @@ export default function CurrentAccountPage() {
                 <SelectContent>
                   {customers?.map(c => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.accountType === 'toti' ? 'Toti' : 'Martin'})
+                      {c.name} ({c.accountType === 'toti' ? 'Toti' : 'Martin'}) - {c.accountYear || '2025'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -455,7 +491,7 @@ export default function CurrentAccountPage() {
           {selectedCustomer && (
             <div className="space-y-4 py-4">
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
-                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda</p>
+                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda ({selectedCustomer.accountYear || "2025"})</p>
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
                     ${selectedCustomer.balance.toFixed(2)}
                  </p>
@@ -470,6 +506,7 @@ export default function CurrentAccountPage() {
               </div>
               <div className="text-xs bg-muted/20 p-3 rounded-lg grid grid-cols-2 gap-2">
                  <div><span className="font-bold">Cliente:</span> {selectedCustomer.name}</div>
+                 <div><span className="font-bold">Año:</span> {selectedCustomer.accountYear || '2025'}</div>
                  <div><span className="font-bold">Cartera:</span> {selectedCustomer.accountType?.toUpperCase() || 'MARTIN'}</div>
               </div>
             </div>
