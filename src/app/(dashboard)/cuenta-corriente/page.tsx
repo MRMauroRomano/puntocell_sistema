@@ -38,7 +38,6 @@ export default function CurrentAccountPage() {
   const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
   
   const [paymentAmount, setPaymentAmount] = useState<string>("")
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   
   const [chargeAmount, setChargeAmount] = useState<string>("")
   const [chargeNotes, setChargeNotes] = useState<string>("")
@@ -83,7 +82,6 @@ export default function CurrentAccountPage() {
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
     setPaymentAmount("")
-    setPaymentMethod('cash')
     setIsPayDialogOpen(true)
   }
 
@@ -119,7 +117,7 @@ export default function CurrentAccountPage() {
       })
       setIsPayDialogOpen(false)
     } catch (error) {
-      toast({ variant: "destructive", title: "Error" })
+      // Error handled by global emitter
     } finally {
       setIsSaving(false)
     }
@@ -158,7 +156,7 @@ export default function CurrentAccountPage() {
       setChargeAmount("")
       setChargeNotes("")
     } catch (error) {
-      toast({ variant: "destructive", title: "Error" })
+      // Error handled by global emitter
     } finally {
       setIsSaving(false)
     }
@@ -195,6 +193,14 @@ export default function CurrentAccountPage() {
             const accountType = rawType.includes('toti') ? 'toti' : 'martin'
             const rawYear = String(normalized.anio || normalized.year || normalized.periodo || activeYear)
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
+            
+            // Intentar detectar fecha del excel
+            let importedDate = new Date().toISOString()
+            const rawDate = normalized.fecha || normalized.date
+            if (rawDate) {
+              const d = new Date(rawDate)
+              if (!isNaN(d.getTime())) importedDate = d.toISOString()
+            }
 
             const customerData = {
               id,
@@ -203,8 +209,8 @@ export default function CurrentAccountPage() {
               notes,
               accountType,
               accountYear,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString()
+              createdAt: importedDate,
+              updatedAt: importedDate
             }
             
             const customerRef = doc(firestore, 'users', user.uid, 'customers', id)
@@ -229,7 +235,7 @@ export default function CurrentAccountPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
-          <p className="text-muted-foreground text-sm">Listado detallado de saldos y entregas por año.</p>
+          <p className="text-muted-foreground text-sm">Planilla de saldos y entregas por año.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
            <Button className="gap-2 flex-1 sm:flex-none" onClick={() => setIsChargeDialogOpen(true)}>
@@ -284,16 +290,16 @@ export default function CurrentAccountPage() {
             <Tabs defaultValue="martin" onValueChange={setActiveTab} className="w-full sm:w-auto">
               <TabsList className="grid w-full sm:w-[320px] grid-cols-2 bg-muted/50 p-1">
                 <TabsTrigger value="martin" className="font-black uppercase text-[10px] gap-2">
-                  <Wallet className="h-3 w-3" /> Martin
+                  <Wallet className="h-3 w-3" /> Fiados Martin
                 </TabsTrigger>
                 <TabsTrigger value="toti" className="font-black uppercase text-[10px] gap-2">
-                  <Filter className="h-3 w-3" /> Toti
+                  <Filter className="h-3 w-3" /> Arreglos Toti
                 </TabsTrigger>
               </TabsList>
             </Tabs>
             
             <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-md border w-full sm:w-auto">
-               <span className="text-[10px] font-black uppercase px-2 text-muted-foreground">Año:</span>
+               <span className="text-[10px] font-black uppercase px-2 text-muted-foreground">Año de cuenta:</span>
                {[ "2024", "2025", "2026" ].map((year) => (
                  <Button 
                    key={year}
@@ -311,14 +317,14 @@ export default function CurrentAccountPage() {
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="bg-primary/5 py-3 border-b">
                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                 <Calendar className="h-4 w-4" /> FIADOS {activeYear} - {activeTab.toUpperCase()}
+                 <Calendar className="h-4 w-4" /> PLANILLA {activeYear} - {activeTab === 'martin' ? 'FIADOS MARTIN' : 'ARREGLOS TOTI'}
                </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-2">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-muted-foreground text-xs">Cargando datos...</p>
+                  <p className="text-muted-foreground text-xs">Cargando planilla...</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -328,7 +334,7 @@ export default function CurrentAccountPage() {
                         <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
                         <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
                         <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
-                        <TableHead className="font-black uppercase text-[10px] min-w-[200px]">Lo que entregó / Notas</TableHead>
+                        <TableHead className="font-black uppercase text-[10px] min-w-[250px]">Lo que entregó / Notas</TableHead>
                         <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -352,8 +358,8 @@ export default function CurrentAccountPage() {
                              </span>
                           </TableCell>
                           <TableCell>
-                            <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[300px]">
-                              {customer.notes || "Sin notas registradas."}
+                            <p className="text-xs text-muted-foreground italic line-clamp-2 max-w-[400px]">
+                              {customer.notes || "Sin anotaciones."}
                             </p>
                           </TableCell>
                           <TableCell className="text-right no-print">
@@ -363,6 +369,7 @@ export default function CurrentAccountPage() {
                                   size="sm" 
                                   className="h-8 w-8 p-0"
                                   onClick={() => handleOpenStatus(customer)}
+                                  title="Ver Estado"
                                 >
                                    <FileText className="h-4 w-4 text-primary/60" />
                                 </Button>
@@ -381,7 +388,7 @@ export default function CurrentAccountPage() {
                       {filtered.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={5} className="text-center py-20 text-muted-foreground text-sm italic">
-                            No hay deudores registrados en {activeTab.toUpperCase()} para el año {activeYear}.
+                            No hay registros para {activeTab.toUpperCase()} en el año {activeYear}.
                           </TableCell>
                         </TableRow>
                       )}
@@ -500,7 +507,7 @@ export default function CurrentAccountPage() {
                 <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1 mb-2">
                   <Info className="h-3 w-3" /> Lo que entregó / Notas
                 </p>
-                <div className="text-sm italic text-amber-900">
+                <div className="text-sm italic text-amber-900 whitespace-pre-wrap">
                   {selectedCustomer.notes || "No hay notas registradas."}
                 </div>
               </div>
@@ -508,6 +515,7 @@ export default function CurrentAccountPage() {
                  <div><span className="font-bold">Cliente:</span> {selectedCustomer.name}</div>
                  <div><span className="font-bold">Año:</span> {selectedCustomer.accountYear || '2025'}</div>
                  <div><span className="font-bold">Cartera:</span> {selectedCustomer.accountType?.toUpperCase() || 'MARTIN'}</div>
+                 <div><span className="font-bold">Últ. Mov.:</span> {selectedCustomer.updatedAt ? format(new Date(selectedCustomer.updatedAt), "dd/MM/yyyy") : '---'}</div>
               </div>
             </div>
           )}
