@@ -224,6 +224,7 @@ export default function CustomersPage() {
         
         let importedCount = 0
         jsonData.forEach(row => {
+          // Normalizar nombres de columnas a minúsculas y sin espacios
           const normalized = Object.keys(row).reduce((acc: any, key) => {
             acc[key.toLowerCase().trim()] = row[key];
             return acc;
@@ -232,27 +233,34 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // Agarra los datos de Pesos de la columna Deuda
+            
+            // 1. Obtener Deuda en Pesos (Saldo neto actual)
             const finalBalance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
-            // Agarra los datos de Dolares de la columna Valor en Dolares (USD)
+            
+            // 2. Obtener Valor en Dólares fijo
             const finalBalanceUSD = parseFloat(String(normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
             
+            // 3. Obtener entrega informativa (no se resta, solo se anota)
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
+            // 4. Procesar Fecha desde columna "Fechas", "Fecha" o similares
             let importedDate = new Date().toISOString()
             const rawDateVal = normalized.fechas || normalized.fecha || normalized.date || normalized.dia
             
             if (rawDateVal) {
               if (typeof rawDateVal === 'number') {
+                // Formato numérico de Excel
                 const d = new Date((rawDateVal - 25569) * 86400 * 1000)
                 if (!isNaN(d.getTime())) importedDate = d.toISOString()
               } else {
+                // Formato texto (DD/MM/AA o DD/MM/AAAA)
                 const dateStr = String(rawDateVal).trim()
                 const parts = dateStr.split(/[/.-]/)
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
                   let year = parseInt(parts[2], 10)
+                  // Manejar formato dd/mm/aa (ej: 26 -> 2026)
                   if (parts[2].length === 2) year = 2000 + year
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
@@ -267,6 +275,7 @@ export default function CustomersPage() {
             const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || normalized.entrego || "")
             const formattedDateStr = new Date(importedDate).toLocaleDateString('es-AR')
 
+            // Construir el historial de lo que entregó
             let historyNotes = ""
             if (product && product !== "undefined" && product !== "") historyNotes += `Producto: ${product}\n`
             if (delivery > 0) historyNotes += `[${formattedDateStr}] Entrega previa: $${delivery.toFixed(2)}\n`
@@ -299,7 +308,7 @@ export default function CustomersPage() {
         
         toast({ 
           title: "Importación completa", 
-          description: `Se procesaron ${importedCount} clientes con datos en Pesos y USD.` 
+          description: `Se procesaron ${importedCount} clientes. Se detectaron deudas en Pesos y USD.` 
         })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar Excel" })
@@ -586,8 +595,8 @@ export default function CustomersPage() {
                     <div className="flex flex-col">
                       <span className="text-[9px] uppercase font-bold text-muted-foreground">Deuda Total</span>
                       <div className="flex flex-col">
-                        <span className={cn("text-base font-black leading-tight", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
-                          ${customer.balance.toFixed(2)}
+                        <span className={cn("text-base font-black leading-tight", (customer.balance || 0) > 0 ? "text-red-600" : "text-green-600")}>
+                          ${(customer.balance || 0).toFixed(2)}
                         </span>
                         {customer.balanceUSD && customer.balanceUSD > 0 ? (
                           <span className="text-[10px] font-bold text-amber-600">

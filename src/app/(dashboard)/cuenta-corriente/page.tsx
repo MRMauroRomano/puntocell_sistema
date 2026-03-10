@@ -189,9 +189,11 @@ export default function CurrentAccountPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // Agarra datos de la columna Deuda para Pesos
+            
+            // 1. Saldo en Pesos (Columna Deuda)
             const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
-            // Agarra datos de la columna Valor en Dolares (USD) para USD
+            
+            // 2. Saldo en USD (Columna Valor en Dólares)
             const balanceUSD = parseFloat(String(normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
             
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
@@ -263,7 +265,7 @@ export default function CurrentAccountPage() {
     reader.readAsArrayBuffer(file)
   }
 
-  // Si no hay USD en el excel, usamos la cotización para calcular. Si hay USD, sumamos el fijo.
+  // Lógica de visualización de USD: Prioriza el saldo fijo importado, sino usa la cotización.
   const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
   const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
 
