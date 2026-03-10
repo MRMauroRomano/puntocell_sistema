@@ -5,7 +5,7 @@ import { useState, useMemo, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar, FileUp } from "lucide-react"
+import { Search, UserPlus, Phone, Mail, MoreHorizontal, History, Loader2, Save, Trash2, Edit2, Calendar, FileUp, Layers, CheckCircle2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
@@ -14,12 +14,13 @@ import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, d
 import { collection, doc } from "firebase/firestore"
 import { Customer } from "@/lib/types"
 import { useToast } from "@/hooks/use-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import * as XLSX from 'xlsx'
 
 export default function CustomersPage() {
@@ -28,11 +29,18 @@ export default function CustomersPage() {
   const { toast } = useToast()
   const [searchTerm, setSearchTerm] = useState("")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isBulkDialogOpen, setIsBulkDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [currentCustomerId, setCurrentCustomerId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [bulkData, setBulkData] = useState({
+    accountType: 'martin',
+    accountYear: '2025'
+  })
 
   const customersRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'customers') : null, 
@@ -139,6 +147,45 @@ export default function CustomersPage() {
     }
   }
 
+  const handleBulkUpdate = () => {
+    if (!user || selectedIds.length === 0) return
+    setIsSaving(true)
+    try {
+      selectedIds.forEach(id => {
+        const docRef = doc(firestore, 'users', user.uid, 'customers', id)
+        updateDocumentNonBlocking(docRef, {
+          accountType: bulkData.accountType,
+          accountYear: bulkData.accountYear,
+          updatedAt: new Date().toISOString()
+        })
+      })
+      toast({ 
+        title: "Actualización masiva completada", 
+        description: `Se modificaron ${selectedIds.length} clientes.` 
+      })
+      setIsBulkDialogOpen(false)
+      setSelectedIds([])
+    } catch (error) {
+      toast({ variant: "destructive", title: "Error al actualizar" })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(filtered.map(c => c.id))
+    }
+  }
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
   const handleDeleteCustomer = (id: string) => {
     if (!user) return
     const docRef = doc(firestore, 'users', user.uid, 'customers', id)
@@ -185,17 +232,14 @@ export default function CustomersPage() {
           const name = normalized.nombre || normalized.name || normalized.cliente || "";
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
-            // Extraer deuda inicial y entrega
             const totalDebt = parseFloat(String(normalized.deuda || normalized.total || normalized.saldo || "0").replace(/[^0-9.-]+/g, "")) || 0
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             const rawDate = normalized.fecha || new Date().toLocaleDateString()
             const product = String(normalized.producto || normalized.equipo || "")
             const rawNotes = String(normalized.notas || normalized.observaciones || normalized.loqueentrego || "")
             
-            // Calculamos el saldo final restando la entrega de la deuda
             const finalBalance = Math.max(0, totalDebt - delivery)
             
-            // Generamos historial en las notas
             let historyNotes = ""
             if (product) historyNotes += `Producto: ${product}\n`
             if (delivery > 0) historyNotes += `[${rawDate}] Entrega: $${delivery.toFixed(2)}\n`
@@ -244,6 +288,14 @@ export default function CustomersPage() {
         </div>
         
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button 
+            variant="secondary"
+            className={cn("gap-2 flex-1 sm:flex-none bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200", selectedIds.length === 0 && "opacity-50 pointer-events-none")} 
+            onClick={() => setIsBulkDialogOpen(true)}
+          >
+            <Layers className="h-4 w-4" /> Modificación Masiva ({selectedIds.length})
+          </Button>
+
           <input 
             type="file" 
             className="hidden" 
@@ -258,7 +310,7 @@ export default function CustomersPage() {
             disabled={isImporting}
           >
             {isImporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
-            Importar Clientes
+            Importar Excel
           </Button>
 
           <AlertDialog>
@@ -401,14 +453,25 @@ export default function CustomersPage() {
       </div>
 
       <div className="grid gap-6">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar en mi directorio..." 
-            className="pl-9"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar en mi directorio..." 
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
+            <Checkbox 
+              id="select-all" 
+              checked={filtered.length > 0 && selectedIds.length === filtered.length}
+              onCheckedChange={toggleSelectAll}
+            />
+            <Label htmlFor="select-all" className="text-xs font-bold cursor-pointer uppercase">Seleccionar Todos</Label>
+          </div>
         </div>
 
         {isLoading ? (
@@ -419,23 +482,34 @@ export default function CustomersPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((customer) => (
-              <Card key={customer.id} className="overflow-hidden hover:shadow-md transition-shadow border-primary/10">
-                <CardHeader className="pb-2 flex flex-row items-center gap-4 space-y-0">
-                  <Avatar className="h-12 w-12 border bg-primary/10">
-                    <AvatarFallback className="text-primary font-bold">
+              <Card 
+                key={customer.id} 
+                className={cn(
+                  "overflow-hidden transition-all border-primary/10",
+                  selectedIds.includes(customer.id) ? "ring-2 ring-primary bg-primary/5" : "hover:shadow-md"
+                )}
+              >
+                <CardHeader className="pb-2 flex flex-row items-center gap-3 space-y-0">
+                  <div className="shrink-0">
+                    <Checkbox 
+                      checked={selectedIds.includes(customer.id)}
+                      onCheckedChange={() => handleToggleSelect(customer.id)}
+                    />
+                  </div>
+                  <Avatar className="h-10 w-10 border bg-primary/10">
+                    <AvatarFallback className="text-primary font-bold text-xs">
                       {customer.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <CardTitle className="text-base truncate">{customer.name}</CardTitle>
-                      <Badge variant="secondary" className="text-[9px] uppercase font-black">
-                        {customer.accountType === 'toti' ? 'Arreglos Toti' : 'Fiados Martin'}
-                      </Badge>
+                      <CardTitle className="text-sm truncate">{customer.name}</CardTitle>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-xs text-muted-foreground font-bold tracking-wider">CUIT: {customer.cuit || "---"}</p>
-                      <Badge variant="outline" className="text-[9px] px-1 h-4">{customer.accountYear || "2025"}</Badge>
+                      <Badge variant="secondary" className="text-[8px] uppercase font-black px-1 h-4">
+                        {customer.accountType === 'toti' ? 'Toti' : 'Martin'}
+                      </Badge>
+                      <Badge variant="outline" className="text-[8px] px-1 h-4">{customer.accountYear || "2025"}</Badge>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -454,27 +528,27 @@ export default function CustomersPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      <span className="truncate">{customer.email || "Sin email"}</span>
+                <CardContent className="space-y-3 pt-3">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Phone className="h-3 w-3" />
+                      <span className="truncate">{customer.phone || "---"}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="h-4 w-4" />
-                      <span>{customer.phone || "Sin teléfono"}</span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate">{customer.email || "---"}</span>
                     </div>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Deuda en mi tienda</span>
-                      <span className={cn("text-lg font-bold", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
+                      <span className="text-[9px] uppercase font-bold text-muted-foreground">Deuda</span>
+                      <span className={cn("text-base font-black", customer.balance > 0 ? "text-red-600" : "text-green-600")}>
                         ${customer.balance.toFixed(2)}
                       </span>
                     </div>
-                    <Button variant="secondary" size="sm" className="gap-1" onClick={() => handleOpenEdit(customer)}>
-                      <History className="h-4 w-4" /> Ver Ficha
+                    <Button variant="outline" size="sm" className="h-8 text-xs font-bold gap-1" onClick={() => handleOpenEdit(customer)}>
+                      <History className="h-3.5 w-3.5" /> Ficha
                     </Button>
                   </div>
                 </CardContent>
@@ -483,6 +557,64 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+
+      {/* Diálogo Modificación Masiva */}
+      <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-amber-600" /> Modificación Masiva
+            </DialogTitle>
+            <DialogDescription>
+              Estás modificando <strong>{selectedIds.length}</strong> clientes seleccionados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Asignar Cartera</Label>
+              <Select 
+                value={bulkData.accountType} 
+                onValueChange={(v) => setBulkData({...bulkData, accountType: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="martin">Fiados Martin</SelectItem>
+                  <SelectItem value="toti">Arreglos Toti</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Asignar Año de Cuenta</Label>
+              <Select 
+                value={bulkData.accountYear} 
+                onValueChange={(v) => setBulkData({...bulkData, accountYear: v})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2024">2024</SelectItem>
+                  <SelectItem value="2025">2025</SelectItem>
+                  <SelectItem value="2026">2026</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
+            <Button 
+              onClick={handleBulkUpdate} 
+              disabled={isSaving} 
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+              Aplicar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
