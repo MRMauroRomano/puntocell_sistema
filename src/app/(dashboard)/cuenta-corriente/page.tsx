@@ -29,7 +29,7 @@ export default function CurrentAccountPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<string>("martin")
   const [activeYear, setActiveYear] = useState<string>("2025")
-  const [usdRate, setUsdRate] = useState<string>("1200") // Valor por defecto
+  const [usdRate, setUsdRate] = useState<string>("1200")
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -190,11 +190,11 @@ export default function CurrentAccountPage() {
           if (name) {
             const id = Math.random().toString(36).substr(2, 9)
             
-            // 1. Saldo en Pesos (Columna Deuda)
-            const balance = parseFloat(String(normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 1. Saldo en Pesos
+            const balance = parseFloat(String(normalized["deuda ars"] || normalized.deuda || normalized.saldo || normalized.debe || normalized.total || normalized.quedaba || "0").replace(/[^0-9.-]+/g, "")) || 0
             
-            // 2. Saldo en USD (Columna Valor en Dólares)
-            const balanceUSD = parseFloat(String(normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
+            // 2. Saldo en USD
+            const balanceUSD = parseFloat(String(normalized["deudas usd"] || normalized["deuda usd"] || normalized.dolares || normalized["valor en dolares (usd)"] || normalized.usd || normalized["saldo usd"] || "0").replace(/[^0-9.-]+/g, "")) || 0
             
             const delivery = parseFloat(String(normalized.entrega || normalized.pago || "0").replace(/[^0-9.-]+/g, "")) || 0
             
@@ -207,7 +207,7 @@ export default function CurrentAccountPage() {
             const accountYear = rawYear.includes('2024') ? '2024' : rawYear.includes('2026') ? '2026' : '2025'
             
             let importedDate = new Date().toISOString()
-            const rawDateVal = normalized.fechas || normalized.fecha || normalized.dia || normalized.date
+            const rawDateVal = normalized.fecha || normalized.fechas || normalized.dia || normalized.date
             
             if (rawDateVal) {
               if (typeof rawDateVal === 'number') {
@@ -219,8 +219,11 @@ export default function CurrentAccountPage() {
                 if (parts.length === 3) {
                   const day = parseInt(parts[0], 10)
                   const month = parseInt(parts[1], 10) - 1
-                  let year = parseInt(parts[2], 10)
-                  if (parts[2].length === 2) year = 2000 + year
+                  let yearPart = parts[2].trim()
+                  let year = parseInt(yearPart, 10)
+                  if (yearPart.length === 2) {
+                    year = year < 50 ? 2000 + year : 1900 + year
+                  }
                   const d = new Date(year, month, day)
                   if (!isNaN(d.getTime())) importedDate = d.toISOString()
                 } else {
@@ -254,7 +257,7 @@ export default function CurrentAccountPage() {
           }
         })
         
-        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros con deudas en Pesos y USD.` })
+        toast({ title: "Importación exitosa", description: `Se cargaron ${importedCount} registros.` })
       } catch (err) {
         toast({ variant: "destructive", title: "Error al importar" })
       } finally {
@@ -265,7 +268,6 @@ export default function CurrentAccountPage() {
     reader.readAsArrayBuffer(file)
   }
 
-  // Lógica de visualización de USD: Prioriza el saldo fijo importado, sino usa la cotización.
   const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
   const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
 
