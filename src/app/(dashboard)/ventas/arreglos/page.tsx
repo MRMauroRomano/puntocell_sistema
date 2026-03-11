@@ -50,6 +50,13 @@ export default function ArreglosPage() {
     }
   }, [billingConfigs, selectedBillingCuitId])
 
+  // Resetear medio de pago si se vuelve a consumidor final
+  useEffect(() => {
+    if (selectedCustomerId === 'final' && paymentMethod === 'credit_account') {
+      setPaymentMethod('cash')
+    }
+  }, [selectedCustomerId, paymentMethod])
+
   const total = Number(price) || 0
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
@@ -97,13 +104,22 @@ export default function ArreglosPage() {
       // Guardar la venta (el arreglo es una venta de servicio)
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp(), repairNotes: notes }, { merge: true })
       
-      // Si es cuenta corriente, actualizar saldo del cliente
+      // Si es cuenta corriente, actualizar saldo del cliente EN SU CARTERA
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
-        // Por defecto, los arreglos suelen ir a la cartera de "Toti"
+        
+        // Sumamos al balance actual del cliente manteniendo su accountType (Martin o Toti)
+        // Si no tiene, por defecto los arreglos suelen ir a Toti
         updateDocumentNonBlocking(customerRef, { 
           balance: (customer.balance || 0) + total,
-          accountType: customer.accountType || 'toti' 
+          updatedAt: new Date().toISOString(),
+          // Mantenemos su accountType si ya existe, sino usamos 'toti'
+          accountType: customer.accountType || 'toti'
+        })
+
+        toast({
+          title: "Saldo actualizado",
+          description: `Se sumaron $${total} a la cuenta de ${customer.name} (${customer.accountType === 'martin' ? 'Martin' : 'Toti'}).`
         })
       }
 
@@ -121,6 +137,7 @@ export default function ArreglosPage() {
     setPrice("")
     setNotes("")
     setSelectedCustomerId('final')
+    setPaymentMethod('cash')
     setIsSuccessDialogOpen(false)
   }
 
@@ -180,7 +197,13 @@ export default function ArreglosPage() {
                       <SelectItem value="premier">Premier</SelectItem>
                       <SelectItem value="paselibre">Pase Libre</SelectItem>
                       <SelectItem value="debit">Débito</SelectItem>
-                      <SelectItem value="credit_account" disabled={selectedCustomerId === 'final'}>Cuenta Corriente</SelectItem>
+                      <SelectItem 
+                        value="credit_account" 
+                        disabled={selectedCustomerId === 'final'}
+                        className={cn(selectedCustomerId === 'final' && "opacity-50")}
+                      >
+                        Cuenta Corriente
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -228,11 +251,18 @@ export default function ArreglosPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedCustomerId !== 'final' && (
+                  {selectedCustomerId !== 'final' ? (
                     <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex items-start gap-2">
                       <Info className="h-4 w-4 text-amber-600 mt-0.5" />
                       <p className="text-[10px] text-amber-800 leading-tight">
-                        Si seleccionas <strong>Cuenta Corriente</strong>, el saldo se sumará automáticamente a la deuda del cliente en la cartera correspondiente.
+                        Has seleccionado a un cliente. Ahora puedes elegir <strong>Cuenta Corriente</strong> si el cliente no paga en el momento.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-muted/50 rounded-lg border flex items-start gap-2">
+                      <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Para usar Cuenta Corriente, primero selecciona un cliente de tu directorio.
                       </p>
                     </div>
                   )}
@@ -284,7 +314,7 @@ export default function ArreglosPage() {
           <h2 className="text-2xl font-black font-headline text-primary mb-1 uppercase tracking-tight">Servicio Registrado</h2>
           <p className="text-muted-foreground text-sm mb-6">El comprobante de arreglo ha sido emitido y guardado en el historial.</p>
           <div className="grid grid-cols-2 gap-3">
-             <Button variant="outline" className="font-bold border-2">Imprimir Ticket</Button>
+             <Button variant="outline" className="font-bold border-2" onClick={() => window.print()}>Imprimir Ticket</Button>
              <Button className="font-bold shadow-md" onClick={resetForm}>Nuevo Arreglo</Button>
           </div>
         </DialogContent>
