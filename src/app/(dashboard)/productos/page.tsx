@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid, Smartphone, Battery, Info } from "lucide-react"
+import { Search, Plus, Trash2, MoreVertical, Save, Loader2, Edit2, FileUp, Hash, Printer, Sparkles, Layers, CheckCircle2, Tag, ChevronRight, LayoutGrid, Smartphone, Battery, Info, DollarSign } from "lucide-react"
 import { Product } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -58,7 +58,7 @@ export default function ProductsPage() {
   })
 
   const [bulkData, setBulkData] = useState({
-    actionType: 'price_percent',
+    actionType: 'price_fixed',
     value: ''
   })
 
@@ -189,18 +189,20 @@ export default function ProductsPage() {
           update = { price: Number(bulkData.value) }
         } else if (bulkData.actionType === 'category') {
           update = { category: bulkData.value }
+        } else if (bulkData.actionType === 'stock_fixed') {
+          update = { stock: Number(bulkData.value) }
         }
         
         updateDocumentNonBlocking(productRef, update)
       })
       
       toast({ 
-        title: "Actualización completada", 
+        title: "Actualización masiva completa", 
         description: `Se modificaron ${selectedIds.length} productos correctamente.` 
       })
       setIsBulkDialogOpen(false)
       setSelectedIds([])
-      setBulkData({ actionType: 'price_percent', value: '' })
+      setBulkData({ actionType: 'price_fixed', value: '' })
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al actualizar masivamente." })
     } finally {
@@ -389,9 +391,19 @@ export default function ProductsPage() {
                   onChange={(e) => setSearchTerm(e.target.value)} 
                 />
               </div>
-              <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold no-print" onClick={handleGenerateCodes}>
-                <Sparkles className="h-4 w-4" /> Generar Códigos
-              </Button>
+              <div className="flex items-center gap-4 no-print">
+                <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border">
+                  <Checkbox 
+                    id="select-all" 
+                    checked={filtered.length > 0 && selectedIds.length === filtered.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                  <Label htmlFor="select-all" className="text-[10px] font-black uppercase cursor-pointer">Selec. Todos</Label>
+                </div>
+                <Button variant="ghost" size="sm" className="text-primary gap-1 font-bold" onClick={handleGenerateCodes}>
+                  <Sparkles className="h-4 w-4" /> Generar Códigos
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -406,10 +418,7 @@ export default function ProductsPage() {
                   <TableHeader className="bg-muted/30">
                     <TableRow>
                       <TableHead className="w-12 no-print">
-                        <Checkbox 
-                          checked={selectedIds.length === filtered.length && filtered.length > 0} 
-                          onCheckedChange={toggleSelectAll} 
-                        />
+                        {/* El checkbox master está en el header arriba */}
                       </TableHead>
                       <TableHead className="w-24">Cód.</TableHead>
                       <TableHead>Producto</TableHead>
@@ -441,7 +450,7 @@ export default function ProductsPage() {
                             {product.category === 'Celulares' && product.batteryHealth && ` • Bat: ${product.batteryHealth}`}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-black text-sm text-primary">${product.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-black text-sm text-primary">${product.price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="font-bold">{product.stock}</Badge>
                         </TableCell>
@@ -458,6 +467,13 @@ export default function ProductsPage() {
                         </TableCell>
                       </TableRow>
                     ))}
+                    {filtered.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-20 text-muted-foreground italic">
+                          No se encontraron productos en esta categoría o búsqueda.
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -475,29 +491,30 @@ export default function ProductsPage() {
               Modificación Masiva
             </DialogTitle>
             <DialogDescription>
-              Estás modificando <strong>{selectedIds.length}</strong> productos seleccionados.
+              Estás modificando <strong>{selectedIds.length}</strong> productos seleccionados a la vez.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>¿Qué quieres cambiar?</Label>
+          <div className="grid gap-6 py-4">
+            <div className="space-y-3">
+              <Label className="text-xs font-black uppercase text-muted-foreground">Acción a realizar</Label>
               <Select value={bulkData.actionType} onValueChange={(v) => setBulkData({...bulkData, actionType: v, value: ''})}>
-                <SelectTrigger className="bg-muted/50">
+                <SelectTrigger className="bg-muted/30 border-2 border-muted h-12">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="price_fixed" className="font-bold">Fijar mismo precio ($)</SelectItem>
                   <SelectItem value="price_percent">Aumentar Precio (%)</SelectItem>
-                  <SelectItem value="price_fixed">Asignar Precio Fijo ($)</SelectItem>
+                  <SelectItem value="stock_fixed">Fijar mismo Stock (U.)</SelectItem>
                   <SelectItem value="category">Cambiar Categoría</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             
-            <div className="space-y-2">
-              <Label>Nuevo Valor</Label>
+            <div className="space-y-3">
+              <Label className="text-xs font-black uppercase text-muted-foreground">Nuevo Valor</Label>
               {bulkData.actionType === 'category' ? (
                 <Select value={bulkData.value} onValueChange={(v) => setBulkData({...bulkData, value: v})}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12">
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -509,27 +526,33 @@ export default function ProductsPage() {
               ) : (
                 <div className="relative">
                   {bulkData.actionType === 'price_percent' ? (
-                    <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">%</span>
-                  ) : (
-                    <span className="absolute left-3 top-2.5 text-muted-foreground font-bold">$</span>
-                  )}
+                    <span className="absolute right-3 top-3.5 text-muted-foreground font-black text-lg">%</span>
+                  ) : bulkData.actionType === 'price_fixed' ? (
+                    <span className="absolute left-3 top-3.5 text-primary font-black text-lg">$</span>
+                  ) : null}
                   <Input 
                     type="number"
-                    className={cn(bulkData.actionType === 'price_percent' ? "pr-8" : "pl-8")}
+                    className={cn(
+                      "h-12 font-black text-lg",
+                      bulkData.actionType === 'price_percent' ? "pr-8" : bulkData.actionType === 'price_fixed' ? "pl-8" : ""
+                    )}
                     value={bulkData.value} 
                     onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
-                    placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15" : "Ej: 1200.50"} 
+                    placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15" : bulkData.actionType === 'price_fixed' ? "Ej: 1500.00" : "Ej: 10"} 
                   />
                 </div>
               )}
+              <p className="text-[10px] text-muted-foreground italic leading-tight">
+                * Este cambio afectará a todos los productos seleccionados inmediatamente.
+              </p>
             </div>
           </div>
-          <DialogFooter className="flex flex-col gap-2">
+          <DialogFooter className="flex flex-col gap-2 border-t pt-4">
             <Button variant="outline" onClick={() => setIsBulkDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
             <Button 
               onClick={handleBulkUpdate} 
               disabled={isSaving || !bulkData.value} 
-              className="w-full bg-amber-600 hover:bg-amber-700"
+              className="w-full bg-amber-600 hover:bg-amber-700 font-bold shadow-md"
             >
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
               Aplicar a {selectedIds.length} productos
