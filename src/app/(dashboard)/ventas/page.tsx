@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -9,7 +10,7 @@ import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, FileText, Cr
 import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -349,13 +350,19 @@ export default function SalesPage() {
 
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
         <DialogContent className="max-w-[400px] text-center p-8">
-          <div className="mb-4 flex justify-center">
-            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center border-4 border-green-50 shadow-sm">
-              <CheckCircle2 className="h-10 w-10 text-green-600" />
+          <DialogHeader>
+            <div className="mb-4 flex justify-center">
+              <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center border-4 border-green-50 shadow-sm">
+                <CheckCircle2 className="h-10 w-10 text-green-600" />
+              </div>
             </div>
-          </div>
-          <h2 className="text-2xl font-black font-headline text-primary mb-2 uppercase tracking-tight">¡Venta Exitosa!</h2>
-          <p className="text-muted-foreground text-sm mb-6">La transacción ha sido registrada y el stock actualizado.</p>
+            <DialogTitle className="text-2xl font-black font-headline text-primary mb-2 uppercase tracking-tight text-center">
+              ¡Venta Exitosa!
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mb-6 text-center">
+              La transacción ha sido registrada y el stock actualizado.
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
              <Button variant="outline" className="font-bold border-2" onClick={() => window.print()}>Imprimir Ticket</Button>
              <Button className="font-bold shadow-md" onClick={resetSale}>Nueva Venta</Button>

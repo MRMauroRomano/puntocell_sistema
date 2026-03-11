@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Wrench, CheckCircle2, Loader2, UserCircle, FileText, Info } from "lucide-react"
 import { Customer, PaymentMethod, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -262,13 +262,19 @@ export default function ArreglosPage() {
 
       <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
         <DialogContent className="max-w-[400px] text-center p-8">
-          <div className="mb-4 flex justify-center">
-            <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center border-4 border-green-50 shadow-sm">
-              <Wrench className="h-10 w-10 text-green-600" />
+          <DialogHeader>
+            <div className="mb-4 flex justify-center">
+              <div className="h-20 w-20 rounded-full bg-green-100 flex items-center justify-center border-4 border-green-50 shadow-sm">
+                <Wrench className="h-10 w-10 text-green-600" />
+              </div>
             </div>
-          </div>
-          <h2 className="text-2xl font-black font-headline text-primary mb-1 uppercase tracking-tight">Cargado con Éxito</h2>
-          <p className="text-muted-foreground text-sm mb-6">El arreglo ha sido asignado a la cuenta corriente del cliente.</p>
+            <DialogTitle className="text-2xl font-black font-headline text-primary mb-1 uppercase tracking-tight text-center">
+              Cargado con Éxito
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-sm mb-6 text-center">
+              El arreglo ha sido asignado a la cuenta corriente del cliente.
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3">
              <Button variant="outline" className="font-bold border-2" onClick={() => window.print()}>Imprimir Ticket</Button>
              <Button className="font-bold shadow-md" onClick={resetForm}>Nuevo Arreglo</Button>
