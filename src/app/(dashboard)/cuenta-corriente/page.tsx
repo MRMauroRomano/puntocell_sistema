@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, ArrowRightLeft, History as HistoryIcon, CheckCircle2, XCircle } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, ArrowRightLeft, History as HistoryIcon, CheckCircle2, XCircle, FileUp, Plus } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, AccountMovement } from "@/lib/types"
@@ -248,7 +248,7 @@ export default function CurrentAccountPage() {
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
            <Button className="gap-2 flex-1 sm:flex-none" onClick={() => setIsChargeDialogOpen(true)}>
-             <PlusIcon className="h-4 w-4" /> Anotar Cargo
+             <Plus className="h-4 w-4" /> Anotar Cargo
            </Button>
            <input type="file" className="hidden" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" />
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
@@ -452,8 +452,4 @@ export default function CurrentAccountPage() {
       </Dialog>
     </div>
   )
-}
-
-function PlusIcon({ className }: { className?: string }) {
-  return <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
 }
