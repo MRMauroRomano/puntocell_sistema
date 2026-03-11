@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, FileText, CreditCard, LayoutGrid, ChevronRight, Smartphone, Tag } from "lucide-react"
-import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig } from "@/lib/types"
+import { Search, Plus, Trash2, ShoppingCart, CheckCircle2, Loader2, FileText, LayoutGrid, ChevronRight, Tag } from "lucide-react"
+import { Product, SaleItem, PaymentMethod, Customer, InvoiceType, Sale, BillingConfig, AccountMovement } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -44,10 +44,10 @@ export default function SalesPage() {
   [firestore, user])
   const { data: customers } = useCollection<Customer>(customersRef)
 
-  const settingsRef = useMemoFirebase(() => 
+  const billingConfigsRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'settings') : null, 
   [firestore, user])
-  const { data: billingConfigs } = useCollection<BillingConfig>(settingsRef)
+  const { data: billingConfigs } = useCollection<BillingConfig>(billingConfigsRef)
 
   useEffect(() => {
     if (billingConfigs && billingConfigs.length > 0 && !selectedBillingCuitId) {
@@ -144,9 +144,24 @@ export default function SalesPage() {
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
         
-        // Generar nota histórica automática de la compra
-        const timestamp = format(new Date(), "dd/MM/yyyy")
+        // 1. Crear el movimiento detallado para cobro individual
+        const movementId = Math.random().toString(36).substr(2, 9)
+        const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId, 'movements', movementId)
         const itemsStr = cart.map(i => `${i.quantity}x ${i.productName}`).join(", ")
+        
+        const movementData: AccountMovement = {
+          id: movementId,
+          date: new Date().toISOString(),
+          description: `COMPRA: ${itemsStr}`,
+          amount: total,
+          type: 'charge',
+          status: 'pending',
+          referenceId: saleId
+        }
+        setDocumentNonBlocking(movementRef, movementData, { merge: true })
+
+        // 2. Actualizar el saldo total e historial visual
+        const timestamp = format(new Date(), "dd/MM/yyyy")
         const newNote = `[${timestamp}] COMPRA FIADA: +$${total.toLocaleString('es-AR')} - ${itemsStr}\n`
         const updatedNotes = newNote + (customer.notes || "")
 

@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Wrench, CheckCircle2, Loader2, UserCircle, FileText, Info } from "lucide-react"
-import { Customer, PaymentMethod, InvoiceType, Sale, BillingConfig } from "@/lib/types"
+import { Customer, PaymentMethod, InvoiceType, Sale, BillingConfig, AccountMovement } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, updateDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 
 export default function ArreglosPage() {
@@ -100,11 +99,25 @@ export default function ArreglosPage() {
       // Guardar la venta
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp(), repairNotes: notes }, { merge: true })
       
-      // Actualizamos su saldo y historial automáticamente
+      // 1. Crear el movimiento detallado para cobro individual
+      const movementId = Math.random().toString(36).substr(2, 9)
+      const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId, 'movements', movementId)
+      
+      const movementData: AccountMovement = {
+        id: movementId,
+        date: new Date().toISOString(),
+        description: `ARREGLO: ${productName}`,
+        amount: total,
+        type: 'charge',
+        status: 'pending',
+        referenceId: saleId
+      }
+      setDocumentNonBlocking(movementRef, movementData, { merge: true })
+
+      // 2. Actualizar su saldo y historial visual
       if (customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
         
-        // Generar nota histórica automática del arreglo
         const timestamp = format(new Date(), "dd/MM/yyyy")
         const newNote = `[${timestamp}] ARREGLO FIADO: +$${total.toLocaleString('es-AR')} - ${productName}${notes ? ` (${notes})` : ''}\n`
         const updatedNotes = newNote + (customer.notes || "")

@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Product": {
@@ -37,6 +38,21 @@
       },
       "required": ["id", "name", "balance"]
     },
+    "AccountMovement": {
+      "title": "AccountMovement",
+      "description": "Representa un cargo o pago individual en la cuenta de un cliente.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["charge", "payment"] },
+        "status": { "type": "string", "enum": ["pending", "paid"] },
+        "referenceId": { "type": "string" }
+      },
+      "required": ["id", "date", "amount", "type", "status"]
+    },
     "Sale": {
       "title": "Sale",
       "type": "object",
@@ -69,6 +85,10 @@
     "/users/{userId}/customers/{customerId}": {
       "schema": { "$ref": "#/backend/entities/Customer" },
       "description": "Clientes y saldos de la tienda del usuario."
+    },
+    "/users/{userId}/customers/{customerId}/movements/{movementId}": {
+      "schema": { "$ref": "#/backend/entities/AccountMovement" },
+      "description": "Historial de cargos y pagos individuales del cliente."
     },
     "/users/{userId}/sales/{saleId}": {
       "schema": { "$ref": "#/backend/entities/Sale" },

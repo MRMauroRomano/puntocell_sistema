@@ -29,6 +29,16 @@ export interface Customer {
   notes?: string; // Observation notes for debt or deals
 }
 
+export interface AccountMovement {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: 'charge' | 'payment';
+  status: 'pending' | 'paid';
+  referenceId?: string; // ID de la venta o arreglo original
+}
+
 export interface SaleItem {
   productId: string;
   productName: string;
@@ -66,6 +76,7 @@ export interface Sale {
   billingCuit?: string; // CUIT used for this sale
   billingName?: string;
   status?: 'completed' | 'returned'; // New status field for AFIP compliance
+  repairNotes?: string;
 }
 
 export interface Expense {
@@ -75,25 +86,6 @@ export interface Expense {
   category: string;
   amount: number;
   paymentMethod: string;
-}
-
-export interface InventoryMovement {
-  id: string;
-  productId: string;
-  type: 'in' | 'out';
-  quantity: number;
-  reason: string;
-  date: string;
-}
-
-export interface AccountTransaction {
-  id: string;
-  customerId: string;
-  date: string;
-  amount: number;
-  type: 'purchase' | 'payment';
-  description: string;
-  paymentMethod?: PaymentMethod;
 }
 
 export interface BillingConfig {
