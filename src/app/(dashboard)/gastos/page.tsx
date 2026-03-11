@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +36,11 @@ export default function ExpensesPage() {
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [currentDate, setCurrentDate] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
 
   const expensesRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'expenses') : null, 
@@ -63,15 +67,14 @@ export default function ExpensesPage() {
   }, [expenses, searchTerm, selectedCategory])
 
   const totalMonth = useMemo(() => {
-    if (!expenses) return 0
-    const now = new Date()
+    if (!expenses || !currentDate) return 0
     return expenses
       .filter(e => {
         const d = new Date(e.date)
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        return d.getMonth() === currentDate.getMonth() && d.getFullYear() === currentDate.getFullYear()
       })
       .reduce((acc, curr) => acc + curr.amount, 0)
-  }, [expenses])
+  }, [expenses, currentDate])
 
   const handleSaveExpense = () => {
     if (!user || !formExpense.description || !formExpense.amount || formExpense.amount <= 0) {
@@ -106,11 +109,7 @@ export default function ExpensesPage() {
         date: new Date().toISOString()
       })
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo registrar el gasto.",
-      })
+      // Handled centrally
     } finally {
       setIsSaving(false)
     }
@@ -228,7 +227,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl lg:text-3xl font-bold text-red-900 font-headline">${totalMonth.toFixed(2)}</div>
-            <p className="text-[10px] lg:text-xs text-red-700 mt-1 uppercase font-bold tracking-tight">Acumulado en {format(new Date(), 'MMMM', { locale: es })}</p>
+            <p className="text-[10px] lg:text-xs text-red-700 mt-1 uppercase font-bold tracking-tight">Acumulado en {currentDate ? format(currentDate, 'MMMM', { locale: es }) : '...'}</p>
           </CardContent>
         </Card>
       </div>

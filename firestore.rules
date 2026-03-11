@@ -35,6 +35,6 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
     
-    // Comentario para disparar el despliegue automático de reglas corregidas: 2026-03-10_v2
+    // Despliegue de seguridad forzado: 2026-03-11_v3 (Corrección multitenancy)
   }
 }

@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,16 +68,17 @@ export default function CurrentAccountPage() {
   }, [customers, searchTerm, activeTab, activeYear])
 
   const totalsByTab = useMemo(() => {
-    if (!customers) return { martin: 0, toti: 0, martinUSD: 0, totiUSD: 0 }
+    const initial = { martin: 0, toti: 0, martinUSD: 0, totiUSD: 0 }
+    if (!customers) return initial
     return customers.reduce((acc, curr) => {
       if ((curr.accountYear || "2025") === activeYear) {
-        const type = curr.accountType || 'martin'
-        acc[type] = (acc[type] || 0) + (curr.balance || 0)
-        const usdVal = type === 'martin' ? 'martinUSD' : 'totiUSD'
-        acc[usdVal] = (acc[usdVal] || 0) + (curr.balanceUSD || 0)
+        const type = (curr.accountType === 'toti' ? 'toti' : 'martin') as 'martin' | 'toti'
+        acc[type] += (curr.balance || 0)
+        const usdKey = (type === 'martin' ? 'martinUSD' : 'totiUSD') as 'martinUSD' | 'totiUSD'
+        acc[usdKey] += (curr.balanceUSD || 0)
       }
       return acc
-    }, { martin: 0, toti: 0, martinUSD: 0, totiUSD: 0 })
+    }, initial)
   }, [customers, activeYear])
 
   const handleOpenPayment = (customer: Customer) => {
@@ -267,7 +267,6 @@ export default function CurrentAccountPage() {
   const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
   const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
 
-  // Cálculo de conversión para el diálogo de pago
   const paymentInUSD = useMemo(() => {
     const amount = parseFloat(paymentAmount)
     const rate = parseFloat(usdRate) || 1
