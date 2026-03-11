@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Wrench, CheckCircle2, Loader2, UserCircle, CreditCard, FileText, Info } from "lucide-react"
+import { Wrench, CheckCircle2, Loader2, UserCircle, CreditCard, FileText, Info, Wallet } from "lucide-react"
 import { Customer, PaymentMethod, InvoiceType, Sale, BillingConfig } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -26,7 +26,6 @@ export default function ArreglosPage() {
   const [price, setPrice] = useState("")
   const [notes, setNotes] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("final")
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('ticket')
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>("")
   
@@ -50,13 +49,6 @@ export default function ArreglosPage() {
     }
   }, [billingConfigs, selectedBillingCuitId])
 
-  // Resetear medio de pago si se vuelve a consumidor final
-  useEffect(() => {
-    if (selectedCustomerId === 'final' && paymentMethod === 'credit_account') {
-      setPaymentMethod('cash')
-    }
-  }, [selectedCustomerId, paymentMethod])
-
   const total = Number(price) || 0
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
@@ -74,6 +66,11 @@ export default function ArreglosPage() {
     const saleId = `REPAIR-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
     const saleRef = doc(firestore, 'users', user.uid, 'sales', saleId)
     const customer = customers?.find(c => c.id === selectedCustomerId)
+    
+    // Determinamos el medio de pago automáticamente
+    // Si hay cliente -> Cuenta Corriente
+    // Si es final -> Efectivo
+    const finalPaymentMethod: PaymentMethod = selectedCustomerId === 'final' ? 'cash' : 'credit_account'
     
     const saleData: Sale = {
       id: saleId,
@@ -93,7 +90,7 @@ export default function ArreglosPage() {
       subtotal: Number(total.toFixed(2)),
       tax: 0,
       total: Number(total.toFixed(2)),
-      paymentMethod: paymentMethod,
+      paymentMethod: finalPaymentMethod,
       invoiceType: invoiceType,
       billingCuit: selectedBillingConfig?.cuit || "No definido",
       billingName: selectedBillingConfig?.name || "Tienda de Arreglos",
@@ -101,32 +98,28 @@ export default function ArreglosPage() {
     }
 
     try {
-      // Guardar la venta (el arreglo es una venta de servicio)
+      // Guardar la venta
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp(), repairNotes: notes }, { merge: true })
       
-      // Si es cuenta corriente, actualizar saldo del cliente EN SU CARTERA
-      if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
+      // Si es cliente registrado, actualizamos su saldo automáticamente
+      if (selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
         
-        // Sumamos al balance actual del cliente manteniendo su accountType (Martin o Toti)
-        // Si no tiene, por defecto los arreglos suelen ir a Toti
         updateDocumentNonBlocking(customerRef, { 
           balance: (customer.balance || 0) + total,
-          updatedAt: new Date().toISOString(),
-          // Mantenemos su accountType si ya existe, sino usamos 'toti'
-          accountType: customer.accountType || 'toti'
+          updatedAt: new Date().toISOString()
         })
 
         toast({
           title: "Saldo actualizado",
-          description: `Se sumaron $${total} a la cuenta de ${customer.name} (${customer.accountType === 'martin' ? 'Martin' : 'Toti'}).`
+          description: `Se sumaron $${total} a la cuenta corriente de ${customer.name}.`
         })
       }
 
       setIsSuccessDialogOpen(true)
       toast({ title: "Arreglo registrado con éxito" })
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo registrar el arreglo." })
+      // Handled centrally
     } finally {
       setIsFinishing(false)
     }
@@ -137,7 +130,6 @@ export default function ArreglosPage() {
     setPrice("")
     setNotes("")
     setSelectedCustomerId('final')
-    setPaymentMethod('cash')
     setIsSuccessDialogOpen(false)
   }
 
@@ -145,16 +137,16 @@ export default function ArreglosPage() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold font-headline text-primary flex items-center gap-2">
-          <Wrench className="h-8 w-8" /> Carga de Arreglos
+          <Wrench className="h-8 w-8" /> Arreglos y Servicios
         </h1>
-        <p className="text-muted-foreground text-sm">Registra reparaciones y servicios técnicos fuera de inventario.</p>
+        <p className="text-muted-foreground text-sm">Carga directa de reparaciones al historial y cuentas.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Formulario de Arreglo */}
         <Card className="lg:col-span-7 border-primary/20 shadow-md">
           <CardHeader className="bg-primary/5 border-b py-4">
-            <CardTitle className="text-base font-headline">Detalles del Servicio</CardTitle>
+            <CardTitle className="text-base font-headline">Detalles del Servicio Técnico</CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             <div className="space-y-4">
@@ -169,44 +161,16 @@ export default function ArreglosPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price" className="text-xs font-black uppercase text-muted-foreground">Precio del Arreglo ($)</Label>
-                  <Input 
-                    id="price" 
-                    type="number"
-                    placeholder="0.00" 
-                    className="h-11 font-black text-primary text-xl"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-muted-foreground">Medio de Cobro</Label>
-                  <Select onValueChange={(v) => setPaymentMethod(v as any)} value={paymentMethod}>
-                    <SelectTrigger className="h-11 font-bold">
-                      <div className="flex items-center gap-2"><CreditCard className="h-4 w-4" /> <SelectValue /></div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Efectivo</SelectItem>
-                      <SelectItem value="transfer">Transferencia</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="visa">Tarjeta Visa</SelectItem>
-                      <SelectItem value="mastercard">Mastercard</SelectItem>
-                      <SelectItem value="cabal">Cabal</SelectItem>
-                      <SelectItem value="premier">Premier</SelectItem>
-                      <SelectItem value="paselibre">Pase Libre</SelectItem>
-                      <SelectItem value="debit">Débito</SelectItem>
-                      <SelectItem 
-                        value="credit_account" 
-                        disabled={selectedCustomerId === 'final'}
-                        className={cn(selectedCustomerId === 'final' && "opacity-50")}
-                      >
-                        Cuenta Corriente
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="price" className="text-xs font-black uppercase text-muted-foreground">Precio del Arreglo ($)</Label>
+                <Input 
+                  id="price" 
+                  type="number"
+                  placeholder="0.00" 
+                  className="h-12 font-black text-primary text-2xl"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
               </div>
 
               <div className="space-y-2">
@@ -214,7 +178,7 @@ export default function ArreglosPage() {
                 <Textarea 
                   id="notes" 
                   placeholder="Ej: Se cambió pin de carga y se realizó limpieza de placa. Garantía 30 días." 
-                  className="min-h-[120px] bg-muted/20"
+                  className="min-h-[150px] bg-muted/20"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -228,7 +192,7 @@ export default function ArreglosPage() {
           <Card className="border-primary/20 shadow-xl bg-white sticky top-6">
             <CardHeader className="py-4 border-b bg-muted/30">
               <CardTitle className="text-sm font-black uppercase tracking-wider text-primary flex items-center gap-2">
-                <UserCircle className="h-4 w-4" /> Cliente y Facturación
+                <UserCircle className="h-4 w-4" /> Cliente y Cobro
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -236,11 +200,11 @@ export default function ArreglosPage() {
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground">Seleccionar Cliente</Label>
                   <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
-                    <SelectTrigger className="h-10 font-bold">
+                    <SelectTrigger className="h-11 font-bold">
                       <SelectValue placeholder="Consumidor Final" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="final">Consumidor Final</SelectItem>
+                      <SelectItem value="final">Consumidor Final (Efectivo)</SelectItem>
                       {customers?.map(c => (
                         <SelectItem key={c.id} value={c.id}>
                           <div className="flex justify-between items-center w-full gap-2">
@@ -251,27 +215,34 @@ export default function ArreglosPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  {selectedCustomerId !== 'final' ? (
-                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 flex items-start gap-2">
-                      <Info className="h-4 w-4 text-amber-600 mt-0.5" />
-                      <p className="text-[10px] text-amber-800 leading-tight">
-                        Has seleccionado a un cliente. Ahora puedes elegir <strong>Cuenta Corriente</strong> si el cliente no paga en el momento.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-muted/50 rounded-lg border flex items-start gap-2">
-                      <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <p className="text-[10px] text-muted-foreground leading-tight">
-                        Para usar Cuenta Corriente, primero selecciona un cliente de tu directorio.
-                      </p>
-                    </div>
-                  )}
                 </div>
+
+                {selectedCustomerId === 'final' ? (
+                  <div className="p-4 bg-green-50 rounded-xl border border-green-200 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <CreditCard className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-green-700">Modo de Cobro</p>
+                      <p className="text-sm font-bold text-green-900">Efectivo / Al contado</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-amber-700">Modo de Cobro</p>
+                      <p className="text-sm font-bold text-amber-900">Directo a Cuenta Corriente</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground">Tipo de Comprobante</Label>
                   <Select onValueChange={(v) => setInvoiceType(v as any)} value={invoiceType}>
-                    <SelectTrigger className="h-10 font-bold">
+                    <SelectTrigger className="h-11 font-bold">
                       <div className="flex items-center gap-2"><FileText className="h-4 w-4" /> <SelectValue /></div>
                     </SelectTrigger>
                     <SelectContent>
@@ -283,21 +254,21 @@ export default function ArreglosPage() {
                 </div>
               </div>
 
-              <div className="border-t pt-4 space-y-2">
-                <div className="flex justify-between items-center pt-2 border-t">
-                  <span className="text-sm font-black uppercase">Total a Pagar</span>
-                  <span className="text-3xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-black uppercase text-muted-foreground">Total a Confirmar</span>
+                  <span className="text-4xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
             <CardFooter className="p-6 pt-0">
               <Button 
-                className="w-full h-12 text-base font-black uppercase tracking-wide shadow-lg gap-2" 
+                className="w-full h-14 text-lg font-black uppercase tracking-wide shadow-lg gap-2" 
                 disabled={!productName || total <= 0 || isFinishing}
                 onClick={handleFinishRepair}
               >
-                {isFinishing ? <Loader2 className="animate-spin h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                Confirmar Arreglo
+                {isFinishing ? <Loader2 className="animate-spin h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
+                Registrar Arreglo
               </Button>
             </CardFooter>
           </Card>
@@ -312,7 +283,7 @@ export default function ArreglosPage() {
             </div>
           </div>
           <h2 className="text-2xl font-black font-headline text-primary mb-1 uppercase tracking-tight">Servicio Registrado</h2>
-          <p className="text-muted-foreground text-sm mb-6">El comprobante de arreglo ha sido emitido y guardado en el historial.</p>
+          <p className="text-muted-foreground text-sm mb-6">El arreglo ha sido procesado y guardado correctamente.</p>
           <div className="grid grid-cols-2 gap-3">
              <Button variant="outline" className="font-bold border-2" onClick={() => window.print()}>Imprimir Ticket</Button>
              <Button className="font-bold shadow-md" onClick={resetForm}>Nuevo Arreglo</Button>
