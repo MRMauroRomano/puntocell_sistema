@@ -15,6 +15,7 @@ import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, u
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 export default function ArreglosPage() {
   const firestore = useFirestore()
@@ -99,12 +100,18 @@ export default function ArreglosPage() {
       // Guardar la venta
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp(), repairNotes: notes }, { merge: true })
       
-      // Actualizamos su saldo automáticamente
+      // Actualizamos su saldo y historial automáticamente
       if (customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
         
+        // Generar nota histórica automática del arreglo
+        const timestamp = format(new Date(), "dd/MM/yyyy")
+        const newNote = `[${timestamp}] ARREGLO FIADO: +$${total.toLocaleString('es-AR')} - ${productName}${notes ? ` (${notes})` : ''}\n`
+        const updatedNotes = newNote + (customer.notes || "")
+
         updateDocumentNonBlocking(customerRef, { 
           balance: (customer.balance || 0) + total,
+          notes: updatedNotes,
           updatedAt: new Date().toISOString()
         })
 
@@ -137,7 +144,7 @@ export default function ArreglosPage() {
         <h1 className="text-3xl font-bold font-headline text-primary flex items-center gap-2">
           <Wrench className="h-8 w-8" /> Arreglos y Servicios
         </h1>
-        <p className="text-muted-foreground text-sm">Registro directo a Cuenta Corriente del cliente.</p>
+        <p className="text-muted-foreground text-sm">Registro directo a Cuenta Corriente del cliente con historial automático.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -217,9 +224,9 @@ export default function ArreglosPage() {
                 <div className="p-4 bg-primary/5 rounded-xl border border-primary/20 flex items-start gap-3">
                   <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-[10px] font-black uppercase text-primary">Información de Cobro</p>
+                    <p className="text-[10px] font-black uppercase text-primary">Libro de Cuentas</p>
                     <p className="text-xs text-muted-foreground leading-tight mt-1">
-                      Este arreglo se sumará automáticamente a la **Cuenta Corriente** del cliente seleccionado al momento de guardar.
+                      El sistema registrará automáticamente: **Fecha**, **Equipo** y **Monto** en la ficha histórica del cliente.
                     </p>
                   </div>
                 </div>
@@ -253,7 +260,7 @@ export default function ArreglosPage() {
                 onClick={handleFinishRepair}
               >
                 {isFinishing ? <Loader2 className="animate-spin h-6 w-6" /> : <CheckCircle2 className="h-6 w-6" />}
-                Confirmar y Cargar a Cuenta
+                Confirmar y Anotar
               </Button>
             </CardFooter>
           </Card>
@@ -269,10 +276,10 @@ export default function ArreglosPage() {
               </div>
             </div>
             <DialogTitle className="text-2xl font-black font-headline text-primary mb-1 uppercase tracking-tight text-center">
-              Cargado con Éxito
+              Anotado con Éxito
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm mb-6 text-center">
-              El arreglo ha sido asignado a la cuenta corriente del cliente.
+              La reparación ha sido cargada al historial y saldo del cliente.
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3">

@@ -15,6 +15,7 @@ import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, u
 import { collection, doc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { format } from "date-fns"
 
 const CATEGORIES = ["Celulares", "Fundas", "Audio", "Accesorios", "Computación", "Repuestos", "Otros"]
 
@@ -142,8 +143,16 @@ export default function SalesPage() {
 
       if (paymentMethod === 'credit_account' && selectedCustomerId !== 'final' && customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
+        
+        // Generar nota histórica automática de la compra
+        const timestamp = format(new Date(), "dd/MM/yyyy")
+        const itemsStr = cart.map(i => `${i.quantity}x ${i.productName}`).join(", ")
+        const newNote = `[${timestamp}] COMPRA FIADA: +$${total.toLocaleString('es-AR')} - ${itemsStr}\n`
+        const updatedNotes = newNote + (customer.notes || "")
+
         updateDocumentNonBlocking(customerRef, { 
           balance: (customer.balance || 0) + total,
+          notes: updatedNotes,
           updatedAt: new Date().toISOString()
         })
       }

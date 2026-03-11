@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useRef, useEffect } from "react"
@@ -5,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar, DollarSign, ArrowRightLeft } from "lucide-react"
+import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, CreditCard, Filter, Info, FileUp, PlusCircle, Calendar, DollarSign, ArrowRightLeft, History as HistoryIcon } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
 import { Customer, PaymentMethod } from "@/lib/types"
@@ -37,6 +38,7 @@ export default function CurrentAccountPage() {
   const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
   
   const [paymentAmount, setPaymentAmount] = useState<string>("")
+  const [paymentNotes, setPaymentNotes] = useState<string>("")
   
   const [chargeAmount, setChargeAmount] = useState<string>("")
   const [chargeNotes, setChargeNotes] = useState<string>("")
@@ -84,6 +86,7 @@ export default function CurrentAccountPage() {
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
     setPaymentAmount("")
+    setPaymentNotes("")
     setIsPayDialogOpen(true)
   }
 
@@ -106,10 +109,15 @@ export default function CurrentAccountPage() {
     setIsSaving(true)
     const newBalance = Math.max(0, (selectedCustomer.balance || 0) - amount)
     const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
+    
+    const timestamp = format(new Date(), "dd/MM/yyyy")
+    const newNote = `[${timestamp}] PAGO: -$${amount.toLocaleString('es-AR')}${paymentNotes ? ` (${paymentNotes})` : ''}\n`
+    const updatedNotes = newNote + (selectedCustomer.notes || "")
 
     try {
       updateDocumentNonBlocking(customerRef, {
         balance: newBalance,
+        notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
       
@@ -142,11 +150,15 @@ export default function CurrentAccountPage() {
 
     const newBalance = (customer.balance || 0) + amount
     const customerRef = doc(firestore, 'users', user.uid, 'customers', customer.id)
+    
+    const timestamp = format(new Date(), "dd/MM/yyyy")
+    const newNote = `[${timestamp}] CARGO: +$${amount.toLocaleString('es-AR')} - ${chargeNotes || "Sin descripción"}\n`
+    const updatedNotes = newNote + (customer.notes || "")
 
     try {
       updateDocumentNonBlocking(customerRef, {
         balance: newBalance,
-        notes: chargeNotes || customer.notes || "",
+        notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
       
@@ -157,6 +169,7 @@ export default function CurrentAccountPage() {
       setIsChargeDialogOpen(false)
       setChargeAmount("")
       setChargeNotes("")
+      setChargeCustomerId("")
     } catch (error) {
       // Handled centrally
     } finally {
@@ -279,11 +292,11 @@ export default function CurrentAccountPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold font-headline text-primary">Cuenta Corriente</h1>
-          <p className="text-muted-foreground text-sm">Planilla de saldos y entregas por año.</p>
+          <p className="text-muted-foreground text-sm">Registro histórico de fiados, arreglos y entregas.</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
            <Button className="gap-2 flex-1 sm:flex-none" onClick={() => setIsChargeDialogOpen(true)}>
-             <PlusCircle className="h-4 w-4" /> Nuevo Cargo
+             <PlusCircle className="h-4 w-4" /> Nuevo Cargo (Anotar)
            </Button>
            <input type="file" className="hidden" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" />
            <Button variant="outline" className="gap-2 flex-1 sm:flex-none" onClick={() => fileInputRef.current?.click()} disabled={isImporting}>
@@ -336,7 +349,7 @@ export default function CurrentAccountPage() {
                   />
                 </div>
                 <div className="text-[9px] text-muted-foreground leading-tight italic">
-                  Usamos este valor para calcular los totales en dólares si no hay saldo fijo USD.
+                  Usamos este valor para calcular deudas en dólares en tiempo real.
                 </div>
               </CardContent>
             </Card>
@@ -357,7 +370,7 @@ export default function CurrentAccountPage() {
             </Tabs>
             
             <div className="flex items-center gap-2 bg-muted/30 p-1 rounded-md border w-full sm:w-auto">
-               <span className="text-[10px] font-black uppercase px-2 text-muted-foreground">Año de cuenta:</span>
+               <span className="text-[10px] font-black uppercase px-2 text-muted-foreground">Año:</span>
                {[ "2024", "2025", "2026" ].map((year) => (
                  <Button 
                    key={year}
@@ -387,25 +400,25 @@ export default function CurrentAccountPage() {
           <Card className="shadow-lg border-primary/10 overflow-hidden">
             <CardHeader className="bg-primary/5 py-3 border-b">
                <CardTitle className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                 <Calendar className="h-4 w-4" /> PLANILLA {activeYear} - {activeTab === 'martin' ? 'FIADOS MARTIN' : 'ARREGLOS TOTI'}
+                 <HistoryIcon className="h-4 w-4" /> LIBRO DE CUENTAS {activeYear} - {activeTab === 'martin' ? 'MARTIN' : 'TOTI'}
                </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-2">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="text-muted-foreground text-sm">Cargando planilla...</p>
+                  <p className="text-muted-foreground text-sm">Cargando cuentas...</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader className="bg-muted/10">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="w-[120px] font-black uppercase text-[10px]">Fecha</TableHead>
+                        <TableHead className="w-[120px] font-black uppercase text-[10px]">Últ. Mov.</TableHead>
                         <TableHead className="font-black uppercase text-[10px]">Cliente</TableHead>
-                        <TableHead className="text-right font-black uppercase text-[10px]">Total que le queda</TableHead>
-                        <TableHead className="text-right font-black uppercase text-[10px]">USD (Aprox / Fijo)</TableHead>
-                        <TableHead className="font-black uppercase text-[10px] min-w-[250px]">Lo que entregó / Notas</TableHead>
+                        <TableHead className="text-right font-black uppercase text-[10px]">Lo que debe ($)</TableHead>
+                        <TableHead className="text-right font-black uppercase text-[10px]">USD (Ref.)</TableHead>
+                        <TableHead className="font-black uppercase text-[10px] min-w-[250px]">Resumen / Notas</TableHead>
                         <TableHead className="text-right no-print font-black uppercase text-[10px]">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -448,7 +461,7 @@ export default function CurrentAccountPage() {
                                     size="sm" 
                                     className="h-8 w-8 p-0"
                                     onClick={() => handleOpenStatus(customer)}
-                                    title="Ver Estado"
+                                    title="Ver Ficha Completa"
                                   >
                                      <FileText className="h-4 w-4 text-primary/60" />
                                   </Button>
@@ -468,7 +481,7 @@ export default function CurrentAccountPage() {
                       {filtered.length === 0 && (
                         <TableRow>
                           <TableCell colSpan={6} className="text-center py-20 text-muted-foreground text-sm italic">
-                            No hay registros para {activeTab.toUpperCase()} en el año {activeYear}.
+                            No hay registros cargados.
                           </TableCell>
                         </TableRow>
                       )}
@@ -484,9 +497,9 @@ export default function CurrentAccountPage() {
       <Dialog open={isChargeDialogOpen} onOpenChange={setIsChargeDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Registrar Nuevo Cargo</DialogTitle>
+            <DialogTitle className="font-headline">Anotar Nuevo Cargo (Fiado)</DialogTitle>
             <DialogDescription>
-              Aumentar la deuda de un cliente manualmente.
+              Registra un nuevo producto o servicio a la cuenta.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -506,7 +519,7 @@ export default function CurrentAccountPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="amount">Monto de Deuda ($)</Label>
+              <Label htmlFor="amount">Monto ($)</Label>
               <Input 
                 id="amount" 
                 type="number" 
@@ -516,10 +529,10 @@ export default function CurrentAccountPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notes">Lo que entregó / Notas del trato</Label>
+              <Label htmlFor="notes">¿Qué se llevó? / Descripción</Label>
               <Textarea 
                 id="notes" 
-                placeholder="Ej: Se llevó cargador, entregó Samsung..." 
+                placeholder="Ej: Funda silicona + Vidrio templado" 
                 value={chargeNotes}
                 onChange={(e) => setChargeNotes(e.target.value)}
               />
@@ -529,7 +542,7 @@ export default function CurrentAccountPage() {
             <Button variant="outline" onClick={() => setIsChargeDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
             <Button onClick={handleProcessCharge} disabled={isSaving || !chargeCustomerId}>
               {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-              Confirmar Cargo
+              Guardar en Cuenta
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -538,7 +551,7 @@ export default function CurrentAccountPage() {
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
-            <DialogTitle className="font-headline">Registrar Cobro</DialogTitle>
+            <DialogTitle className="font-headline">Registrar Entrega / Pago</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="flex flex-col gap-2 p-3 bg-red-50 rounded-lg border border-red-100">
@@ -554,7 +567,7 @@ export default function CurrentAccountPage() {
                </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment">Monto que paga ($)</Label>
+              <Label htmlFor="payment">Monto que entrega ($)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-muted-foreground font-bold">$</span>
                 <Input 
@@ -574,6 +587,15 @@ export default function CurrentAccountPage() {
                 </div>
               )}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="pay-notes">Nota del pago (Opcional)</Label>
+              <Input 
+                id="pay-notes" 
+                placeholder="Ej: Pago en efectivo / Transferencia" 
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPayDialogOpen(false)} disabled={isSaving}>Cancelar</Button>
@@ -586,14 +608,14 @@ export default function CurrentAccountPage() {
       </Dialog>
 
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline text-xl">Estado Detallado</DialogTitle>
+            <DialogTitle className="font-headline text-xl">Ficha Histórica del Cliente</DialogTitle>
           </DialogHeader>
           {selectedCustomer && (
             <div className="space-y-4 py-4">
               <div className="p-6 rounded-2xl border-2 border-primary/20 bg-primary/5 text-center">
-                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Total que le queda ({selectedCustomer.accountYear || "2025"})</p>
+                 <p className="text-xs font-bold uppercase text-primary/60 mb-1">Saldo Pendiente ({selectedCustomer.accountYear || "2025"})</p>
                  <p className={cn("text-4xl font-black font-headline", selectedCustomer.balance > 0 ? "text-red-600" : "text-green-600")}>
                     ${selectedCustomer.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                  </p>
@@ -606,24 +628,27 @@ export default function CurrentAccountPage() {
                     </p>
                  </div>
               </div>
-              <div className="p-4 rounded-xl border border-amber-200 bg-amber-50">
-                <p className="text-[10px] font-black uppercase text-amber-700 flex items-center gap-1 mb-2">
-                  <Info className="h-3 w-3" /> Lo que entregó / Notas
+              
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase text-muted-foreground flex items-center gap-1">
+                  <HistoryIcon className="h-3 w-3" /> HISTORIAL DE MOVIMIENTOS
                 </p>
-                <div className="text-sm italic text-amber-900 whitespace-pre-wrap">
-                  {selectedCustomer.notes || "No hay notas registradas."}
+                <div className="p-4 rounded-xl border border-muted bg-muted/20 min-h-[150px] max-h-[300px] overflow-y-auto font-mono text-xs whitespace-pre-wrap leading-relaxed">
+                  {selectedCustomer.notes || "No hay movimientos registrados."}
                 </div>
               </div>
-              <div className="text-xs bg-muted/20 p-3 rounded-lg grid grid-cols-2 gap-2">
-                 <div><span className="font-bold">Cliente:</span> {selectedCustomer.name}</div>
-                 <div><span className="font-bold">Año:</span> {selectedCustomer.accountYear || '2025'}</div>
-                 <div><span className="font-bold">Cartera:</span> {selectedCustomer.accountType?.toUpperCase() || 'MARTIN'}</div>
-                 <div><span className="font-bold">Últ. Mov.:</span> {selectedCustomer.updatedAt ? format(new Date(selectedCustomer.updatedAt), "dd/MM/yyyy") : '---'}</div>
+
+              <div className="text-[10px] bg-muted/10 p-3 rounded-lg grid grid-cols-2 gap-y-2 gap-x-4 border">
+                 <div className="flex flex-col"><span className="font-black uppercase text-muted-foreground/60">Cliente</span> {selectedCustomer.name}</div>
+                 <div className="flex flex-col"><span className="font-black uppercase text-muted-foreground/60">Año</span> {selectedCustomer.accountYear || '2025'}</div>
+                 <div className="flex flex-col"><span className="font-black uppercase text-muted-foreground/60">Cartera</span> {selectedCustomer.accountType?.toUpperCase() || 'MARTIN'}</div>
+                 <div className="flex flex-col"><span className="font-black uppercase text-muted-foreground/60">Última Actividad</span> {selectedCustomer.updatedAt ? format(new Date(selectedCustomer.updatedAt), "dd/MM/yyyy HH:mm") : '---'}</div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button className="w-full" variant="outline" onClick={() => window.print()}>Imprimir Ficha</Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button className="flex-1" variant="outline" onClick={() => window.print()}>Imprimir Ficha</Button>
+            <Button className="flex-1" onClick={() => setIsStatusDialogOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
