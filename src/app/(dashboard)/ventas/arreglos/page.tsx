@@ -23,7 +23,7 @@ export default function ArreglosPage() {
   
   // Estados del Formulario
   const [productName, setProductName] = useState("")
-  const [price, setPrice] = useState("")
+  const [displayPrice, setDisplayPrice] = useState("")
   const [notes, setNotes] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
   const [customerSearch, setCustomerSearch] = useState("")
@@ -58,7 +58,20 @@ export default function ArreglosPage() {
     }
   }, [billingConfigs, selectedBillingCuitId])
 
-  const total = Number(price) || 0
+  // Helper para formatear miles visualmente
+  const formatMoneyInput = (val: string) => {
+    const raw = val.replace(/\D/g, "");
+    if (!raw) return "";
+    return parseInt(raw).toLocaleString('es-AR');
+  }
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatMoneyInput(e.target.value);
+    setDisplayPrice(formatted);
+  }
+
+  const rawPrice = displayPrice ? parseInt(displayPrice.replace(/\D/g, "")) : 0;
+  const total = rawPrice;
   const selectedBillingConfig = billingConfigs?.find(b => b.id === selectedBillingCuitId)
 
   const handleFinishRepair = () => {
@@ -105,10 +118,8 @@ export default function ArreglosPage() {
     }
 
     try {
-      // Guardar la venta
       setDocumentNonBlocking(saleRef, { ...saleData, createdAt: serverTimestamp(), repairNotes: notes }, { merge: true })
       
-      // 1. Crear el movimiento detallado para cobro individual
       const movementId = Math.random().toString(36).substr(2, 9)
       const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId, 'movements', movementId)
       
@@ -123,10 +134,8 @@ export default function ArreglosPage() {
       }
       setDocumentNonBlocking(movementRef, movementData, { merge: true })
 
-      // 2. Actualizar su saldo y historial visual
       if (customer) {
         const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomerId)
-        
         const timestamp = format(new Date(), "dd/MM/yyyy")
         const newNote = `[${timestamp}] ARREGLO FIADO: +$${total.toLocaleString('es-AR')} - ${productName}${notes ? ` (${notes})` : ''}\n`
         const updatedNotes = newNote + (customer.notes || "")
@@ -139,7 +148,7 @@ export default function ArreglosPage() {
 
         toast({
           title: "Saldo actualizado",
-          description: `Se sumaron $${total} a la cuenta corriente de ${customer.name}.`
+          description: `Se sumaron $${total.toLocaleString('es-AR')} a la cuenta corriente de ${customer.name}.`
         })
       }
 
@@ -154,7 +163,7 @@ export default function ArreglosPage() {
 
   const resetForm = () => {
     setProductName("")
-    setPrice("")
+    setDisplayPrice("")
     setNotes("")
     setSelectedCustomerId("")
     setCustomerSearch("")
@@ -171,7 +180,6 @@ export default function ArreglosPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Formulario de Arreglo */}
         <Card className="lg:col-span-7 border-primary/20 shadow-md">
           <CardHeader className="bg-primary/5 border-b py-4">
             <CardTitle className="text-base font-headline">Detalles del Servicio Técnico</CardTitle>
@@ -191,14 +199,18 @@ export default function ArreglosPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="price" className="text-xs font-black uppercase text-muted-foreground">Precio del Arreglo ($)</Label>
-                <Input 
-                  id="price" 
-                  type="number"
-                  placeholder="0.00" 
-                  className="h-12 font-black text-primary text-2xl"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-2xl font-black text-primary/50">$</span>
+                  <Input 
+                    id="price" 
+                    type="text"
+                    placeholder="0" 
+                    className="h-12 font-black text-primary text-2xl pl-9"
+                    value={displayPrice}
+                    onChange={handlePriceChange}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground italic">Escribe el monto y se pondrán los puntos automáticamente.</p>
               </div>
 
               <div className="space-y-2">
@@ -215,7 +227,6 @@ export default function ArreglosPage() {
           </CardContent>
         </Card>
 
-        {/* Panel de Confirmación */}
         <div className="lg:col-span-5 space-y-6">
           <Card className="border-primary/20 shadow-xl bg-white sticky top-6">
             <CardHeader className="py-4 border-b bg-muted/30">
@@ -289,7 +300,7 @@ export default function ArreglosPage() {
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-black uppercase text-muted-foreground">Total a Cargar</span>
-                  <span className="text-4xl font-black text-primary font-headline tracking-tighter">${total.toFixed(2)}</span>
+                  <span className="text-4xl font-black text-primary font-headline tracking-tighter">${total.toLocaleString('es-AR')}</span>
                 </div>
               </div>
             </CardContent>

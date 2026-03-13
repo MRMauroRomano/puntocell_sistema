@@ -57,10 +57,35 @@ export default function ProductsPage() {
     storage: ""
   })
 
+  // Estado para el precio formateado visualmente
+  const [displayPrice, setDisplayPrice] = useState("")
+
   const [bulkData, setBulkData] = useState({
     actionType: 'price_fixed',
     value: ''
   })
+
+  const formatMoneyInput = (val: string | number) => {
+    const raw = String(val).replace(/\D/g, "");
+    if (!raw) return "";
+    return parseInt(raw).toLocaleString('es-AR');
+  }
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatMoneyInput(e.target.value);
+    setDisplayPrice(formatted);
+    const raw = parseInt(formatted.replace(/\D/g, "")) || 0;
+    setFormProduct(prev => ({ ...prev, price: raw }));
+  }
+
+  const handleBulkValueChange = (val: string) => {
+    if (bulkData.actionType === 'price_fixed' || bulkData.actionType === 'stock_fixed') {
+      const formatted = formatMoneyInput(val);
+      setBulkData(prev => ({ ...prev, value: formatted }));
+    } else {
+      setBulkData(prev => ({ ...prev, value: val }));
+    }
+  }
 
   const filtered = useMemo(() => {
     if (!products) return []
@@ -87,6 +112,7 @@ export default function ProductsPage() {
   const handleOpenAdd = () => {
     setIsEditing(false)
     setCurrentId(null)
+    setDisplayPrice("")
     setFormProduct({
       code: "",
       name: "",
@@ -106,6 +132,7 @@ export default function ProductsPage() {
   const handleOpenEdit = (product: Product) => {
     setIsEditing(true)
     setCurrentId(product.id)
+    setDisplayPrice(formatMoneyInput(product.price))
     setFormProduct({
       code: product.code || "",
       name: product.name,
@@ -175,6 +202,7 @@ export default function ProductsPage() {
 
     setIsSaving(true)
     try {
+      const cleanValue = bulkData.value.replace(/\D/g, "");
       selectedIds.forEach(id => {
         const product = products?.find(p => p.id === id)
         if (!product) return
@@ -182,15 +210,15 @@ export default function ProductsPage() {
         let update: any = {}
         
         if (bulkData.actionType === 'price_percent') {
-          const percent = parseFloat(bulkData.value)
+          const percent = parseFloat(cleanValue)
           const newPrice = product.price * (1 + percent / 100)
-          update = { price: Number(newPrice.toFixed(2)) }
+          update = { price: Number(newPrice.toFixed(0)) }
         } else if (bulkData.actionType === 'price_fixed') {
-          update = { price: Number(bulkData.value) }
+          update = { price: Number(cleanValue) }
         } else if (bulkData.actionType === 'category') {
           update = { category: bulkData.value }
         } else if (bulkData.actionType === 'stock_fixed') {
-          update = { stock: Number(bulkData.value) }
+          update = { stock: Number(cleanValue) }
         }
         
         updateDocumentNonBlocking(productRef, update)
@@ -418,7 +446,6 @@ export default function ProductsPage() {
                   <TableHeader className="bg-muted/30">
                     <TableRow>
                       <TableHead className="w-12 no-print">
-                        {/* El checkbox master está en el header arriba */}
                       </TableHead>
                       <TableHead className="w-24">Cód.</TableHead>
                       <TableHead>Producto</TableHead>
@@ -450,7 +477,7 @@ export default function ProductsPage() {
                             {product.category === 'Celulares' && product.batteryHealth && ` • Bat: ${product.batteryHealth}`}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-black text-sm text-primary">${product.price.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-black text-sm text-primary">${product.price.toLocaleString('es-AR')}</TableCell>
                         <TableCell className="text-center">
                           <Badge variant={product.stock < product.minStock ? "destructive" : "outline"} className="font-bold">{product.stock}</Badge>
                         </TableCell>
@@ -482,7 +509,6 @@ export default function ProductsPage() {
         </Card>
       </div>
 
-      {/* Diálogo de Modificación Masiva */}
       <Dialog open={isBulkDialogOpen} onOpenChange={setIsBulkDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -527,23 +553,25 @@ export default function ProductsPage() {
                 <div className="relative">
                   {bulkData.actionType === 'price_percent' ? (
                     <span className="absolute right-3 top-3.5 text-muted-foreground font-black text-lg">%</span>
-                  ) : bulkData.actionType === 'price_fixed' ? (
-                    <span className="absolute left-3 top-3.5 text-primary font-black text-lg">$</span>
+                  ) : (bulkData.actionType === 'price_fixed' || bulkData.actionType === 'stock_fixed') ? (
+                    <span className="absolute left-3 top-3.5 text-primary font-black text-lg">
+                      {bulkData.actionType === 'price_fixed' ? '$' : '#'}
+                    </span>
                   ) : null}
                   <Input 
-                    type="number"
+                    type="text"
                     className={cn(
                       "h-12 font-black text-lg",
-                      bulkData.actionType === 'price_percent' ? "pr-8" : bulkData.actionType === 'price_fixed' ? "pl-8" : ""
+                      bulkData.actionType === 'price_percent' ? "pr-8" : (bulkData.actionType === 'price_fixed' || bulkData.actionType === 'stock_fixed') ? "pl-8" : ""
                     )}
                     value={bulkData.value} 
-                    onChange={(e) => setBulkData({...bulkData, value: e.target.value})} 
-                    placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15" : bulkData.actionType === 'price_fixed' ? "Ej: 1500.00" : "Ej: 10"} 
+                    onChange={(e) => handleBulkValueChange(e.target.value)} 
+                    placeholder={bulkData.actionType === 'price_percent' ? "Ej: 15" : bulkData.actionType === 'price_fixed' ? "75.000" : "10"} 
                   />
                 </div>
               )}
               <p className="text-[10px] text-muted-foreground italic leading-tight">
-                * Este cambio afectará a todos los productos seleccionados inmediatamente.
+                * El formato de miles se aplica automáticamente para evitar errores.
               </p>
             </div>
           </div>
@@ -561,7 +589,6 @@ export default function ProductsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de Producto Individual */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95vw] sm:max-w-[550px] rounded-xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
@@ -642,7 +669,16 @@ export default function ProductsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Precio ($)</Label>
-                <Input type="number" className="font-bold text-primary" value={formProduct.price} onChange={e => setFormProduct({...formProduct, price: Number(e.target.value)})} />
+                <div className="relative">
+                  <span className="absolute left-2.5 top-2.5 text-primary font-bold">$</span>
+                  <Input 
+                    type="text" 
+                    className="font-bold text-primary pl-6" 
+                    value={displayPrice} 
+                    onChange={handlePriceChange} 
+                    placeholder="0"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs uppercase font-bold text-muted-foreground">Stock Act.</Label>
@@ -653,6 +689,7 @@ export default function ProductsPage() {
                 <Input type="number" value={formProduct.minStock} onChange={e => setFormProduct({...formProduct, minStock: Number(e.target.value)})} />
               </div>
             </div>
+            <p className="text-[10px] text-muted-foreground italic px-1">El punto de miles te ayuda a no poner ceros de más.</p>
           </div>
           <DialogFooter className="pt-4 border-t mt-2">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">Cancelar</Button>

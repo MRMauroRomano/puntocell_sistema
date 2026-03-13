@@ -37,10 +37,10 @@ export default function CurrentAccountPage() {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
   
-  const [paymentAmount, setPaymentAmount] = useState<string>("")
+  const [displayPaymentAmount, setDisplayPaymentAmount] = useState<string>("")
   const [paymentNotes, setPaymentNotes] = useState<string>("")
   
-  const [chargeAmount, setChargeAmount] = useState<string>("")
+  const [displayChargeAmount, setDisplayChargeAmount] = useState<string>("")
   const [chargeNotes, setChargeNotes] = useState<string>("")
   const [chargeCustomerId, setChargeCustomerId] = useState<string>("")
   
@@ -58,6 +58,12 @@ export default function CurrentAccountPage() {
     user && selectedCustomer ? collection(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements') : null,
   [firestore, user, selectedCustomer])
   const { data: movements, isLoading: isLoadingMovements } = useCollection<AccountMovement>(movementsRef)
+
+  const formatMoneyInput = (val: string) => {
+    const raw = val.replace(/\D/g, "");
+    if (!raw) return "";
+    return parseInt(raw).toLocaleString('es-AR');
+  }
 
   const filtered = useMemo(() => {
     if (!customers) return []
@@ -88,7 +94,7 @@ export default function CurrentAccountPage() {
 
   const handleOpenPayment = (customer: Customer) => {
     setSelectedCustomer(customer)
-    setPaymentAmount("")
+    setDisplayPaymentAmount("")
     setPaymentNotes("")
     setIsPayDialogOpen(true)
   }
@@ -99,7 +105,8 @@ export default function CurrentAccountPage() {
   }
 
   const handleProcessPayment = () => {
-    const amount = parseFloat(paymentAmount)
+    const rawValue = displayPaymentAmount.replace(/\D/g, "");
+    const amount = parseFloat(rawValue)
     if (!user || !selectedCustomer || isNaN(amount) || amount <= 0) {
       toast({ variant: "destructive", title: "Operación no válida", description: "Ingresa un monto válido." })
       return
@@ -109,29 +116,25 @@ export default function CurrentAccountPage() {
     const newBalance = Math.max(0, (selectedCustomer.balance || 0) - amount)
     const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
     
-    // Conciliación Automática: Buscar ítems pendientes y marcarlos como pagados si el monto alcanza
+    // Conciliación Automática
     let remainingPayment = amount;
     if (movements) {
-      // Ordenar por fecha (más antiguos primero)
       const sortedPending = movements
         .filter(m => m.type === 'charge' && m.status === 'pending')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
       for (const m of sortedPending) {
         if (remainingPayment <= 0) break;
-        // Si el pago cubre el total del ítem, lo marcamos como pagado
         if (remainingPayment >= m.amount) {
           const mRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', m.id);
           updateDocumentNonBlocking(mRef, { status: 'paid' });
           remainingPayment -= m.amount;
         } else {
-          // Pago parcial: No marcamos como pagado aún, pero paramos la conciliación automática
           break;
         }
       }
     }
     
-    // Crear movimiento de pago
     const movementId = Math.random().toString(36).substr(2, 9)
     const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', movementId)
     
@@ -154,7 +157,7 @@ export default function CurrentAccountPage() {
         notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
-      toast({ title: "Pago registrado", description: `Se cobraron $${amount.toFixed(2)} y se conciliaron deudas.` })
+      toast({ title: "Pago registrado", description: `Se cobraron $${amount.toLocaleString('es-AR')} y se conciliaron deudas.` })
       setIsPayDialogOpen(false)
     } catch (error) { /* Handled centrally */ } finally { setIsSaving(false) }
   }
@@ -168,7 +171,6 @@ export default function CurrentAccountPage() {
     const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
     const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', movement.id)
 
-    // Marcar ítem como pagado
     updateDocumentNonBlocking(movementRef, { status: 'paid' })
 
     const timestamp = format(new Date(), "dd/MM/yyyy")
@@ -181,12 +183,13 @@ export default function CurrentAccountPage() {
         notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
-      toast({ title: "Ítem cobrado", description: `Se saldó "${movement.description}" por $${amount}.` })
+      toast({ title: "Ítem cobrado", description: `Se saldó "${movement.description}" por $${amount.toLocaleString('es-AR')}.` })
     } catch (error) { /* Handled centrally */ } finally { setIsSaving(false) }
   }
 
   const handleProcessCharge = () => {
-    const amount = parseFloat(chargeAmount)
+    const rawValue = displayChargeAmount.replace(/\D/g, "");
+    const amount = parseFloat(rawValue)
     if (!user || !chargeCustomerId || isNaN(amount) || amount <= 0) {
       toast({ variant: "destructive", title: "Operación no válida", description: "Selecciona cliente e ingresa monto." })
       return
@@ -196,7 +199,6 @@ export default function CurrentAccountPage() {
     const customer = customers?.find(c => c.id === chargeCustomerId)
     if (!customer) return
 
-    // Crear movimiento de cargo
     const movementId = Math.random().toString(36).substr(2, 9)
     const movementRef = doc(firestore, 'users', user.uid, 'customers', customer.id, 'movements', movementId)
     
@@ -219,7 +221,7 @@ export default function CurrentAccountPage() {
       updateDocumentNonBlocking(customerRef, { balance: newBalance, notes: updatedNotes, updatedAt: new Date().toISOString() })
       toast({ title: "Cargo registrado" })
       setIsChargeDialogOpen(false)
-      setChargeAmount(""); setChargeNotes(""); setChargeCustomerId("")
+      setDisplayChargeAmount(""); setChargeNotes(""); setChargeCustomerId("")
     } catch (error) { /* Handled centrally */ } finally { setIsSaving(false) }
   }
 
@@ -254,8 +256,9 @@ export default function CurrentAccountPage() {
     reader.readAsArrayBuffer(file)
   }
 
-  const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / (parseFloat(usdRate) || 1));
-  const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / (parseFloat(usdRate) || 1));
+  const currentUsdRateNum = parseFloat(usdRate) || 1;
+  const martinUSDTotal = (totalsByTab.martinUSD > 0) ? totalsByTab.martinUSD : (totalsByTab.martin / currentUsdRateNum);
+  const totiUSDTotal = (totalsByTab.totiUSD > 0) ? totalsByTab.totiUSD : (totalsByTab.toti / currentUsdRateNum);
 
   const pendingMovements = useMemo(() => {
     if (!movements) return []
@@ -359,7 +362,6 @@ export default function CurrentAccountPage() {
         </Table>
       </Card>
 
-      {/* Ficha Histórica con Cobro Individual */}
       <Dialog open={isStatusDialogOpen} onOpenChange={setIsStatusDialogOpen}>
         <DialogContent className="sm:max-w-[650px] max-h-[90vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-0">
@@ -373,7 +375,7 @@ export default function CurrentAccountPage() {
                   <p className="text-3xl font-black text-red-600">${selectedCustomer?.balance.toLocaleString('es-AR')}</p>
                </Card>
                <Card className="bg-primary/5 border-primary/10 p-4 text-center">
-                  <p className="text-[10px] font-black uppercase text-primary/60 mb-1">Ahorro en USD</p>
+                  <p className="text-[10px] font-black uppercase text-primary/60 mb-1">Dólares de hoy</p>
                   <p className="text-3xl font-black text-primary">USD {((selectedCustomer?.balance || 0) / (parseFloat(usdRate) || 1)).toLocaleString('en-US')}</p>
                </Card>
             </div>
@@ -420,22 +422,31 @@ export default function CurrentAccountPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo Cobro General */}
       <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Cobro General / Entrega</DialogTitle>
             <DialogDescription>
-              {selectedCustomer ? `Registra un pago para ${selectedCustomer.name}. Se saldarán automáticamente las deudas más antiguas.` : 'Registra un pago que descuenta del saldo total.'}
+              Registra un pago que descuenta del saldo total. El punto de miles se pone solo.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
              <div className="space-y-2">
                 <Label>Monto a entregar ($)</Label>
-                <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="h-12 text-xl font-bold" placeholder="0.00" autoFocus />
-                {paymentAmount && usdRate && (
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-xl font-black text-primary/50">$</span>
+                  <Input 
+                    type="text" 
+                    value={displayPaymentAmount} 
+                    onChange={(e) => setDisplayPaymentAmount(formatMoneyInput(e.target.value))} 
+                    className="h-12 text-xl font-bold pl-8" 
+                    placeholder="0" 
+                    autoFocus 
+                  />
+                </div>
+                {displayPaymentAmount && currentUsdRateNum > 0 && (
                   <p className="text-[10px] font-bold text-primary italic">
-                    ≈ USD {(parseFloat(paymentAmount) / parseFloat(usdRate)).toLocaleString('en-US')} (al valor de hoy)
+                    ≈ USD {(parseFloat(displayPaymentAmount.replace(/\D/g, "")) / currentUsdRateNum).toLocaleString('en-US')} (al valor de hoy)
                   </p>
                 )}
              </div>
@@ -446,14 +457,13 @@ export default function CurrentAccountPage() {
           </div>
           <DialogFooter>
              <Button variant="outline" onClick={() => setIsPayDialogOpen(false)}>Cancelar</Button>
-             <Button onClick={handleProcessPayment} disabled={isSaving || !paymentAmount} className="gap-2">
+             <Button onClick={handleProcessPayment} disabled={isSaving || !displayPaymentAmount} className="gap-2">
                {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Confirmar
              </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo Nuevo Cargo */}
       <Dialog open={isChargeDialogOpen} onOpenChange={setIsChargeDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader><DialogTitle>Nuevo Cargo Directo</DialogTitle></DialogHeader>
@@ -467,7 +477,16 @@ export default function CurrentAccountPage() {
             </div>
             <div className="space-y-2">
               <Label>Monto ($)</Label>
-              <Input type="number" value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} />
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-primary/50 font-bold">$</span>
+                <Input 
+                  type="text" 
+                  value={displayChargeAmount} 
+                  onChange={(e) => setDisplayChargeAmount(formatMoneyInput(e.target.value))} 
+                  className="pl-8 font-bold"
+                  placeholder="0"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Descripción / Producto</Label>
@@ -476,7 +495,7 @@ export default function CurrentAccountPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsChargeDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleProcessCharge} disabled={isSaving || !chargeCustomerId} className="gap-2">Guardar Cargo</Button>
+            <Button onClick={handleProcessCharge} disabled={isSaving || !chargeCustomerId || !displayChargeAmount} className="gap-2">Guardar Cargo</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
