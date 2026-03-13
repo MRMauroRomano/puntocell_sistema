@@ -1,13 +1,13 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Wrench, CheckCircle2, Loader2, UserCircle, FileText, Info } from "lucide-react"
+import { Wrench, CheckCircle2, Loader2, UserCircle, FileText, Info, Search } from "lucide-react"
 import { Customer, PaymentMethod, InvoiceType, Sale, BillingConfig, AccountMovement } from "@/lib/types"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -26,6 +26,7 @@ export default function ArreglosPage() {
   const [price, setPrice] = useState("")
   const [notes, setNotes] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("")
+  const [customerSearch, setCustomerSearch] = useState("")
   const [invoiceType, setInvoiceType] = useState<InvoiceType>('ticket')
   const [selectedBillingCuitId, setSelectedBillingCuitId] = useState<string>("")
   
@@ -37,6 +38,14 @@ export default function ArreglosPage() {
     user ? collection(firestore, 'users', user.uid, 'customers') : null, 
   [firestore, user])
   const { data: customers } = useCollection<Customer>(customersRef)
+
+  const filteredCustomers = useMemo(() => {
+    if (!customers) return []
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      (c.phone && c.phone.includes(customerSearch))
+    )
+  }, [customers, customerSearch])
 
   const settingsRef = useMemoFirebase(() => 
     user ? collection(firestore, 'users', user.uid, 'settings') : null, 
@@ -148,6 +157,7 @@ export default function ArreglosPage() {
     setPrice("")
     setNotes("")
     setSelectedCustomerId("")
+    setCustomerSearch("")
     setIsSuccessDialogOpen(false)
   }
 
@@ -216,20 +226,37 @@ export default function ArreglosPage() {
             <CardContent className="p-6 space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase text-muted-foreground">Buscar Cliente</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Nombre del cliente..." 
+                      className="pl-9 h-9 text-xs"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <Label className="text-[10px] font-black uppercase text-muted-foreground">Seleccionar Cliente</Label>
                   <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
                     <SelectTrigger className="h-11 font-bold">
                       <SelectValue placeholder="Elegir cliente..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {customers?.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          <div className="flex justify-between items-center w-full gap-2">
-                            <span>{c.name}</span>
-                            <span className="text-[10px] opacity-50">{c.accountType === 'toti' ? '(Toti)' : '(Martin)'}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {filteredCustomers.length > 0 ? (
+                        filteredCustomers.map(c => (
+                          <SelectItem key={c.id} value={c.id}>
+                            <div className="flex justify-between items-center w-full gap-2">
+                              <span>{c.name}</span>
+                              <span className="text-[10px] opacity-50">{c.accountType === 'toti' ? '(Toti)' : '(Martin)'}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="p-2 text-xs text-center text-muted-foreground">No se encontraron clientes</div>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
