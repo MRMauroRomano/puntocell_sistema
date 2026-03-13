@@ -109,6 +109,28 @@ export default function CurrentAccountPage() {
     const newBalance = Math.max(0, (selectedCustomer.balance || 0) - amount)
     const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
     
+    // Conciliación Automática: Buscar ítems pendientes y marcarlos como pagados si el monto alcanza
+    let remainingPayment = amount;
+    if (movements) {
+      // Ordenar por fecha (más antiguos primero)
+      const sortedPending = movements
+        .filter(m => m.type === 'charge' && m.status === 'pending')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      for (const m of sortedPending) {
+        if (remainingPayment <= 0) break;
+        // Si el pago cubre el total del ítem, lo marcamos como pagado
+        if (remainingPayment >= m.amount) {
+          const mRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', m.id);
+          updateDocumentNonBlocking(mRef, { status: 'paid' });
+          remainingPayment -= m.amount;
+        } else {
+          // Pago parcial: No marcamos como pagado aún, pero paramos la conciliación automática
+          break;
+        }
+      }
+    }
+    
     // Crear movimiento de pago
     const movementId = Math.random().toString(36).substr(2, 9)
     const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', movementId)
@@ -132,7 +154,7 @@ export default function CurrentAccountPage() {
         notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
-      toast({ title: "Pago registrado", description: `Se cobraron $${amount.toFixed(2)}.` })
+      toast({ title: "Pago registrado", description: `Se cobraron $${amount.toFixed(2)} y se conciliaron deudas.` })
       setIsPayDialogOpen(false)
     } catch (error) { /* Handled centrally */ } finally { setIsSaving(false) }
   }
@@ -403,12 +425,19 @@ export default function CurrentAccountPage() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Cobro General / Entrega</DialogTitle>
-            <DialogDescription>Registra un pago que descuenta del saldo total.</DialogDescription>
+            <DialogDescription>
+              {selectedCustomer ? `Registra un pago para ${selectedCustomer.name}. Se saldarán automáticamente las deudas más antiguas.` : 'Registra un pago que descuenta del saldo total.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
              <div className="space-y-2">
                 <Label>Monto a entregar ($)</Label>
                 <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="h-12 text-xl font-bold" placeholder="0.00" autoFocus />
+                {paymentAmount && usdRate && (
+                  <p className="text-[10px] font-bold text-primary italic">
+                    ≈ USD {(parseFloat(paymentAmount) / parseFloat(usdRate)).toLocaleString('en-US')} (al valor de hoy)
+                  </p>
+                )}
              </div>
              <div className="space-y-2">
                 <Label>Nota de Pago (Opcional)</Label>
