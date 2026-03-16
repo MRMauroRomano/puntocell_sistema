@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Printer, Wallet, UserCircle, FileText, Loader2, Save, ArrowRightLeft, History as HistoryIcon, CheckCircle2, XCircle, FileUp, Plus } from "lucide-react"
 import { useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, setDocumentNonBlocking, useUser, deleteDocumentNonBlocking } from "@/firebase"
 import { collection, doc } from "firebase/firestore"
-import { Customer, AccountMovement } from "@/lib/types"
+import { Customer, AccountMovement, PaymentMethod } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
@@ -21,6 +21,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import * as XLSX from 'xlsx'
+
+const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'EFECTIVO',
+  debit: 'DÉBITO',
+  transfer: 'TRANSFERENCIA',
+  cheque: 'CHEQUE',
+  visa: 'TARJETA VISA',
+  mastercard: 'MASTERCARD',
+  cabal: 'CABAL',
+  premier: 'PREMIER',
+  paselibre: 'PASE LIBRE',
+  credit_account: 'CUENTA CORRIENTE'
+};
 
 export default function CurrentAccountPage() {
   const firestore = useFirestore()
@@ -36,13 +49,18 @@ export default function CurrentAccountPage() {
   const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false)
   const [isChargeDialogOpen, setIsChargeDialogOpen] = useState(false)
+  const [isItemPayDialogOpen, setIsItemPayDialogOpen] = useState(false)
   
   const [displayPaymentAmount, setDisplayPaymentAmount] = useState<string>("")
   const [paymentNotes, setPaymentNotes] = useState<string>("")
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash")
   
   const [displayChargeAmount, setDisplayChargeAmount] = useState<string>("")
   const [chargeNotes, setChargeNotes] = useState<string>("")
   const [chargeCustomerId, setChargeCustomerId] = useState<string>("")
+  
+  const [itemToPay, setItemToPay] = useState<AccountMovement | null>(null)
+  const [itemPaymentMethod, setItemPaymentMethod] = useState<PaymentMethod>("cash")
   
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -96,6 +114,7 @@ export default function CurrentAccountPage() {
     setSelectedCustomer(customer)
     setDisplayPaymentAmount("")
     setPaymentNotes("")
+    setPaymentMethod("cash")
     setIsPayDialogOpen(true)
   }
 
@@ -141,14 +160,14 @@ export default function CurrentAccountPage() {
     setDocumentNonBlocking(movementRef, {
       id: movementId,
       date: new Date().toISOString(),
-      description: `ENTREGA / PAGO: ${paymentNotes || 'Sin descripción'}`,
+      description: `ENTREGA / PAGO (${PAYMENT_METHOD_LABELS[paymentMethod]}): ${paymentNotes || 'Sin descripción'}`,
       amount: amount,
       type: 'payment',
       status: 'paid'
     }, { merge: true })
 
     const timestamp = format(new Date(), "dd/MM/yyyy")
-    const newNote = `[${timestamp}] PAGO: -$${amount.toLocaleString('es-AR')}${paymentNotes ? ` (${paymentNotes})` : ''}\n`
+    const newNote = `[${timestamp}] PAGO (${PAYMENT_METHOD_LABELS[paymentMethod]}): -$${amount.toLocaleString('es-AR')}${paymentNotes ? ` (${paymentNotes})` : ''}\n`
     const updatedNotes = newNote + (selectedCustomer.notes || "")
 
     try {
@@ -163,18 +182,37 @@ export default function CurrentAccountPage() {
   }
 
   const handlePaySpecificItem = (movement: AccountMovement) => {
-    if (!user || !selectedCustomer || movement.status === 'paid') return
+    setItemToPay(movement)
+    setItemPaymentMethod("cash")
+    setIsItemPayDialogOpen(true)
+  }
+
+  const handleConfirmPaySpecificItem = () => {
+    if (!user || !selectedCustomer || !itemToPay) return
 
     setIsSaving(true)
-    const amount = movement.amount
+    const amount = itemToPay.amount
     const newBalance = Math.max(0, (selectedCustomer.balance || 0) - amount)
     const customerRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id)
-    const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', movement.id)
+    const movementRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', itemToPay.id)
 
+    // Actualizar el estado del ítem a pagado
     updateDocumentNonBlocking(movementRef, { status: 'paid' })
 
+    // Registrar el movimiento de pago
+    const payId = Math.random().toString(36).substr(2, 9)
+    const payRef = doc(firestore, 'users', user.uid, 'customers', selectedCustomer.id, 'movements', payId)
+    setDocumentNonBlocking(payRef, {
+      id: payId,
+      date: new Date().toISOString(),
+      description: `PAGO ÍTEM (${PAYMENT_METHOD_LABELS[itemPaymentMethod]}): ${itemToPay.description}`,
+      amount: amount,
+      type: 'payment',
+      status: 'paid'
+    }, { merge: true })
+
     const timestamp = format(new Date(), "dd/MM/yyyy")
-    const newNote = `[${timestamp}] COBRO ÍTEM: -$${amount.toLocaleString('es-AR')} (${movement.description})\n`
+    const newNote = `[${timestamp}] COBRO ÍTEM (${PAYMENT_METHOD_LABELS[itemPaymentMethod]}): -$${amount.toLocaleString('es-AR')} (${itemToPay.description})\n`
     const updatedNotes = newNote + (selectedCustomer.notes || "")
 
     try {
@@ -183,7 +221,9 @@ export default function CurrentAccountPage() {
         notes: updatedNotes,
         updatedAt: new Date().toISOString()
       })
-      toast({ title: "Ítem cobrado", description: `Se saldó "${movement.description}" por $${amount.toLocaleString('es-AR')}.` })
+      toast({ title: "Ítem cobrado", description: `Se saldó "${itemToPay.description}" por $${amount.toLocaleString('es-AR')}.` })
+      setIsItemPayDialogOpen(false)
+      setItemToPay(null)
     } catch (error) { /* Handled centrally */ } finally { setIsSaving(false) }
   }
 
@@ -451,6 +491,22 @@ export default function CurrentAccountPage() {
                 )}
              </div>
              <div className="space-y-2">
+                <Label>Medio de Pago</Label>
+                <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Efectivo</SelectItem>
+                    <SelectItem value="transfer">Transferencia</SelectItem>
+                    <SelectItem value="debit">Débito</SelectItem>
+                    <SelectItem value="visa">Tarjeta Visa</SelectItem>
+                    <SelectItem value="mastercard">Mastercard</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                  </SelectContent>
+                </Select>
+             </div>
+             <div className="space-y-2">
                 <Label>Nota de Pago (Opcional)</Label>
                 <Input value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Ej: Pago en efectivo" />
              </div>
@@ -460,6 +516,42 @@ export default function CurrentAccountPage() {
              <Button onClick={handleProcessPayment} disabled={isSaving || !displayPaymentAmount} className="gap-2">
                {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />} Confirmar
              </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isItemPayDialogOpen} onOpenChange={setIsItemPayDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Cobrar Ítem Específico</DialogTitle>
+            <DialogDescription>
+              Registrando pago para: <strong>{itemToPay?.description}</strong> por <strong>${itemToPay?.amount.toLocaleString('es-AR')}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Seleccionar Medio de Pago</Label>
+              <Select value={itemPaymentMethod} onValueChange={(v) => setItemPaymentMethod(v as PaymentMethod)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Efectivo</SelectItem>
+                  <SelectItem value="transfer">Transferencia</SelectItem>
+                  <SelectItem value="debit">Débito</SelectItem>
+                  <SelectItem value="visa">Tarjeta Visa</SelectItem>
+                  <SelectItem value="mastercard">Mastercard</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsItemPayDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmPaySpecificItem} disabled={isSaving} className="gap-2 bg-green-600 hover:bg-green-700">
+              {isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+              Confirmar Cobro
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
